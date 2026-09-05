@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand: #004d73;
+}
+
+body {
+  direction: rtl;
+}
