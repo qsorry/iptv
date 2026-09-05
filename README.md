@@ -1,28 +1,31 @@
-# IPTV System
+# Commerce Platform
 
-نظام جديد مبني بـ **Next.js 15 + Supabase** لإدارة أعمال IPTV الخاصة بمتجر [سمارت سوق](https://ssouq.com).
+منصة متاجر إلكترونية **متعددة المستأجرين** تُباع للتجار، مبنية كـ Modular Monolith على
+**Next.js 15 + PostgreSQL (Supabase) + Drizzle ORM**، مع استيراد بيانات التاجر من سلة.
 
 ## المتطلبات
 - Node.js 22+
-- حساب Supabase
-- (اختياري) Supabase CLI للتطوير المحلي
+- مشروع Supabase (أو Postgres محلي)
 
 ## البدء
 ```bash
-cp .env.example .env.local   # ثم عبّئ المفاتيح
+cp .env.example .env.local     # عبّئ DATABASE_URL ومفاتيح Supabase
 npm install
+npm run db:migrate             # ينشئ الجداول
 npm run dev
 ```
-افتح http://localhost:3000
 
 ## الأوامر
 | الأمر | الوصف |
 |---|---|
-| `npm run dev` | تشغيل بيئة التطوير |
-| `npm run build` | بناء نسخة الإنتاج |
-| `npm run lint` | فحص الكود |
-| `npm run typecheck` | فحص الأنواع |
-| `npm run db:types` | توليد أنواع قاعدة البيانات من Supabase |
+| `npm run dev` | تشغيل التطوير |
+| `npm run build` | بناء الإنتاج |
+| `npm run lint` / `npm run typecheck` | الفحوصات |
+| `npm run db:generate` | توليد هجرة من تغييرات schema |
+| `npm run db:migrate` | تطبيق الهجرات |
+| `npm run db:studio` | متصفح قاعدة البيانات |
 
-## هيكل المشروع
-راجع [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+## التوثيق
+- [البنية المعمارية](docs/ARCHITECTURE.md)
+- [قاعدة البيانات](docs/DATABASE.md)
+- [خارطة الطريق](docs/ROADMAP.md)

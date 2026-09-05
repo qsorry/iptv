@@ -1,5 +1,5 @@
 {
-  "name": "iptv-system",
+  "name": "commerce-platform",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -8,14 +8,20 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "db:types": "supabase gen types typescript --linked > src/types/database.ts"
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.1",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.41.0",
     "next": "15.3.0",
+    "postgres": "^3.4.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "tailwind-merge": "^3.2.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
@@ -23,6 +29,7 @@
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "autoprefixer": "^10.4.21",
+    "drizzle-kit": "^0.30.6",
     "eslint": "^9.24.0",
     "eslint-config-next": "15.3.0",
     "postcss": "^8.5.3",

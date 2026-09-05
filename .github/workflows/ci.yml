@@ -20,3 +20,4 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
