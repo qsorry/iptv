@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { getAdminContext } from "@/core/tenancy/server";
 import { listCustomers } from "@/modules/customers";
 import { formatMoney, toMinor } from "@/core/money";
 import { PageHeader } from "@/components/admin/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Button } from "@/components/ui/button";
 
 export default async function CustomersPage() {
   const ctx = await getAdminContext();
@@ -10,7 +12,14 @@ export default async function CustomersPage() {
 
   return (
     <div>
-      <PageHeader title="العملاء" />
+      <PageHeader
+        title="العملاء"
+        action={
+          <Link href="/admin/customers/import">
+            <Button variant="secondary">استيراد العملاء</Button>
+          </Link>
+        }
+      />
       {rows.length === 0 ? (
         <EmptyState title="لا يوجد عملاء بعد" description="يظهر العملاء تلقائياً عند أول طلب." />
       ) : (
