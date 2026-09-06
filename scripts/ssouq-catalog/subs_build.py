@@ -88,9 +88,8 @@ svg.ic{width:1.15em;height:1.15em;fill:currentColor;flex:none;vertical-align:-.2
 @media(min-width:720px){.controls{grid-template-columns:minmax(220px,2fr) minmax(160px,1fr) minmax(160px,1fr) auto}}
 .field{position:relative;display:flex;align-items:center}
 .field svg.ic{position:absolute;inset-inline-start:10px;color:var(--muted);pointer-events:none}
-.field input,.field select{width:100%;min-height:40px;font-size:16px;font-family:inherit;color:var(--ink);background:var(--ground);border:1px solid var(--line);border-radius:8px;padding:6px 36px 6px 12px;appearance:none;-webkit-appearance:none}
-.field select{cursor:pointer}
-.field input:focus,.field select:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+.field input,.field .picker{width:100%;min-height:40px;font-size:16px;font-family:inherit;color:var(--ink);background:var(--ground);border:1px solid var(--line);border-radius:8px;padding:6px 36px 6px 12px;appearance:none;-webkit-appearance:none}
+.field input:focus,.field .picker:focus-visible{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--ground)}
 .seg button{min-height:40px;padding:0 14px;border:0;background:transparent;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-weight:500}
 .seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
@@ -160,6 +159,28 @@ dialog::backdrop{background:rgba(6,16,24,.65);backdrop-filter:blur(2px)}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13px;margin:0} .kv dt{color:var(--muted)} .kv dd{margin:0;overflow-wrap:anywhere}
 .kv code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;direction:ltr;unicode-bidi:embed}
 @media (prefers-reduced-motion: no-preference){.card{transition:transform .15s ease}.card:hover{transform:translateY(-2px)}}
+/* ---------- قوائم الاختيار: ورقة سفلية (Bottom Sheet) بدل <select> ---------- */
+.field .picker{width:100%;min-height:40px;font-size:16px;font-family:inherit;color:var(--ink);background:var(--ground);border:1px solid var(--line);border-radius:8px;padding:6px 36px 6px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;text-align:start}
+.field .picker>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.field .picker svg.ic.chev{position:static;color:var(--muted);width:1em;height:1em}
+.field .picker:focus-visible{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+.sheet{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;justify-content:center}
+.sheet-bd{position:absolute;inset:0;background:rgba(6,16,24,.55);backdrop-filter:blur(2px);animation:sheet-fade .2s ease}
+.sheet-panel{position:relative;width:100%;max-height:85dvh;display:flex;flex-direction:column;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-bottom:0;border-radius:18px 18px 0 0;box-shadow:0 -12px 40px -12px rgba(0,0,0,.4);padding-bottom:env(safe-area-inset-bottom);animation:sheet-up .22s cubic-bezier(.2,.8,.2,1)}
+@media(min-width:640px){.sheet-panel{max-width:440px;border-radius:18px;border-bottom:1px solid var(--line);margin-bottom:24px}}
+.sheet-grip{display:flex;justify-content:center;padding-top:10px} .sheet-grip span{width:40px;height:6px;border-radius:999px;background:var(--line)} @media(min-width:640px){.sheet-grip{display:none}}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px 8px} .sheet-head h2{font-size:16px}
+.sheet-close{width:40px;height:40px;border-radius:999px;border:0;background:transparent;color:var(--muted);cursor:pointer;display:grid;place-items:center} .sheet-close:hover{background:var(--surface-2)}
+.sheet-list{overflow-y:auto;overscroll-behavior:contain;padding:0 8px 12px;display:grid;gap:2px}
+.opt{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:10px 12px;border:0;border-radius:10px;background:transparent;text-align:start;font-size:16px;cursor:pointer}
+.opt:hover{background:var(--ground)} .opt:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.opt[aria-checked="true"]{background:var(--accent-soft);color:var(--accent-text);font-weight:600}
+.opt .rd{width:20px;height:20px;border-radius:999px;border:2px solid var(--line);display:grid;place-items:center;flex:none}
+.opt[aria-checked="true"] .rd{border-color:var(--accent)} .opt[aria-checked="true"] .rd::after{content:"";width:10px;height:10px;border-radius:999px;background:var(--accent)}
+.opt .n{margin-inline-start:auto;font-size:12px;color:var(--muted);font-weight:400}
+.sheet.closing .sheet-panel{animation:sheet-up .18s ease-in reverse forwards} .sheet.closing .sheet-bd{animation:sheet-fade .18s ease-in reverse forwards}
+@keyframes sheet-up{from{transform:translateY(100%)}to{transform:translateY(0)}} @keyframes sheet-fade{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.sheet-panel,.sheet-bd,.sheet.closing .sheet-panel,.sheet.closing .sheet-bd{animation:none}}
 </style>
 </head>
 <body>
@@ -172,8 +193,8 @@ dialog::backdrop{background:rgba(6,16,24,.65);backdrop-filter:blur(2px)}
   </div>
   <div class="controls">
     <label class="field"><span class="sr">بحث</span><svg class="ic"><use href="#i-magnify"/></svg><input id="q" type="search" placeholder="ابحث في الأسماء والمميزات والقنوات…" autocomplete="off"></label>
-    <label class="field"><span class="sr">الترتيب</span><svg class="ic"><use href="#i-sort"/></svg><select id="sort"><option value="default">حسب الباقة والمدة</option><option value="sold">الأكثر مبيعاً</option><option value="price-asc">السعر: من الأقل</option><option value="price-desc">السعر: من الأعلى</option><option value="ppm">أفضل سعر شهري</option><option value="duration">الأطول مدة</option></select></label>
-    <label class="field"><span class="sr">المنصة</span><svg class="ic"><use href="#i-devices"/></svg><select id="plat"><option value="">كل المنصات</option></select></label>
+    <div class="field"><svg class="ic"><use href="#i-sort"/></svg><button class="picker" type="button" id="sort" aria-haspopup="dialog" aria-expanded="false" aria-label="الترتيب"><span>حسب الباقة والمدة</span><svg class="ic chev" aria-hidden="true"><use href="#i-chevron-down"/></svg></button></div>
+    <div class="field"><svg class="ic"><use href="#i-devices"/></svg><button class="picker" type="button" id="plat" aria-haspopup="dialog" aria-expanded="false" aria-label="المنصة"><span>كل المنصات</span><svg class="ic chev" aria-hidden="true"><use href="#i-chevron-down"/></svg></button></div>
     <div class="seg" role="group" aria-label="طريقة العرض"><button id="v-cards" aria-pressed="true" type="button"><svg class="ic"><use href="#i-view-grid-outline"/></svg> بطاقات</button><button id="v-table" aria-pressed="false" type="button"><svg class="ic"><use href="#i-table-large"/></svg> جدول مقارنة</button></div>
   </div>
   <div class="chips" id="fams" role="group" aria-label="عائلة الاشتراك"></div>
@@ -194,6 +215,22 @@ dialog::backdrop{background:rgba(6,16,24,.65);backdrop-filter:blur(2px)}
   const $ = s => document.querySelector(s);
   const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const ic = n => `<svg class="ic" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+  /* ---- قوائم الاختيار: ورقة سفلية موحّدة (Bottom Sheet) ---- */
+  const pickers = {}; let sheetEl = null, sheetFor = null, sheetLastFocus = null;
+  function definePicker(id, title, options, onChange){ const btn = $('#'+id); pickers[id] = {title, options, value: options[0].v, onChange, btn}; syncPicker(id); btn.addEventListener('click', () => openSheet(id)); }
+  function syncPicker(id){ const p = pickers[id]; const o = p.options.find(x => x.v === p.value) || p.options[0]; p.btn.querySelector('span').textContent = o.l; }
+  function setPicker(id, v){ const p = pickers[id]; p.value = v; syncPicker(id); p.onChange(v); }
+  function openSheet(id){ const p = pickers[id]; closeSheet(true); sheetLastFocus = p.btn; sheetFor = id;
+    const el = document.createElement('div'); el.className = 'sheet';
+    el.innerHTML = `<div class="sheet-bd" data-sheet-close></div><div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="sheet-title"><div class="sheet-grip" aria-hidden="true"><span></span></div><div class="sheet-head"><h2 id="sheet-title">${esc(p.title)}</h2><button class="sheet-close" type="button" data-sheet-close aria-label="إغلاق">${ic('close')}</button></div><div class="sheet-list" role="radiogroup" aria-labelledby="sheet-title">${p.options.map(o => `<button class="opt" type="button" role="radio" aria-checked="${o.v === p.value}" data-v="${esc(o.v)}"><span class="rd" aria-hidden="true"></span><span>${esc(o.l)}</span>${o.n != null ? `<span class="n">${o.n}</span>` : ''}</button>`).join('')}</div></div>`;
+    document.body.appendChild(el); sheetEl = el; document.body.style.overflow = 'hidden'; p.btn.setAttribute('aria-expanded', 'true');
+    const cur = el.querySelector('[aria-checked="true"]') || el.querySelector('.opt'); if(cur){ cur.focus({preventScroll: true}); cur.scrollIntoView({block: 'nearest'}); } }
+  function closeSheet(now){ if(!sheetEl) return; const el = sheetEl, id = sheetFor; sheetEl = null; sheetFor = null; pickers[id].btn.setAttribute('aria-expanded', 'false'); document.body.style.overflow = '';
+    const done = () => { el.remove(); if(!now && sheetLastFocus) sheetLastFocus.focus(); }; if(now){ done(); } else { el.classList.add('closing'); setTimeout(done, 180); } }
+  document.body.addEventListener('click', e => { if(!sheetEl) return; if(e.target.closest('[data-sheet-close]')){ closeSheet(); return; } const o = e.target.closest('.opt'); if(o && sheetEl.contains(o)){ setPicker(sheetFor, o.dataset.v); closeSheet(); } });
+  document.addEventListener('keydown', e => { if(!sheetEl) return; if(e.key === 'Escape'){ e.preventDefault(); closeSheet(); return; } if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){ const items = [...sheetEl.querySelectorAll('.opt')]; const i = items.indexOf(document.activeElement); if(i < 0) return; e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus(); } });
+  definePicker('sort', 'الترتيب', [{v: 'default', l: 'حسب الباقة والمدة'}, {v: 'sold', l: 'الأكثر مبيعاً'}, {v: 'price-asc', l: 'السعر: من الأقل'}, {v: 'price-desc', l: 'السعر: من الأعلى'}, {v: 'ppm', l: 'أفضل سعر شهري'}, {v: 'duration', l: 'الأطول مدة'}], v => { state.sort = v; render(); });
+  definePicker('plat', 'المنصة', [{v: '', l: 'كل المنصات'}], v => { state.plat = v; render(); });
   const fmt = n => n==null ? '—' : Number(n).toLocaleString('en-US',{maximumFractionDigits:2});
   const img = (im, cls, alt) => im ? `<img class="${cls}" src="${esc(im.src)}" ${im.original?`data-fb="${esc(im.original)}" onerror="if(this.dataset.fb){this.src=this.dataset.fb;this.removeAttribute('data-fb')}"`:''} alt="${esc(alt||'')}" loading="lazy" decoding="async">` : `<div class="noimg">${ic('image-off-outline')}</div>`;
   const dur = p => p.duration_months==null ? '—' : p.duration_months===0 ? 'يوم' : p.duration_months===12 ? 'سنة' : p.duration_months===24 ? 'سنتان' : p.duration_months + ' شهر';
@@ -207,13 +244,11 @@ dialog::backdrop{background:rgba(6,16,24,.65);backdrop-filter:blur(2px)}
   const fams = {}; const plats = {};
   P.forEach(p => { fams[p.family]=(fams[p.family]||0)+1; p.platforms.forEach(t => plats[t]=(plats[t]||0)+1); });
   $('#fams').innerHTML = `<button class="chip" data-f="" aria-pressed="true">الكل <span class="n">${P.length}</span></button>` + Object.entries(fams).map(([f,n]) => `<button class="chip" data-f="${esc(f)}" aria-pressed="false">${esc(f)} <span class="n">${n}</span></button>`).join('');
-  $('#plat').insertAdjacentHTML('beforeend', Object.entries(plats).map(([t,n]) => `<option value="${esc(t)}">${esc(t)} (${n})</option>`).join(''));
+  pickers.plat.options.push(...Object.entries(plats).map(([t,n]) => ({v: t, l: t, n})));
   P.forEach(p => p._hay = [p.name, p.family, p.brand, p.promotion, p.summary, ...p.groups.flatMap(g => [g.title||'', ...g.items.map(i=>i.text)])].join(' ').toLowerCase());
   const state = {q:'', f:'', plat:'', sort:'default', view:'cards'};
   $('#fams').addEventListener('click', e => { const b=e.target.closest('.chip'); if(!b) return; state.f=b.dataset.f; [...$('#fams').children].forEach(x=>x.setAttribute('aria-pressed',x===b)); render(); });
   $('#q').addEventListener('input', e => { state.q=e.target.value.trim().toLowerCase(); render(); });
-  $('#sort').addEventListener('change', e => { state.sort=e.target.value; render(); });
-  $('#plat').addEventListener('change', e => { state.plat=e.target.value; render(); });
   $('#v-cards').addEventListener('click', () => setView('cards')); $('#v-table').addEventListener('click', () => setView('table'));
   function setView(v){ state.view=v; $('#v-cards').setAttribute('aria-pressed', v==='cards'); $('#v-table').setAttribute('aria-pressed', v==='table'); render(); }
 

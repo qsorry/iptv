@@ -52,6 +52,47 @@ body {
 }
 
 /*
+ * الورقة السفلية (Bottom Sheet) لكل قوائم الاختيار — انظر components/ui/select.tsx.
+ * تنزلق من الأسفل عند الفتح وتنزل عند الإغلاق؛ تُعطَّل الحركة عند prefers-reduced-motion.
+ */
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes sheet-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.sheet-panel {
+  animation: sheet-up 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.sheet-backdrop {
+  animation: sheet-fade 0.2s ease;
+}
+.sheet-closing .sheet-panel {
+  animation: sheet-up 0.18s ease-in reverse forwards;
+}
+.sheet-closing .sheet-backdrop {
+  animation: sheet-fade 0.18s ease-in reverse forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet-panel,
+  .sheet-backdrop,
+  .sheet-closing .sheet-panel,
+  .sheet-closing .sheet-backdrop {
+    animation: none;
+  }
+}
+
+/*
  * تنسيق محتوى HTML للوصف (المستورد من سلة وغيرها) دون الحاجة لإضافة typography.
  * يجعل العناوين والقوائم والصور والجداول واضحة للعميل.
  */

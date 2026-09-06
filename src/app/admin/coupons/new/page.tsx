@@ -6,6 +6,7 @@ import { AppError } from "@/core/errors";
 import { PageHeader } from "@/components/admin/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 
 export default async function NewCouponPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   await getAdminContext();
@@ -39,10 +40,16 @@ export default async function NewCouponPage({ searchParams }: { searchParams: Pr
         <label className="block text-sm">الرمز<Input name="code" required dir="ltr" placeholder="SUMMER20" className="mt-1" /></label>
         <label className="block text-sm">
           نوع الخصم
-          <select name="discountType" className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base">
-            <option value="percentage">نسبة %</option>
-            <option value="fixed">مبلغ ثابت</option>
-          </select>
+          <Select
+            name="discountType"
+            title="نوع الخصم"
+            required
+            className="mt-1"
+            options={[
+              { value: "percentage", label: "نسبة %" },
+              { value: "fixed", label: "مبلغ ثابت" },
+            ]}
+          />
         </label>
         <label className="block text-sm">القيمة<Input name="value" type="number" step="0.01" min="0" required dir="ltr" className="mt-1" /></label>
         <label className="block text-sm">الحد الأدنى للطلب (اختياري)<Input name="minOrderAmount" type="number" step="0.01" min="0" dir="ltr" className="mt-1" /></label>

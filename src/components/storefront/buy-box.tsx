@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { formatMoney, toMinor } from "@/core/money";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 
 /** زر الإضافة مع حالة انتظار (سبينر) أثناء التوجّه إلى السلة. */
 function AddButton({ digital, className }: { digital: boolean; className?: string }) {
@@ -76,32 +77,24 @@ export function BuyBox({
         )}
       </div>
 
-      {/* اختيار الخيار كأزرار */}
+      {/* اختيار الباقة عبر ورقة سفلية (القاعدة الموحّدة لكل الخيارات) */}
       {variants.length > 1 && (
         <div>
-          <label className="mb-2 block text-sm font-medium">اختر الباقة</label>
-          <div className="flex flex-wrap gap-2">
-            {variants.map((v) => {
-              const selected = v.id === variantId;
-              return (
-                <button
-                  key={v.id}
-                  type="button"
-                  onClick={() => setVariantId(v.id)}
-                  className={`rounded-[var(--radius)] border-2 px-4 py-2 text-sm transition ${
-                    selected
-                      ? "border-[var(--brand)] bg-[color-mix(in_srgb,var(--brand)_10%,transparent)] font-semibold text-[var(--brand)]"
-                      : "border-[var(--border)] hover:border-[var(--brand)]"
-                  }`}
-                >
-                  <span className="block">{v.name}</span>
-                  <span className="mt-0.5 block text-xs text-[var(--muted)]" dir="ltr">
-                    {formatMoney(toMinor(v.price), currency)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <label htmlFor="buy-variant" className="mb-2 block text-sm font-medium">
+            اختر الباقة
+          </label>
+          <Select
+            id="buy-variant"
+            title="اختر الباقة"
+            value={variantId}
+            onChange={setVariantId}
+            dir="ltr"
+            options={variants.map((v) => ({
+              value: v.id,
+              label: v.name,
+              description: formatMoney(toMinor(v.price), currency),
+            }))}
+          />
         </div>
       )}
 

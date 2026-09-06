@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 
 const roleLabel: Record<string, string> = { owner: "المالك", admin: "مدير", staff: "موظف" };
 
@@ -41,10 +42,17 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
       <Card className="mb-4">
         <form action={invite} className="flex flex-wrap items-end gap-2">
           <label className="block flex-1 text-sm">البريد الإلكتروني<Input name="email" type="email" dir="ltr" required className="mt-1" /></label>
-          <select name="role" className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base">
-            <option value="staff">موظف</option>
-            <option value="admin">مدير</option>
-          </select>
+          <div className="w-full sm:w-40">
+            <Select
+              name="role"
+              title="الدور"
+              required
+              options={[
+                { value: "staff", label: "موظف" },
+                { value: "admin", label: "مدير" },
+              ]}
+            />
+          </div>
           <Button type="submit" size="sm">إضافة</Button>
         </form>
         <p className="mt-2 text-xs text-[var(--muted)]">يجب أن يكون لدى العضو حساب مسجّل على المنصة أولاً.</p>

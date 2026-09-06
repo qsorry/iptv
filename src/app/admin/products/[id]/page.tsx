@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Tabs } from "@/components/ui/tabs";
 
 export default async function ProductDetailPage({
@@ -166,27 +167,33 @@ export default async function ProductDetailPage({
                   <div className="grid grid-cols-2 gap-3">
                     <label className="block text-sm">
                       الحالة
-                      <select
+                      <Select
                         name="status"
+                        title="الحالة"
+                        required
                         defaultValue={product.status}
-                        className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base"
-                      >
-                        <option value="draft">مسودة</option>
-                        <option value="active">منشور</option>
-                        <option value="archived">مؤرشف</option>
-                      </select>
+                        className="mt-1"
+                        options={[
+                          { value: "draft", label: "مسودة" },
+                          { value: "active", label: "منشور" },
+                          { value: "archived", label: "مؤرشف" },
+                        ]}
+                      />
                     </label>
                     <label className="block text-sm">
                       النوع
-                      <select
+                      <Select
                         name="productType"
+                        title="النوع"
+                        required
                         defaultValue={product.productType}
-                        className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base"
-                      >
-                        <option value="digital">رقمي (كود/اشتراك)</option>
-                        <option value="physical">مادي (يُشحن)</option>
-                        <option value="service">خدمة</option>
-                      </select>
+                        className="mt-1"
+                        options={[
+                          { value: "digital", label: "رقمي (كود/اشتراك)" },
+                          { value: "physical", label: "مادي (يُشحن)" },
+                          { value: "service", label: "خدمة" },
+                        ]}
+                      />
                     </label>
                   </div>
                   <p className="text-xs text-[var(--muted)]">المنتج الرقمي يُسلَّم فوراً بكود دون شحن؛ المادي يتطلب عنوان شحن.</p>

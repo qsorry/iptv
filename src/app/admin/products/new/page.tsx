@@ -6,6 +6,7 @@ import { AppError } from "@/core/errors";
 import { PageHeader } from "@/components/admin/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 
 export default async function NewProductPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   await getAdminContext();
@@ -53,22 +54,28 @@ export default async function NewProductPage({ searchParams }: { searchParams: P
 
         <label className="block text-sm">
           نوع المنتج
-          <select
+          <Select
             name="productType"
-            className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base"
-          >
-            <option value="physical">منتج مادي</option>
-            <option value="digital">منتج رقمي</option>
-            <option value="service">خدمة</option>
-          </select>
+            title="نوع المنتج"
+            required
+            className="mt-1"
+            options={[
+              { value: "physical", label: "منتج مادي" },
+              { value: "digital", label: "منتج رقمي" },
+              { value: "service", label: "خدمة" },
+            ]}
+          />
         </label>
 
         <label className="block text-sm">
           التصنيف (اختياري)
-          <select name="categoryId" className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base">
-            <option value="">بدون</option>
-            {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          <Select
+            name="categoryId"
+            title="التصنيف"
+            required
+            className="mt-1"
+            options={[{ value: "", label: "بدون" }, ...cats.map((c) => ({ value: c.id, label: c.name }))]}
+          />
         </label>
 
         <label className="block text-sm">

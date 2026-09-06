@@ -9,6 +9,7 @@ import { AppError } from "@/core/errors";
 import { PageHeader } from "@/components/admin/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { EmptyState } from "@/components/shared/empty-state";
 
 export default async function NewOrderPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
@@ -51,11 +52,13 @@ export default async function NewOrderPage({ searchParams }: { searchParams: Pro
         <form action={action} className="space-y-4">
           <label className="block text-sm">
             المنتج
-            <select name="variantId" required className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base">
-              {rows.map((r) => (
-                <option key={r.variantId} value={r.variantId}>{r.name} — {r.price} ر.س</option>
-              ))}
-            </select>
+            <Select
+              name="variantId"
+              title="المنتج"
+              required
+              className="mt-1"
+              options={rows.map((r) => ({ value: r.variantId, label: r.name, description: `${r.price} ر.س` }))}
+            />
           </label>
           <label className="block text-sm">
             الكمية
