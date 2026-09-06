@@ -13,7 +13,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const memberships = await listMemberships(session.user.id);
   const active = memberships[0];
   const scheme = PLATFORM_DOMAIN.includes("localhost") ? "http" : "https";
-  const storeUrl = active ? `${scheme}://${active.storeSlug}.${PLATFORM_DOMAIN}` : "#";
+  const storeUrl = active ? `${scheme}://${PLATFORM_DOMAIN}/s/${active.storeSlug}` : "#";
 
   let logoUrl: string | null = null;
   let storeName = active?.storeName ?? "متجري";

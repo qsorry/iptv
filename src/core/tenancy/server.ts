@@ -56,5 +56,11 @@ export async function getStorefrontStore() {
       .limit(1);
     return row[0]?.store ?? null;
   }
+
+  // وصول عبر مجلد: /s/<slug> يضبط كوكي المتجر النشط.
+  const cookieStore = await cookies();
+  const preview = cookieStore.get("store_preview")?.value;
+  if (preview) return db.query.stores.findFirst({ where: and(eq(stores.slug, preview), eq(stores.status, "active")) });
+
   return null;
 }

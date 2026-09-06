@@ -31,7 +31,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const curLayout = (curSettings.layout as string | undefined) ?? (curSettings.productLayout as string | undefined) ?? DEFAULT_LAYOUT;
   const { error, ok } = await searchParams;
   const scheme = PLATFORM_DOMAIN.includes("localhost") ? "http" : "https";
-  const storeUrl = `${scheme}://${ctx.storeSlug}.${PLATFORM_DOMAIN}`;
+  const storeUrl = `${scheme}://${PLATFORM_DOMAIN}/s/${ctx.storeSlug}`;
 
   async function saveSubdomain(formData: FormData) {
     "use server";
