@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getAdminContext } from "@/core/tenancy/server";
-import { updateSubdomain, listDomains, addDomain, removeDomain, updateBranding } from "@/modules/stores";
+import { updateSubdomain, listDomains, addDomain, removeDomain, updateBranding, THEMES, PRODUCT_LAYOUTS, DEFAULT_THEME, DEFAULT_LAYOUT } from "@/modules/stores";
 import { stores } from "@/infrastructure/database/schema";
 import { db } from "@/infrastructure/database/client";
 import { storeSettings } from "@/infrastructure/database/schema";
@@ -25,6 +25,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const settingsRow = await db.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, ctx.storeId) });
   const storeRow = await db.query.stores.findFirst({ where: eq(stores.id, ctx.storeId) });
   const taxPercent = (settingsRow?.settings as Record<string, unknown> | undefined)?.taxPercent ?? 15;
+  const curSettings = (settingsRow?.settings as Record<string, unknown> | undefined) ?? {};
+  const curTheme = (curSettings.theme as string | undefined) ?? DEFAULT_THEME;
+  const curLayout = (curSettings.layout as string | undefined) ?? (curSettings.productLayout as string | undefined) ?? DEFAULT_LAYOUT;
   const { error, ok } = await searchParams;
   const scheme = PLATFORM_DOMAIN.includes("localhost") ? "http" : "https";
   const storeUrl = `${scheme}://${ctx.storeSlug}.${PLATFORM_DOMAIN}`;
@@ -91,6 +94,18 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     redirect(msg ? `/admin/settings?error=${encodeURIComponent(msg)}` : "/admin/settings?ok=1");
   }
 
+  async function saveAppearance(formData: FormData) {
+    "use server";
+    const c = await getAdminContext();
+    const theme = String(formData.get("theme") || DEFAULT_THEME);
+    const productLayout = String(formData.get("productLayout") || DEFAULT_LAYOUT);
+    const row = await db.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, c.storeId) });
+    const merged = { ...((row?.settings as Record<string, unknown>) ?? {}), theme, productLayout };
+    await db.update(storeSettings).set({ settings: merged, updatedAt: new Date() }).where(eq(storeSettings.storeId, c.storeId));
+    revalidatePath("/admin/settings");
+    redirect("/admin/settings?ok=1");
+  }
+
   return (
     <div className="max-w-2xl">
       <PageHeader title="الإعدادات" />
@@ -113,6 +128,43 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <label className="block text-sm">رابط الشعار (اختياري)<Input name="logoUrl" defaultValue={storeRow?.logoUrl ?? ""} dir="ltr" placeholder="https://.../logo.png" className="mt-1" /></label>
           <label className="block text-sm">وصف المتجر (اختياري)<Input name="description" defaultValue={storeRow?.description ?? ""} className="mt-1" /></label>
           <Button type="submit" size="sm">حفظ الهوية</Button>
+        </form>
+      </Card>
+
+      {/* المظهر: الثيم وطريقة العرض */}
+      <h2 className="mb-2 text-sm font-semibold text-[var(--muted)]">مظهر المتجر</h2>
+      <Card className="mb-8">
+        <form action={saveAppearance} className="space-y-5">
+          <div>
+            <label className="mb-2 block text-sm">الثيم</label>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {Object.entries(THEMES).map(([key, t]) => (
+                <label key={key} className="cursor-pointer">
+                  <input type="radio" name="theme" value={key} defaultChecked={curTheme === key} className="peer sr-only" />
+                  <div className="rounded-[var(--radius)] border-2 border-[var(--border)] p-2 peer-checked:border-[var(--brand)]">
+                    <div className="mb-2 flex gap-1">
+                      <span className="h-5 w-5 rounded-full border" style={{ background: t.palette.bg }} />
+                      <span className="h-5 w-5 rounded-full border" style={{ background: t.palette.surface }} />
+                      <span className="h-5 w-5 rounded-full border" style={{ background: t.palette.fg }} />
+                    </div>
+                    <span className="text-xs">{t.name}</span>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="mb-2 block text-sm">طريقة عرض المنتجات</label>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(PRODUCT_LAYOUTS).map(([key, label]) => (
+                <label key={key} className="cursor-pointer">
+                  <input type="radio" name="productLayout" value={key} defaultChecked={curLayout === key} className="peer sr-only" />
+                  <span className="inline-block rounded-[var(--radius)] border border-[var(--border)] px-3 py-1.5 text-sm peer-checked:border-[var(--brand)] peer-checked:text-[var(--brand)]">{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <Button type="submit" size="sm">حفظ المظهر</Button>
         </form>
       </Card>
 

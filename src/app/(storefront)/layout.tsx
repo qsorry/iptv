@@ -3,6 +3,10 @@ import { Container } from "@/components/ui/container";
 import { getStorefrontStore } from "@/core/tenancy/server";
 import { readCartId } from "@/core/tenancy/cart-cookie";
 import { getCartView } from "@/modules/carts";
+import { themeVars } from "@/modules/stores";
+import { db } from "@/infrastructure/database/client";
+import { storeSettings } from "@/infrastructure/database/schema";
+import { eq } from "drizzle-orm";
 
 /** Layout واجهة المتجر. يُحدَّد المتجر من الدومين عبر middleware (core/tenancy). */
 export default async function StorefrontLayout({ children }: { children: React.ReactNode }) {
@@ -11,8 +15,11 @@ export default async function StorefrontLayout({ children }: { children: React.R
   const cart = store && cartId ? await getCartView(store.id, cartId) : null;
   const count = cart?.count ?? 0;
   const brand = store?.brandColor ?? "#004d73";
+  const settings = store ? await db.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, store.id) }) : null;
+  const themeKey = (settings?.settings as Record<string, unknown> | undefined)?.theme as string | undefined;
+  const vars = themeVars(themeKey, brand);
   return (
-    <div style={{ ["--brand" as string]: brand }}>
+    <div style={vars as React.CSSProperties}>
       <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--surface)] pt-[var(--safe-top)]">
         <Container className="flex items-center justify-between py-3 sm:py-4">
           <Link href="/" className="flex items-center gap-2 text-lg font-bold sm:text-xl">
