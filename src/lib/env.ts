@@ -14,6 +14,12 @@ const schema = z.object({
   S3_SECRET_ACCESS_KEY: z.string().optional(),
   /** الرابط العام للملفات (CDN أو الـ bucket نفسه). */
   S3_PUBLIC_URL: z.string().url().optional(),
+
+  /** سر تشغيل مجدول المهام. */
+  CRON_SECRET: z.string().optional(),
+  /** الإيميل (Resend). */
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
 });
 
 export const env = schema.parse({
@@ -27,4 +33,7 @@ export const env = schema.parse({
   S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID,
   S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY,
   S3_PUBLIC_URL: process.env.S3_PUBLIC_URL,
+  CRON_SECRET: process.env.CRON_SECRET,
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  EMAIL_FROM: process.env.EMAIL_FROM,
 });

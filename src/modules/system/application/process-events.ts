@@ -1,0 +1,62 @@
+import { and, eq, lt, sql } from "drizzle-orm";
+import { db } from "@/infrastructure/database/client";
+import { domainEvents } from "@/infrastructure/database/schema";
+import { notifyCodesDelivered } from "@/modules/notifications";
+
+const MAX_ATTEMPTS = 5;
+
+/** معالجة حدث واحد حسب نوعه. أضف الأنواع الجديدة هنا. */
+async function handle(event: typeof domainEvents.$inferSelect) {
+  switch (event.eventType) {
+    case "payment.succeeded":
+      if (event.storeId) await notifyCodesDelivered(event.storeId, event.aggregateId);
+      break;
+    default:
+      // نوع بلا معالج: يُعتبر مُعالَجاً (لا شيء يُفعل).
+      break;
+  }
+}
+
+/**
+ * يعالج دفعة من أحداث outbox المعلّقة. يقفل الصفوف (FOR UPDATE SKIP LOCKED)
+ * فلا يعالج عاملان نفس الحدث. يُستدعى دورياً (Cron / Scheduled Task).
+ */
+export async function processPendingEvents(limit = 20) {
+  let processed = 0;
+  let failed = 0;
+
+  for (let i = 0; i < limit; i++) {
+    const done = await db.transaction(async (tx) => {
+      const [event] = await tx
+        .select()
+        .from(domainEvents)
+        .where(and(eq(domainEvents.status, "pending"), lt(domainEvents.attempts, MAX_ATTEMPTS)))
+        .orderBy(domainEvents.createdAt)
+        .limit(1)
+        .for("update", { skipLocked: true });
+      if (!event) return false;
+
+      try {
+        await handle(event);
+        await tx.update(domainEvents).set({ status: "processed", processedAt: new Date() }).where(eq(domainEvents.id, event.id));
+        processed++;
+      } catch (e) {
+        const attempts = event.attempts + 1;
+        await tx
+          .update(domainEvents)
+          .set({
+            status: attempts >= MAX_ATTEMPTS ? "failed" : "pending",
+            attempts,
+            lastError: e instanceof Error ? e.message : String(e),
+          })
+          .where(eq(domainEvents.id, event.id));
+        failed++;
+      }
+      return true;
+    });
+    if (!done) break;
+  }
+
+  void sql; // (مُستخدم ضمنياً في drizzle)
+  return { processed, failed };
+}

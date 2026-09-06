@@ -15,6 +15,13 @@
       "when": 1788671475919,
       "tag": "0001_digital_codes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788672480764,
+      "tag": "0002_billing_notifications",
+      "breakpoints": true
     }
   ]
 }
