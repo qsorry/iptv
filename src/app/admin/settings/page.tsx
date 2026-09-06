@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getAdminContext } from "@/core/tenancy/server";
-import { updateSubdomain, listDomains, addDomain, removeDomain, updateBranding, THEMES, PRODUCT_LAYOUTS, DEFAULT_THEME, DEFAULT_LAYOUT } from "@/modules/stores";
+import { updateSubdomain, listDomains, addDomain, removeDomain, updateBranding, THEMES, PRODUCT_LAYOUTS, FONTS, ROUNDNESS, DEFAULT_THEME, DEFAULT_LAYOUT, DEFAULT_FONT } from "@/modules/stores";
 import { stores } from "@/infrastructure/database/schema";
 import { db } from "@/infrastructure/database/client";
 import { storeSettings } from "@/infrastructure/database/schema";
@@ -29,6 +29,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const curSettings = (settingsRow?.settings as Record<string, unknown> | undefined) ?? {};
   const curTheme = (curSettings.theme as string | undefined) ?? DEFAULT_THEME;
   const curLayout = (curSettings.layout as string | undefined) ?? (curSettings.productLayout as string | undefined) ?? DEFAULT_LAYOUT;
+  const curFont = (curSettings.font as string | undefined) ?? DEFAULT_FONT;
+  const curRoundness = (curSettings.roundness as string | undefined) ?? "";
   const { error, ok } = await searchParams;
   const scheme = PLATFORM_DOMAIN.includes("localhost") ? "http" : "https";
   const storeUrl = `${scheme}://${PLATFORM_DOMAIN}/s/${ctx.storeSlug}`;
@@ -101,8 +103,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     const c = await getAdminContext();
     const theme = String(formData.get("theme") || DEFAULT_THEME);
     const productLayout = String(formData.get("productLayout") || DEFAULT_LAYOUT);
+    const font = String(formData.get("font") || DEFAULT_FONT);
+    const roundness = String(formData.get("roundness") || "");
     const row = await db.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, c.storeId) });
-    const merged = { ...((row?.settings as Record<string, unknown>) ?? {}), theme, productLayout };
+    const merged = { ...((row?.settings as Record<string, unknown>) ?? {}), theme, productLayout, font, roundness };
     await db.update(storeSettings).set({ settings: merged, updatedAt: new Date() }).where(eq(storeSettings.storeId, c.storeId));
     revalidatePath("/admin/settings");
     redirect("/admin/settings?ok=1");
@@ -151,6 +155,32 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                     </div>
                     <span className="text-xs">{t.name}</span>
                   </div>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="mb-2 block text-sm">الخط</label>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(FONTS).map(([key, f]) => (
+                <label key={key} className="cursor-pointer">
+                  <input type="radio" name="font" value={key} defaultChecked={curFont === key} className="peer sr-only" />
+                  <span className="inline-block rounded-[var(--radius)] border border-[var(--border)] px-3 py-1.5 text-sm peer-checked:border-[var(--brand)] peer-checked:text-[var(--brand)]" style={{ fontFamily: f.stack }}>{f.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="mb-2 block text-sm">استدارة الحواف</label>
+            <div className="flex flex-wrap gap-2">
+              <label className="cursor-pointer">
+                <input type="radio" name="roundness" value="" defaultChecked={!curRoundness} className="peer sr-only" />
+                <span className="inline-block rounded-[var(--radius)] border border-[var(--border)] px-3 py-1.5 text-sm peer-checked:border-[var(--brand)] peer-checked:text-[var(--brand)]">حسب الثيم</span>
+              </label>
+              {Object.entries(ROUNDNESS).map(([key, r]) => (
+                <label key={key} className="cursor-pointer">
+                  <input type="radio" name="roundness" value={key} defaultChecked={curRoundness === key} className="peer sr-only" />
+                  <span className="inline-block border border-[var(--border)] px-3 py-1.5 text-sm peer-checked:border-[var(--brand)] peer-checked:text-[var(--brand)]" style={{ borderRadius: r.radius }}>{r.name}</span>
                 </label>
               ))}
             </div>

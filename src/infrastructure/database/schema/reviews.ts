@@ -1,4 +1,4 @@
-import { pgTable, text, integer, pgEnum, uuid, index } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, boolean, pgEnum, uuid, index } from "drizzle-orm/pg-core";
 import { id, timestamps } from "./_shared";
 import { stores } from "./stores";
 import { products } from "./catalog";
@@ -20,6 +20,7 @@ export const reviews = pgTable(
     rating: integer("rating").notNull(), // 1..5
     title: text("title"),
     body: text("body"),
+    verified: boolean("verified").default(false).notNull(),
     status: reviewStatus("status").default("pending").notNull(),
     ...timestamps(),
   },

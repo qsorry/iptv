@@ -34,6 +34,22 @@ export const THEMES: Record<string, { name: string; palette: ThemePalette }> = {
     name: "عنبي",
     palette: { bg: "#faf5ff", surface: "#ffffff", fg: "#2a1b3d", muted: "#7c6a90", border: "#ece0f7", radius: "1rem", dark: false },
   },
+  emerald: {
+    name: "زمردي",
+    palette: { bg: "#f0fdf6", surface: "#ffffff", fg: "#08312a", muted: "#5c8377", border: "#d2efe0", radius: "0.875rem", dark: false },
+  },
+  rose: {
+    name: "وردي أنيق",
+    palette: { bg: "#fff5f7", surface: "#ffffff", fg: "#3a1220", muted: "#9a6b78", border: "#f6dbe2", radius: "1rem", dark: false },
+  },
+  graphite: {
+    name: "رمادي فحمي",
+    palette: { bg: "#f4f5f7", surface: "#ffffff", fg: "#1b2027", muted: "#6b7480", border: "#e0e3e8", radius: "0.5rem", dark: false },
+  },
+  carbon: {
+    name: "كربوني داكن",
+    palette: { bg: "#111214", surface: "#1b1d21", fg: "#f2f3f5", muted: "#9a9ea6", border: "#2b2e34", radius: "0.5rem", dark: true },
+  },
 };
 
 export const DEFAULT_THEME = "modern";
@@ -45,17 +61,66 @@ export const PRODUCT_LAYOUTS: Record<string, string> = {
 };
 export const DEFAULT_LAYOUT = "grid";
 
-/** متغيرات CSS للثيم مع لون العلامة كـ accent. */
-export function themeVars(themeKey: string | undefined, brandColor: string): Record<string, string> {
-  const t = THEMES[themeKey ?? DEFAULT_THEME]?.palette ?? THEMES[DEFAULT_THEME].palette;
+/** خطوط عربية من Google Fonts. المفتاح يُخزَّن في إعدادات المتجر. */
+export const FONTS: Record<string, { name: string; stack: string; google?: string }> = {
+  tajawal: { name: "تجوّل", stack: "'Tajawal', system-ui, sans-serif", google: "Tajawal:wght@400;500;700;800" },
+  cairo: { name: "القاهرة", stack: "'Cairo', system-ui, sans-serif", google: "Cairo:wght@400;600;700;800" },
+  almarai: { name: "المراعي", stack: "'Almarai', system-ui, sans-serif", google: "Almarai:wght@400;700;800" },
+  ibmarabic: { name: "IBM بلكس", stack: "'IBM Plex Sans Arabic', system-ui, sans-serif", google: "IBM+Plex+Sans+Arabic:wght@400;500;600;700" },
+  rubik: { name: "روبيك", stack: "'Rubik', system-ui, sans-serif", google: "Rubik:wght@400;500;600;700" },
+  notokufi: { name: "نوتو كوفي", stack: "'Noto Kufi Arabic', system-ui, sans-serif", google: "Noto+Kufi+Arabic:wght@400;500;700" },
+  system: { name: "افتراضي النظام", stack: "system-ui, -apple-system, 'Segoe UI', sans-serif" },
+};
+export const DEFAULT_FONT = "tajawal";
+
+/** استدارة الحواف (تتجاوز radius الثيم إن حُدِّدت). */
+export const ROUNDNESS: Record<string, { name: string; radius: string }> = {
+  sharp: { name: "حادّة", radius: "0.25rem" },
+  soft: { name: "ناعمة", radius: "0.75rem" },
+  round: { name: "دائرية", radius: "1.25rem" },
+};
+
+/** رابط Google Fonts للخط المختار (أو undefined لخط النظام). */
+export function googleFontHref(fontKey: string | undefined): string | undefined {
+  const f = FONTS[fontKey ?? DEFAULT_FONT] ?? FONTS[DEFAULT_FONT];
+  if (!f.google) return undefined;
+  return `https://fonts.googleapis.com/css2?family=${f.google}&display=swap`;
+}
+
+/** لون نص مناسب فوق لون العلامة (أبيض أو أسود حسب السطوع). */
+export function contrastOn(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return "#ffffff";
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255,
+    g = (n >> 8) & 255,
+    b = n & 255;
+  // معادلة السطوع النسبي المبسّطة.
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum > 0.6 ? "#111111" : "#ffffff";
+}
+
+export interface ThemeConfig {
+  theme?: string;
+  font?: string;
+  roundness?: string;
+}
+
+/** متغيرات CSS للثيم مع لون العلامة كـ accent والخط والاستدارة. */
+export function themeVars(config: string | ThemeConfig | undefined, brandColor: string): Record<string, string> {
+  const cfg: ThemeConfig = typeof config === "string" ? { theme: config } : (config ?? {});
+  const t = THEMES[cfg.theme ?? DEFAULT_THEME]?.palette ?? THEMES[DEFAULT_THEME].palette;
+  const font = FONTS[cfg.font ?? DEFAULT_FONT] ?? FONTS[DEFAULT_FONT];
+  const radius = cfg.roundness && ROUNDNESS[cfg.roundness] ? ROUNDNESS[cfg.roundness].radius : t.radius;
   return {
     "--brand": brandColor,
-    "--brand-fg": "#ffffff",
+    "--brand-fg": contrastOn(brandColor),
     "--bg": t.bg,
     "--surface": t.surface,
     "--fg": t.fg,
     "--muted": t.muted,
     "--border": t.border,
-    "--radius": t.radius,
+    "--radius": radius,
+    "--font": font.stack,
   };
 }

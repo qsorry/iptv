@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { getStorefrontStore } from "@/core/tenancy/server";
 import { productRepository } from "@/modules/catalog";
 import { formatMoney, toMinor } from "@/core/money";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { productReviews, submitReview } from "@/modules/reviews";
 import { addToCart } from "@/modules/carts";
 import { readCartId, writeCartId } from "@/core/tenancy/cart-cookie";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { ProductGallery } from "@/components/storefront/product-gallery";
+import { BuyBox } from "@/components/storefront/buy-box";
+import { ProductTabs } from "@/components/storefront/product-tabs";
+import { ReviewForm } from "@/components/storefront/review-form";
 
 async function load(slug: string) {
   const store = await getStorefrontStore();
@@ -18,7 +21,8 @@ async function load(slug: string) {
   if (!product || product.status !== "active") return null;
   const full = await productRepository.findByIdWithVariants(store.id, product.id);
   const media = await productRepository.listMedia(product.id);
-  return { store, product: full!, media };
+  const related = await productRepository.listRelated(store.id, product.id, product.categoryId, 4);
+  return { store, product: full!, media, related };
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -37,14 +41,32 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
+/** أنجم عرض فقط. */
+function Stars({ value, className = "" }: { value: number; className?: string }) {
+  const full = Math.round(value);
+  return (
+    <span className={`text-yellow-400 ${className}`} dir="ltr" aria-label={`${value} من 5`}>
+      {"★".repeat(full)}
+      <span className="text-[var(--border)]">{"★".repeat(5 - full)}</span>
+    </span>
+  );
+}
+
+const TRUST = [
+  { icon: "M13 2 3 14h7l-1 8 10-12h-7l1-8Z", title: "تسليم فوري", sub: "الكود يصلك مباشرة بعد الدفع" },
+  { icon: "M12 2 4 6v6c0 5 3.4 8.5 8 10 4.6-1.5 8-5 8-10V6l-8-4Zm0 6 3 3-4 4-2-2", title: "دفع آمن", sub: "بوابات دفع موثوقة ومشفّرة" },
+  { icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10Z", title: "دعم متواصل", sub: "فريقنا جاهز لمساعدتك" },
+];
+
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const data = await load(slug);
   if (!data) notFound();
-  const { store, product, media } = data;
+  const { store, product, media, related } = data;
   const variant = product.variants.find((v) => v.isDefault) ?? product.variants[0];
-  const images = media.filter((m) => m.type === "image");
-  const { rows: reviewRows, count: reviewCount, average } = await productReviews(product.id);
+  const images = media.filter((m) => m.type === "image").map((m) => ({ url: m.url, altText: m.altText }));
+  const { rows: reviewRows, count: reviewCount, average, breakdown } = await productReviews(product.id);
+  const isDigital = product.productType === "digital";
 
   async function addReview(formData: FormData) {
     "use server";
@@ -54,6 +76,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       productId: product!.id,
       rating: Number(formData.get("rating")) || 5,
       authorName: String(formData.get("authorName") || "") || undefined,
+      email: String(formData.get("email") || "") || undefined,
       body: String(formData.get("body") || "") || undefined,
     });
     revalidatePath(`/products/${encodeURIComponent(product!.slug)}`);
@@ -65,8 +88,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     const s = await getStorefrontStore();
     if (!s || !variant) return;
     const chosen = String(formData.get("variantId") || variant.id);
+    const qty = Math.max(1, Math.min(99, Number(formData.get("quantity")) || 1));
     const current = await readCartId(s.id);
-    const cartId = await addToCart(s.id, current, chosen, 1);
+    const cartId = await addToCart(s.id, current, chosen, qty);
     await writeCartId(s.id, cartId);
     redirect("/cart");
   }
@@ -83,91 +107,153 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       priceCurrency: store.currencyCode,
       availability: "https://schema.org/InStock",
     },
-    ...(reviewCount > 0
-      ? { aggregateRating: { "@type": "AggregateRating", ratingValue: average, reviewCount } }
-      : {}),
+    ...(reviewCount > 0 ? { aggregateRating: { "@type": "AggregateRating", ratingValue: average, reviewCount } } : {}),
   };
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-5xl">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <div className="grid gap-6 sm:grid-cols-2">
+
+      {/* مسار التنقّل */}
+      <nav className="mb-4 flex flex-wrap items-center gap-1.5 text-xs text-[var(--muted)]">
+        <Link href="/" className="hover:text-[var(--fg)]">الرئيسية</Link>
+        <span>/</span>
+        <span className="text-[var(--fg)]">{product.name}</span>
+      </nav>
+
+      <div className="grid gap-8 lg:grid-cols-2">
+        <ProductGallery images={images} alt={product.name} />
+
         <div>
-          {images[0] ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={images[0].url} alt={product.name} className="w-full rounded-[var(--radius)] border border-[var(--border)] object-cover" />
-          ) : (
-            <div className="flex aspect-square items-center justify-center rounded-[var(--radius)] border border-[var(--border)] text-[var(--muted)]">لا صورة</div>
+          <h1 className="text-2xl font-bold sm:text-3xl">{product.name}</h1>
+
+          {/* ملخص التقييم */}
+          {reviewCount > 0 && (
+            <a href="#reviews" className="mt-2 flex items-center gap-2 text-sm">
+              <Stars value={average} />
+              <span className="text-[var(--muted)]" dir="ltr">{average} ({reviewCount} تقييم)</span>
+            </a>
           )}
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold">{product.name}</h1>
-          {variant && <div className="mt-2 text-xl font-semibold text-[var(--brand)]" dir="ltr">{formatMoney(toMinor(variant.price), store.currencyCode)}</div>}
-          {product.shortDescription && <p className="mt-3 text-sm text-[var(--muted)]">{product.shortDescription}</p>}
-          <form action={addToCartAction} className="mt-6 space-y-3">
-            {product.variants.length > 1 && (
-              <div>
-                <label className="mb-1 block text-sm text-[var(--muted)]">اختر الخيار</label>
-                <select name="variantId" defaultValue={variant?.id} className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base sm:w-auto">
-                  {product.variants.map((v) => (
-                    <option key={v.id} value={v.id}>{v.name} — {v.price} {store.currencyCode}</option>
-                  ))}
-                </select>
+
+          {product.shortDescription && <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">{product.shortDescription}</p>}
+
+          <div className="mt-6">
+            <BuyBox
+              variants={product.variants.map((v) => ({ id: v.id, name: v.name, price: v.price, compareAtPrice: v.compareAtPrice }))}
+              currency={store.currencyCode}
+              action={addToCartAction}
+              digital={isDigital}
+            />
+          </div>
+
+          {/* شارات الثقة */}
+          <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {TRUST.map((t) => (
+              <div key={t.title} className="flex items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3">
+                <svg viewBox="0 0 24 24" className="mt-0.5 h-5 w-5 shrink-0 text-[var(--brand)]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <path d={t.icon} />
+                </svg>
+                <div>
+                  <div className="text-xs font-semibold">{t.title}</div>
+                  <div className="text-[11px] leading-tight text-[var(--muted)]">{t.sub}</div>
+                </div>
               </div>
-            )}
-            <Button type="submit" className="w-full sm:w-auto">أضف إلى السلة</Button>
-          </form>
-          {product.description && (
-            <div className="prose mt-6 max-w-none text-sm" dangerouslySetInnerHTML={{ __html: product.description }} />
-          )}
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* التقييمات */}
-      <section className="mt-10">
-        <h2 className="mb-3 text-lg font-semibold">
-          التقييمات {reviewCount > 0 && <span className="text-sm font-normal text-[var(--muted)]" dir="ltr">({average}★ / {reviewCount})</span>}
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-3">
-            {reviewRows.length === 0 ? (
-              <p className="text-sm text-[var(--muted)]">لا توجد تقييمات بعد. كن أول من يقيّم.</p>
-            ) : (
-              reviewRows.map((r) => (
-                <Card key={r.id} className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{r.authorName ?? "زائر"}</span>
-                    <span className="text-sm text-yellow-500" dir="ltr">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
+      {/* التبويبات */}
+      <section className="mt-12">
+        <ProductTabs
+          reviewCount={reviewCount}
+          description={
+            product.description ? (
+              <div className="prose max-w-none text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: product.description }} />
+            ) : null
+          }
+          reviews={
+            <div id="reviews" className="grid gap-6 md:grid-cols-[280px_1fr]">
+              {/* ملخص + نموذج */}
+              <div className="space-y-4">
+                <Card className="text-center">
+                  <div className="text-4xl font-bold" dir="ltr">{average || "—"}</div>
+                  <Stars value={average} className="mt-1 text-lg" />
+                  <div className="mt-1 text-xs text-[var(--muted)]">{reviewCount} تقييم</div>
+                  <div className="mt-4 space-y-1.5">
+                    {[5, 4, 3, 2, 1].map((n) => {
+                      const c = breakdown[n as 1 | 2 | 3 | 4 | 5];
+                      const pct = reviewCount ? Math.round((c / reviewCount) * 100) : 0;
+                      return (
+                        <div key={n} className="flex items-center gap-2 text-xs">
+                          <span className="w-3 text-[var(--muted)]" dir="ltr">{n}</span>
+                          <span className="text-yellow-400">★</span>
+                          <span className="h-2 flex-1 overflow-hidden rounded-full bg-black/5">
+                            <span className="block h-full rounded-full bg-yellow-400" style={{ width: `${pct}%` }} />
+                          </span>
+                          <span className="w-6 text-left text-[var(--muted)]" dir="ltr">{c}</span>
+                        </div>
+                      );
+                    })}
                   </div>
-                  {r.body && <p className="text-sm text-[var(--muted)]">{r.body}</p>}
                 </Card>
-              ))
-            )}
-          </div>
+                <ReviewForm action={addReview} />
+              </div>
 
-          <Card>
-            <h3 className="mb-2 text-sm font-semibold">أضف تقييمك</h3>
-            <form action={addReview} className="space-y-2">
-              <label className="block text-sm">
-                التقييم
-                <select name="rating" defaultValue="5" className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base">
-                  {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} نجوم</option>)}
-                </select>
-              </label>
-              <label className="block text-sm">
-                الاسم (اختياري)
-                <input name="authorName" className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base" />
-              </label>
-              <label className="block text-sm">
-                تعليقك
-                <textarea name="body" rows={3} className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base" />
-              </label>
-              <Button type="submit" size="sm">إرسال</Button>
-              <p className="text-xs text-[var(--muted)]">يُنشر بعد موافقة المتجر.</p>
-            </form>
-          </Card>
-        </div>
+              {/* قائمة التقييمات */}
+              <div className="space-y-3">
+                {reviewRows.length === 0 ? (
+                  <p className="text-sm text-[var(--muted)]">لا توجد تقييمات بعد. كن أول من يقيّم هذا المنتج.</p>
+                ) : (
+                  reviewRows.map((r) => (
+                    <Card key={r.id} className="space-y-1.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{r.authorName ?? "زائر"}</span>
+                          {r.verified && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">
+                              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4 10-10" /></svg>
+                              شراء موثّق
+                            </span>
+                          )}
+                        </div>
+                        <Stars value={r.rating} className="text-sm" />
+                      </div>
+                      {r.title && <div className="text-sm font-medium">{r.title}</div>}
+                      {r.body && <p className="text-sm leading-relaxed text-[var(--muted)]">{r.body}</p>}
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
+          }
+        />
       </section>
+
+      {/* منتجات ذات صلة */}
+      {related.length > 0 && (
+        <section className="mt-12">
+          <h2 className="mb-4 text-lg font-semibold">منتجات ذات صلة</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {related.map((p) => (
+              <Link key={p.id} href={`/products/${encodeURIComponent(p.slug)}`}>
+                <Card className="h-full overflow-hidden p-0 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+                  {p.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.image} alt={p.name} className="aspect-square w-full object-cover" />
+                  ) : (
+                    <div className="flex aspect-square items-center justify-center bg-black/5 text-xs text-[var(--muted)]">لا صورة</div>
+                  )}
+                  <div className="p-3">
+                    <div className="line-clamp-1 text-sm font-medium">{p.name}</div>
+                    <div className="mt-1 font-semibold text-[var(--brand)]" dir="ltr">{formatMoney(toMinor(p.price), store.currencyCode)}</div>
+                  </div>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

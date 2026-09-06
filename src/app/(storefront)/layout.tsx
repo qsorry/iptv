@@ -5,7 +5,7 @@ import { readCartId } from "@/core/tenancy/cart-cookie";
 import { getCartView } from "@/modules/carts";
 import { listPublicCategories } from "@/modules/catalog";
 import { listFooterPages } from "@/modules/content";
-import { themeVars } from "@/modules/stores";
+import { themeVars, googleFontHref } from "@/modules/stores";
 import { db } from "@/infrastructure/database/client";
 import { storeSettings } from "@/infrastructure/database/schema";
 import { eq } from "drizzle-orm";
@@ -18,12 +18,17 @@ export default async function StorefrontLayout({ children }: { children: React.R
   const count = cart?.count ?? 0;
   const brand = store?.brandColor ?? "#004d73";
   const settings = store ? await db.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, store.id) }) : null;
-  const themeKey = (settings?.settings as Record<string, unknown> | undefined)?.theme as string | undefined;
-  const vars = themeVars(themeKey, brand);
+  const s = (settings?.settings as Record<string, unknown> | undefined) ?? {};
+  const vars = themeVars(
+    { theme: s.theme as string | undefined, font: s.font as string | undefined, roundness: s.roundness as string | undefined },
+    brand,
+  );
+  const fontHref = googleFontHref(s.font as string | undefined);
   const cats = store ? await listPublicCategories(store.id) : [];
   const footerPages = store ? await listFooterPages(store.id) : [];
   return (
-    <div style={vars as React.CSSProperties}>
+    <div style={{ ...(vars as React.CSSProperties), fontFamily: "var(--font)" }}>
+      {fontHref && <link rel="stylesheet" href={fontHref} />}
       <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--surface)] pt-[var(--safe-top)]">
         <Container className="flex items-center justify-between py-3 sm:py-4">
           <Link href="/" className="flex items-center gap-2 text-lg font-bold sm:text-xl">
