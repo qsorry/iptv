@@ -4,6 +4,7 @@ import { getStorefrontStore } from "@/core/tenancy/server";
 import { readCartId, clearCartId } from "@/core/tenancy/cart-cookie";
 import { getCartView } from "@/modules/carts";
 import { createOrder } from "@/modules/orders";
+import { upsertCustomer } from "@/modules/customers";
 import { AppError } from "@/core/errors";
 import { formatMoney, percentOf } from "@/core/money";
 import { Card } from "@/components/ui/card";
@@ -38,11 +39,14 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
     const cid = await readCartId(s.id);
     if (!cid) redirect("/cart");
 
+    const email = String(formData.get("email") || "").trim() || undefined;
+    const customerId = await upsertCustomer(s.id, { email, phone: String(formData.get("phone") || "") || undefined, firstName: String(formData.get("name") || "") || undefined });
     let orderId: string | null = null;
     try {
       const order = await createOrder({
         storeId: s.id,
         cartId: cid!,
+        customerId,
         couponCode: String(formData.get("coupon") || "") || undefined,
         shippingAddress: {
           fullName: String(formData.get("name") || "عميل"),
@@ -71,6 +75,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
         <form action={placeOrder} className="space-y-3">
           <Card className="space-y-3">
             <label className="block text-sm">الاسم<Input name="name" required className="mt-1" /></label>
+            <label className="block text-sm">البريد الإلكتروني<Input name="email" type="email" dir="ltr" className="mt-1" /></label>
             <label className="block text-sm">الجوال / واتساب<Input name="phone" dir="ltr" placeholder="+9665..." className="mt-1" /></label>
             <label className="block text-sm">المدينة<Input name="city" className="mt-1" /></label>
             <label className="block text-sm">كوبون خصم (اختياري)<Input name="coupon" dir="ltr" className="mt-1" /></label>
