@@ -1,5 +1,5 @@
 {
-  "id": "1c413b00-2905-4c5a-97a9-6e53213f1716",
+  "id": "011d89b8-b2c9-4edd-a5e1-aa455e7f6059",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1218,8 +1218,8 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "variant_option_values_variant_id_product_variants_id_fk": {
-          "name": "variant_option_values_variant_id_product_variants_id_fk",
+        "vov_variant_fk": {
+          "name": "vov_variant_fk",
           "tableFrom": "variant_option_values",
           "tableTo": "product_variants",
           "columnsFrom": [
@@ -1231,8 +1231,8 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "variant_option_values_option_value_id_product_option_values_id_fk": {
-          "name": "variant_option_values_option_value_id_product_option_values_id_fk",
+        "vov_option_value_fk": {
+          "name": "vov_option_value_fk",
           "tableFrom": "variant_option_values",
           "tableTo": "product_option_values",
           "columnsFrom": [

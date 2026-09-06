@@ -1,4 +1,4 @@
-import { pgTable, text, integer, boolean, timestamp, pgEnum, uuid, uniqueIndex, index, primaryKey, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, boolean, timestamp, pgEnum, uuid, uniqueIndex, index, primaryKey, numeric, foreignKey } from "drizzle-orm/pg-core";
 import { id, timestamps, money } from "./_shared";
 import { stores } from "./stores";
 
@@ -97,10 +97,15 @@ export const productOptionValues = pgTable("product_option_values", {
 export const variantOptionValues = pgTable(
   "variant_option_values",
   {
-    variantId: uuid("variant_id").references(() => productVariants.id, { onDelete: "cascade" }).notNull(),
-    optionValueId: uuid("option_value_id").references(() => productOptionValues.id, { onDelete: "cascade" }).notNull(),
+    variantId: uuid("variant_id").notNull(),
+    optionValueId: uuid("option_value_id").notNull(),
   },
-  (t) => [primaryKey({ columns: [t.variantId, t.optionValueId] })],
+  (t) => [
+    primaryKey({ columns: [t.variantId, t.optionValueId] }),
+    // أسماء صريحة قصيرة: Postgres يقتطع المعرفات فوق 63 حرفاً.
+    foreignKey({ name: "vov_variant_fk", columns: [t.variantId], foreignColumns: [productVariants.id] }).onDelete("cascade"),
+    foreignKey({ name: "vov_option_value_fk", columns: [t.optionValueId], foreignColumns: [productOptionValues.id] }).onDelete("cascade"),
+  ],
 );
 
 export const productMedia = pgTable("product_media", {
