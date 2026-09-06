@@ -23,3 +23,16 @@ Notes
   so the fetcher never follows redirects and records those IDs in `removed.txt`.
 - `build.py` expects `@mdi/js` to be installed in a `mdi/` sub-folder (`cd mdi && npm i @mdi/js`),
   or adjust the `cwd` passed to `node` in `build.py`.
+
+## Digital subscriptions only (`subs_*`)
+
+```
+python3 subs_clean.py               # subs/subs_raw.json + subs/pages_parsed.json + subs/image_manifest.json -> subscriptions.json
+python3 subs_build.py standalone    # -> subscriptions.html (images served from https://com.ssouq.net/media/subscriptions/, CDN fallback)
+python3 subs_build.py embed         # -> subscriptions-embed.html (resized WebP data URIs, for the hosted preview)
+```
+
+Inputs: the storefront category listing (`api.salla.dev/store/v1/products?source=product.index&source_value=993357185`,
+header `Store-Identifier`), the admin product records (Salla MCP `products_list`), and the scraped product pages.
+Images are downloaded once into `public/media/subscriptions/<product-id>/gallery-N.ext` (product gallery) and
+`public/media/subscriptions/shared/<hash>.ext` (setup screenshots embedded in descriptions, shared across products).
