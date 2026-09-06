@@ -1,6 +1,6 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db, type DbExecutor } from "@/infrastructure/database/client";
-import { subscriptionProviders, subscriptionMappings, subscriptionProvisions, productVariants, products } from "@/infrastructure/database/schema";
+import { subscriptionProviders, subscriptionMappings, subscriptionProvisions, productVariants, products, orders, orderItems } from "@/infrastructure/database/schema";
 
 export const subscriptionRepository = {
   listProviders(storeId: string) {
@@ -55,6 +55,31 @@ export const subscriptionRepository = {
       orderBy: [desc(subscriptionProvisions.createdAt)],
       limit,
     });
+  },
+
+  /** سجل التزويد مع رقم الطلب واسم المنتج والمزوّد (للعرض في لوحة التحكم). */
+  listProvisionsDetailed(storeId: string, limit = 50) {
+    return db
+      .select({
+        id: subscriptionProvisions.id,
+        orderId: subscriptionProvisions.orderId,
+        orderNumber: orders.orderNumber,
+        productName: orderItems.productName,
+        variantName: orderItems.variantName,
+        providerName: subscriptionProviders.name,
+        status: subscriptionProvisions.status,
+        attempts: subscriptionProvisions.attempts,
+        deliveredCode: subscriptionProvisions.deliveredCode,
+        lastError: subscriptionProvisions.lastError,
+        createdAt: subscriptionProvisions.createdAt,
+      })
+      .from(subscriptionProvisions)
+      .innerJoin(orders, eq(orders.id, subscriptionProvisions.orderId))
+      .innerJoin(orderItems, eq(orderItems.id, subscriptionProvisions.orderItemId))
+      .leftJoin(subscriptionProviders, eq(subscriptionProviders.id, subscriptionProvisions.providerId))
+      .where(eq(subscriptionProvisions.storeId, storeId))
+      .orderBy(desc(subscriptionProvisions.createdAt))
+      .limit(limit);
   },
 
   findProvision(storeId: string, id: string, executor: DbExecutor = db) {
