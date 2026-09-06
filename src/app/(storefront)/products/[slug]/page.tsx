@@ -6,6 +6,8 @@ import { formatMoney, toMinor } from "@/core/money";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { productReviews, submitReview } from "@/modules/reviews";
+import { addToCart } from "@/modules/carts";
+import { readCartId, writeCartId } from "@/core/tenancy/cart-cookie";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -58,6 +60,16 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     redirect(`/products/${encodeURIComponent(product!.slug)}?reviewed=1`);
   }
 
+  async function addToCartAction() {
+    "use server";
+    const s = await getStorefrontStore();
+    if (!s || !variant) return;
+    const current = await readCartId(s.id);
+    const cartId = await addToCart(s.id, current, variant.id, 1);
+    await writeCartId(s.id, cartId);
+    redirect("/cart");
+  }
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -91,9 +103,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <h1 className="text-2xl font-bold">{product.name}</h1>
           {variant && <div className="mt-2 text-xl font-semibold text-[var(--brand)]" dir="ltr">{formatMoney(toMinor(variant.price), store.currencyCode)}</div>}
           {product.shortDescription && <p className="mt-3 text-sm text-[var(--muted)]">{product.shortDescription}</p>}
-          <div className="mt-6">
-            <Button className="w-full sm:w-auto">أضف إلى السلة</Button>
-          </div>
+          <form action={addToCartAction} className="mt-6">
+            <Button type="submit" className="w-full sm:w-auto">أضف إلى السلة</Button>
+          </form>
           {product.description && (
             <div className="prose mt-6 max-w-none text-sm" dangerouslySetInnerHTML={{ __html: product.description }} />
           )}
