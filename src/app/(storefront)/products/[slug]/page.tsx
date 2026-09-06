@@ -60,12 +60,13 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     redirect(`/products/${encodeURIComponent(product!.slug)}?reviewed=1`);
   }
 
-  async function addToCartAction() {
+  async function addToCartAction(formData: FormData) {
     "use server";
     const s = await getStorefrontStore();
     if (!s || !variant) return;
+    const chosen = String(formData.get("variantId") || variant.id);
     const current = await readCartId(s.id);
-    const cartId = await addToCart(s.id, current, variant.id, 1);
+    const cartId = await addToCart(s.id, current, chosen, 1);
     await writeCartId(s.id, cartId);
     redirect("/cart");
   }
@@ -103,7 +104,17 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <h1 className="text-2xl font-bold">{product.name}</h1>
           {variant && <div className="mt-2 text-xl font-semibold text-[var(--brand)]" dir="ltr">{formatMoney(toMinor(variant.price), store.currencyCode)}</div>}
           {product.shortDescription && <p className="mt-3 text-sm text-[var(--muted)]">{product.shortDescription}</p>}
-          <form action={addToCartAction} className="mt-6">
+          <form action={addToCartAction} className="mt-6 space-y-3">
+            {product.variants.length > 1 && (
+              <div>
+                <label className="mb-1 block text-sm text-[var(--muted)]">اختر الخيار</label>
+                <select name="variantId" defaultValue={variant?.id} className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base sm:w-auto">
+                  {product.variants.map((v) => (
+                    <option key={v.id} value={v.id}>{v.name} — {v.price} {store.currencyCode}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <Button type="submit" className="w-full sm:w-auto">أضف إلى السلة</Button>
           </form>
           {product.description && (

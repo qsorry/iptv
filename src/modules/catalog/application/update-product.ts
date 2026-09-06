@@ -83,3 +83,26 @@ export async function setPrimaryImage(ctx: StoreContext, productId: string, medi
     await tx.update(productMedia).set({ isPrimary: true }).where(and(eq(productMedia.id, mediaId), eq(productMedia.productId, productId)));
   });
 }
+
+const vPriceRe = /^\d+(\.\d{1,2})?$/;
+
+/** إضافة متغيّر (خيار) للمنتج، مثل مدة مختلفة بسعر مختلف. */
+export async function addVariant(ctx: StoreContext, productId: string, input: { name: string; price: string }) {
+  requireRole(ctx, "owner", "admin", "staff");
+  if (input.name.trim().length < 1) throw new ValidationError("اسم الخيار مطلوب");
+  if (!vPriceRe.test(input.price)) throw new ValidationError("سعر غير صالح");
+  const product = await db.query.products.findFirst({ where: and(eq(products.storeId, ctx.storeId), eq(products.id, productId)) });
+  if (!product) throw new NotFoundError("المنتج", productId);
+  const [row] = await db.insert(productVariants).values({ storeId: ctx.storeId, productId, name: input.name.trim(), price: input.price, isDefault: false }).returning();
+  return row;
+}
+
+/** حذف متغيّر. يجب إبقاء متغيّر واحد على الأقل، ولا يُحذف الافتراضي. */
+export async function removeVariant(ctx: StoreContext, productId: string, variantId: string) {
+  requireRole(ctx, "owner", "admin", "staff");
+  const all = await db.select().from(productVariants).where(eq(productVariants.productId, productId));
+  if (all.length <= 1) throw new ValidationError("يجب إبقاء خيار واحد على الأقل");
+  const target = all.find((v) => v.id === variantId);
+  if (target?.isDefault) throw new ValidationError("لا يمكن حذف الخيار الافتراضي");
+  await db.delete(productVariants).where(and(eq(productVariants.id, variantId), eq(productVariants.storeId, ctx.storeId)));
+}

@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { getAdminContext } from "@/core/tenancy/server";
-import { productRepository, updateProduct, deleteProduct, addProductImageUrl, removeProductImage, setPrimaryImage, uploadProductImages } from "@/modules/catalog";
+import { productRepository, updateProduct, deleteProduct, addProductImageUrl, removeProductImage, setPrimaryImage, uploadProductImages, addVariant, removeVariant } from "@/modules/catalog";
 import { addCodes, codeRepository } from "@/modules/codes";
 import { AppError } from "@/core/errors";
 import { PageHeader } from "@/components/admin/page-header";
@@ -94,6 +94,26 @@ export default async function ProductDetailPage({
     "use server";
     const c = await getAdminContext();
     await setPrimaryImage(c, id, String(formData.get("mediaId")));
+    revalidatePath(`/admin/products/${id}`);
+  }
+
+  async function addVariantAction(formData: FormData) {
+    "use server";
+    const c = await getAdminContext();
+    let msg: string | null = null;
+    try {
+      await addVariant(c, id, { name: String(formData.get("vname")), price: String(formData.get("vprice")) });
+    } catch (e) {
+      msg = e instanceof AppError ? e.message : "تعذّرت إضافة الخيار";
+    }
+    revalidatePath(`/admin/products/${id}`);
+    redirect(msg ? `/admin/products/${id}?error=${encodeURIComponent(msg)}` : `/admin/products/${id}?ok=1`);
+  }
+
+  async function removeVariantAction(formData: FormData) {
+    "use server";
+    const c = await getAdminContext();
+    try { await removeVariant(c, id, String(formData.get("variantId"))); } catch { /* ignore */ }
     revalidatePath(`/admin/products/${id}`);
   }
 
@@ -219,6 +239,32 @@ export default async function ProductDetailPage({
                   <span className="w-full text-xs text-[var(--muted)]">أو أضف صورة برابط:</span>
                   <Input name="url" placeholder="https://.../image.jpg" dir="ltr" className="min-w-0 flex-1" />
                   <Button type="submit" size="sm" variant="secondary">إضافة رابط</Button>
+                </form>
+              </Card>
+            ),
+          },
+          {
+            key: "variants",
+            label: `الخيارات (${product.variants.length})`,
+            content: (
+              <Card className="space-y-4">
+                <ul className="divide-y divide-[var(--border)]">
+                  {product.variants.map((v) => (
+                    <li key={v.id} className="flex items-center justify-between py-2">
+                      <span>{v.name} {v.isDefault && <span className="text-xs text-[var(--muted)]">(افتراضي)</span>}</span>
+                      <div className="flex items-center gap-3">
+                        <span dir="ltr">{v.price} ر.س</span>
+                        {!v.isDefault && (
+                          <form action={removeVariantAction}><input type="hidden" name="variantId" value={v.id} /><button className="text-xs text-red-600 hover:underline">حذف</button></form>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <form action={addVariantAction} className="flex flex-wrap items-end gap-2 border-t border-[var(--border)] pt-3">
+                  <label className="block flex-1 text-sm">اسم الخيار<Input name="vname" placeholder="مثال: 12 شهر" className="mt-1" /></label>
+                  <label className="block text-sm">السعر<Input name="vprice" type="number" step="0.01" min="0" dir="ltr" className="mt-1 max-w-[120px]" /></label>
+                  <Button type="submit" size="sm">إضافة خيار</Button>
                 </form>
               </Card>
             ),
