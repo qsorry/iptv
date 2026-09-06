@@ -37,7 +37,10 @@ export default async function StorefrontHome() {
 
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-bold sm:text-3xl">{store.name}</h1>
+      <section className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-l from-[var(--brand)] to-[color-mix(in_srgb,var(--brand)_55%,#000)] p-6 text-white shadow-sm sm:p-10">
+        <h1 className="text-2xl font-bold sm:text-4xl">{store.name}</h1>
+        {store.description && <p className="mt-2 max-w-lg text-sm text-white/85 sm:text-base">{store.description}</p>}
+      </section>
       {items.length === 0 ? (
         <EmptyState title="لا توجد منتجات بعد" />
       ) : (
