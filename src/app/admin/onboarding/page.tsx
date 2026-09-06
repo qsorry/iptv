@@ -3,8 +3,8 @@ import { requireSession } from "@/core/tenancy/server";
 import { listMemberships } from "@/modules/identity";
 import { createStore } from "@/modules/stores";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
-/** أول متجر للمستخدم الجديد. */
 export default async function OnboardingPage() {
   const session = await requireSession();
   if ((await listMemberships(session.user.id)).length > 0) redirect("/admin/dashboard");
@@ -17,13 +17,15 @@ export default async function OnboardingPage() {
   }
 
   return (
-    <form action={action} className="max-w-md space-y-4">
+    <div className="mx-auto max-w-md p-4 pt-[calc(2rem+var(--safe-top))]">
       <h1 className="text-2xl font-semibold">أنشئ متجرك الأول</h1>
-      <label className="block text-sm">
-        اسم المتجر
-        <input name="name" required minLength={2} className="mt-1 w-full rounded border px-3 py-2" />
-      </label>
-      <Button type="submit">إنشاء المتجر</Button>
-    </form>
+      <form action={action} className="mt-4 space-y-4">
+        <label className="block text-sm">
+          اسم المتجر
+          <Input name="name" required minLength={2} className="mt-1" />
+        </label>
+        <Button type="submit">إنشاء المتجر</Button>
+      </form>
+    </div>
   );
 }

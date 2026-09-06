@@ -2,10 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
+/* الرموز التصميمية (Design Tokens). عدّلها هنا لتتغير في كل المنصة. */
 :root {
   --brand: #004d73;
+  --brand-fg: #ffffff;
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --fg: #111827;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --radius: 0.625rem;
+
+  /* مساحات الأمان لشاشات النوتش (iPhone وغيره). */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0f14;
+    --surface: #131a22;
+    --fg: #e5e7eb;
+    --muted: #9ca3af;
+    --border: #263041;
+  }
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  /* يمنع القفز الأفقي على الجوال. */
+  overflow-x: hidden;
+  text-size-adjust: 100%;
 }
 
 body {
   direction: rtl;
+}
+
+/* أهداف اللمس: أي زر/رابط تفاعلي لا يقل عن 40px ارتفاعاً على اللمس. */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  a.touch-target {
+    min-height: 40px;
+  }
 }

@@ -16,6 +16,15 @@ export const productRepository = {
     });
   },
 
+  async findByIdWithVariants(storeId: string, id: string, executor: DbExecutor = db) {
+    const product = await executor.query.products.findFirst({
+      where: and(eq(products.storeId, storeId), eq(products.id, id), isNull(products.deletedAt)),
+    });
+    if (!product) return null;
+    const variants = await executor.select().from(productVariants).where(eq(productVariants.productId, product.id));
+    return { ...product, variants };
+  },
+
   async list(storeId: string, p: Pagination, executor: DbExecutor = db) {
     const where = and(eq(products.storeId, storeId), isNull(products.deletedAt));
     const [rows, [{ count }]] = await Promise.all([

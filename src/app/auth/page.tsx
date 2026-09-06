@@ -6,7 +6,7 @@ export default async function AuthPage({ searchParams }: { searchParams: Promise
   if (await getSession()) redirect("/admin");
   const { next } = await searchParams;
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
+    <main className="flex min-h-screen items-center justify-center p-4 pt-[calc(1rem+var(--safe-top))]">
       <AuthForm next={next ?? "/admin"} />
     </main>
   );
