@@ -30,7 +30,15 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
 
   return (
     <div>
-      <PageHeader title="الطلبات" action={<Link href="/admin/orders/new"><Button>+ طلب يدوي</Button></Link>} />
+      <PageHeader
+        title="الطلبات"
+        action={
+          <div className="flex gap-2">
+            <Link href="/admin/orders/import"><Button variant="secondary">استيراد</Button></Link>
+            <Link href="/admin/orders/new"><Button>+ طلب يدوي</Button></Link>
+          </div>
+        }
+      />
 
       {/* بحث */}
       <form action="/admin/orders" className="relative mb-4">

@@ -168,17 +168,29 @@ export function mapOrderCsvRows(objects: Record<string, string>[]): OrderImportR
     return undefined;
   };
 
+    // الكود قد يكون في «الملاحظات الداخلية» بصيغ متعددة؛ نتحقق أنه فعلاً كود.
+  const codeFrom = (o: Record<string, string>) => {
+    const raw = pick(o, ["الكود", "كود الاشتراك", "كود المنتج", "الكود الرقمي", "بيانات المنتج", "محتوى المنتج", "البطاقة", "code", "digital", "card", "الملاحظات الداخلية", "internal notes"]);
+    if (!raw) return undefined;
+    if (!/(user\s*name|username|اسم المستخدم|password|كلمة السر|host|الهوست|http|xtream|m3u|mac\s*:)/i.test(raw)) return undefined;
+    const parts = raw
+      .split(/[\n|]+/)
+      .map((p) => p.trim().replace(/^[-—•\s]+|[-—•\s]+$/g, ""))
+      .filter((p) => p && !/^[-—=_\s]+$/.test(p) && !p.includes("بيانات الاشتراك"));
+    return parts.length ? parts.join(" | ") : undefined;
+  };
+
   const byOrder = new Map<string, OrderImportRow>();
   for (const o of objects) {
     const orderNumber =
-      pick(o, ["رقم الطلب", "order number", "order_id", "order id", "reference_id", "reference id", "الطلب", "رقم", "id", "order"]) ?? "";
+      pick(o, ["رقم الطلب", "order number", "order_id", "order id", "reference_id", "reference id", "رقم مرجع الطلب", "الطلب", "رقم", "id", "order"]) ?? "";
     if (!orderNumber) continue;
 
     const item: OrderImportItem = {
-      name: pick(o, ["المنتج", "المنتجات", "اسم المنتج", "product", "product name", "products", "item"]) ?? "منتج",
-      quantity: Number(pick(o, ["الكمية", "quantity", "qty", "الكميه"]) ?? 1) || 1,
+      name: pick(o, ["المنتج", "المنتجات", "اسم المنتج", "اسماء المنتجات مع sku", "product", "product name", "products", "item"]) ?? "منتج",
+      quantity: Number(pick(o, ["الكمية", "إجمالي كمية الطلب", "quantity", "qty", "الكميه"]) ?? 1) || 1,
       unitPrice: pick(o, ["سعر المنتج", "سعر الوحدة", "السعر", "price", "unit price", "product price"]),
-      code: pick(o, ["الكود", "كود الاشتراك", "كود المنتج", "الكود الرقمي", "بيانات المنتج", "محتوى المنتج", "البطاقة", "code", "digital", "card", "الحقول المخصصة", "custom fields"]),
+      code: codeFrom(o),
     };
 
     let row = byOrder.get(orderNumber);
@@ -189,17 +201,17 @@ export function mapOrderCsvRows(objects: Record<string, string>[]): OrderImportR
         status: pick(o, ["حالة الطلب", "الحالة", "status", "order status"]),
         paymentStatus: pick(o, ["حالة الدفع", "الدفع", "payment status", "payment_status"]),
         paymentMethod: pick(o, ["طريقة الدفع", "payment method", "payment_method", "وسيلة الدفع"]),
-        total: pick(o, ["إجمالي الطلب", "الإجمالي", "المجموع", "الاجمالي", "total", "grand total", "order total", "amount"]),
-        subtotal: pick(o, ["المجموع الفرعي", "الإجمالي الفرعي", "subtotal", "sub total", "sub_total"]),
+        total: pick(o, ["إجمالي المبيعات", "إجمالي الطلب", "الإجمالي", "المجموع", "الاجمالي", "صافي المبيعات", "مجموع السلة", "total", "grand total", "order total", "amount"]),
+        subtotal: pick(o, ["المجموع الفرعي", "الإجمالي الفرعي", "صافي المبيعات", "subtotal", "sub total", "sub_total"]),
         tax: pick(o, ["الضريبة", "ضريبة القيمة المضافة", "tax", "vat"]),
         customer: {
           firstName: pick(o, ["اسم العميل", "العميل", "الاسم", "customer", "customer name", "name", "الاسم الأول", "first name"]),
           lastName: pick(o, ["اسم العائلة", "last name"]),
-          email: pick(o, ["البريد الإلكتروني", "البريد", "email", "e-mail", "customer email"]),
-          phone: pick(o, ["الجوال", "رقم الجوال", "الهاتف", "mobile", "phone", "customer mobile"]),
+          email: pick(o, ["بريد العميل", "البريد الإلكتروني", "البريد", "email", "e-mail", "customer email"]),
+          phone: pick(o, ["رقم الجوال", "الجوال", "الهاتف", "mobile", "phone", "customer mobile"]),
         },
         items: [],
-        code: pick(o, ["الكود", "كود الاشتراك", "الكود الرقمي", "بيانات المنتج", "محتوى المنتج", "code"]),
+        code: codeFrom(o),
       };
       // فصل الاسم الكامل إلى أول/أخير إن لزم.
       if (row.customer.firstName && !row.customer.lastName && /\s/.test(row.customer.firstName)) {
