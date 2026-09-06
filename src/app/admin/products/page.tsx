@@ -17,9 +17,10 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
       <PageHeader
         title="المنتجات"
         action={
-          <Link href="/admin/products/new">
-            <Button>+ منتج جديد</Button>
-          </Link>
+          <div className="flex gap-2">
+            <Link href="/admin/products/import"><Button variant="secondary">استيراد</Button></Link>
+            <Link href="/admin/products/new"><Button>+ منتج جديد</Button></Link>
+          </div>
         }
       />
 
