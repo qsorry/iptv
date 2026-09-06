@@ -16,3 +16,14 @@ export {
   type ThemePalette,
   type ThemeConfig,
 } from "./themes";
+export {
+  PAYMENT_METHODS,
+  FOOTER_PAGE_META,
+  footerSettingsSchema,
+  readFooterSettings,
+  updateFooterSettings,
+  whatsappHref,
+  footerPageMeta,
+  type FooterSettings,
+  type PaymentMethodId,
+} from "./application/footer";

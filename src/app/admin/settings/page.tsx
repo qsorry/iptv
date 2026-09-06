@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getAdminContext } from "@/core/tenancy/server";
-import { updateSubdomain, listDomains, addDomain, removeDomain, updateBranding, THEMES, PRODUCT_LAYOUTS, FONTS, ROUNDNESS, DEFAULT_THEME, DEFAULT_LAYOUT, DEFAULT_FONT } from "@/modules/stores";
+import { updateSubdomain, listDomains, addDomain, removeDomain, updateBranding, updateFooterSettings, readFooterSettings, PAYMENT_METHODS, THEMES, PRODUCT_LAYOUTS, FONTS, ROUNDNESS, DEFAULT_THEME, DEFAULT_LAYOUT, DEFAULT_FONT, type PaymentMethodId } from "@/modules/stores";
 import { stores } from "@/infrastructure/database/schema";
 import { db } from "@/infrastructure/database/client";
 import { storeSettings } from "@/infrastructure/database/schema";
@@ -31,6 +31,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const curLayout = (curSettings.layout as string | undefined) ?? (curSettings.productLayout as string | undefined) ?? DEFAULT_LAYOUT;
   const curFont = (curSettings.font as string | undefined) ?? DEFAULT_FONT;
   const curRoundness = (curSettings.roundness as string | undefined) ?? "";
+  const footer = readFooterSettings(curSettings);
   const { error, ok } = await searchParams;
   const scheme = PLATFORM_DOMAIN.includes("localhost") ? "http" : "https";
   const storeUrl = `${scheme}://${PLATFORM_DOMAIN}/s/${ctx.storeSlug}`;
@@ -93,6 +94,25 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       });
     } catch (e) {
       msg = errorMessage(e, "تعذّر حفظ الهوية");
+    }
+    revalidatePath("/admin/settings");
+    redirect(msg ? `/admin/settings?error=${encodeURIComponent(msg)}` : "/admin/settings?ok=1");
+  }
+
+  async function saveFooter(formData: FormData) {
+    "use server";
+    const c = await getAdminContext();
+    const str = (k: string) => String(formData.get(k) || "").trim();
+    let msg: string | null = null;
+    try {
+      await updateFooterSettings(c, {
+        legalName: str("legalName"), phone: str("phone"), whatsapp: str("whatsapp"), email: str("email"), address: str("address"),
+        instagram: str("instagram"), snapchat: str("snapchat"), facebook: str("facebook"), twitter: str("twitter"), youtube: str("youtube"),
+        commercialNumber: str("commercialNumber"), certificateId: str("certificateId"), certificateImage: str("certificateImage"), certificateUrl: str("certificateUrl"),
+        payments: formData.getAll("payments").map(String).filter((p): p is PaymentMethodId => p in PAYMENT_METHODS),
+      });
+    } catch (e) {
+      msg = errorMessage(e, "تعذّر حفظ بيانات الذيل");
     }
     revalidatePath("/admin/settings");
     redirect(msg ? `/admin/settings?error=${encodeURIComponent(msg)}` : "/admin/settings?ok=1");
@@ -234,6 +254,47 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             <Input name="vatNumber" defaultValue={String(vatNumber)} dir="ltr" className="mt-1 max-w-[240px]" />
           </label>
           <Button type="submit" size="sm">حفظ</Button>
+        </form>
+      </Card>
+
+      {/* ذيل الصفحة: التواصل والسجلات وطرق الدفع */}
+      <h2 className="mb-2 mt-8 text-sm font-semibold text-[var(--muted)]">ذيل الصفحة: التواصل والسجلات النظامية</h2>
+      <Card className="mb-8">
+        <form action={saveFooter} className="space-y-5">
+          <p className="text-xs text-[var(--muted)]">تظهر هذه البيانات في ذيل كل صفحات المتجر. اترك أي حقل فارغاً لإخفائه.</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm">الاسم النظامي للمنشأة<Input name="legalName" defaultValue={footer.legalName} placeholder="مؤسسة … التجارية" className="mt-1" /></label>
+            <label className="block text-sm">العنوان<Input name="address" defaultValue={footer.address} className="mt-1" /></label>
+            <label className="block text-sm">الجوال<Input name="phone" defaultValue={footer.phone} dir="ltr" placeholder="+9665xxxxxxxx" className="mt-1" /></label>
+            <label className="block text-sm">واتساب<Input name="whatsapp" defaultValue={footer.whatsapp} dir="ltr" placeholder="+9665xxxxxxxx" className="mt-1" /></label>
+            <label className="block text-sm sm:col-span-2">البريد الإلكتروني<Input name="email" type="email" defaultValue={footer.email} dir="ltr" className="mt-1" /></label>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm">إنستغرام<Input name="instagram" defaultValue={footer.instagram} dir="ltr" placeholder="https://instagram.com/…" className="mt-1" /></label>
+            <label className="block text-sm">سناب شات<Input name="snapchat" defaultValue={footer.snapchat} dir="ltr" placeholder="https://snapchat.com/add/…" className="mt-1" /></label>
+            <label className="block text-sm">فيسبوك<Input name="facebook" defaultValue={footer.facebook} dir="ltr" placeholder="https://facebook.com/…" className="mt-1" /></label>
+            <label className="block text-sm">إكس (تويتر)<Input name="twitter" defaultValue={footer.twitter} dir="ltr" placeholder="https://x.com/…" className="mt-1" /></label>
+            <label className="block text-sm sm:col-span-2">يوتيوب<Input name="youtube" defaultValue={footer.youtube} dir="ltr" placeholder="https://youtube.com/@…" className="mt-1" /></label>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm">رقم السجل التجاري<Input name="commercialNumber" defaultValue={footer.commercialNumber} dir="ltr" className="mt-1" /></label>
+            <label className="block text-sm">رقم شهادة المركز السعودي للأعمال<Input name="certificateId" defaultValue={footer.certificateId} dir="ltr" className="mt-1" /></label>
+            <label className="block text-sm">رابط التحقق من الشهادة<Input name="certificateUrl" defaultValue={footer.certificateUrl} dir="ltr" placeholder="https://eauthenticate.saudibusiness.gov.sa/certificate-details/…" className="mt-1" /></label>
+            <label className="block text-sm">صورة الشهادة (رابط)<Input name="certificateImage" defaultValue={footer.certificateImage} dir="ltr" placeholder="/media/store/certificate.jpg" className="mt-1" /></label>
+          </div>
+          <p className="text-xs text-[var(--muted)]">الرقم الضريبي يُؤخذ من قسم «الضريبة» أعلاه ويظهر في الذيل عند تعبئته.</p>
+          <div>
+            <span className="mb-2 block text-sm">طرق الدفع المعروضة</span>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(PAYMENT_METHODS).map(([key, pm]) => (
+                <label key={key} className="cursor-pointer">
+                  <input type="checkbox" name="payments" value={key} defaultChecked={footer.payments.includes(key as PaymentMethodId)} className="peer sr-only" />
+                  <span className="inline-block rounded-full border border-[var(--border)] px-3 py-1.5 text-sm peer-checked:border-[var(--brand)] peer-checked:bg-[var(--brand)] peer-checked:text-[var(--brand-fg)]">{pm.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <Button type="submit" size="sm">حفظ بيانات الذيل</Button>
         </form>
       </Card>
 

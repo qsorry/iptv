@@ -6,3 +6,4 @@ fetch_errors.txt
 raw_products.json
 products.json
 catalog.html
+__pycache__/

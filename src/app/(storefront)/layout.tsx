@@ -7,7 +7,8 @@ import { readCartId } from "@/core/tenancy/cart-cookie";
 import { getCartView } from "@/modules/carts";
 import { listPublicCategories } from "@/modules/catalog";
 import { listFooterPages } from "@/modules/content";
-import { themeVars, googleFontHref, isDarkTheme } from "@/modules/stores";
+import { themeVars, googleFontHref, isDarkTheme, readFooterSettings } from "@/modules/stores";
+import { StoreFooter } from "@/components/storefront/store-footer";
 import { db } from "@/infrastructure/database/client";
 import { storeSettings } from "@/infrastructure/database/schema";
 import { eq } from "drizzle-orm";
@@ -99,17 +100,12 @@ export default async function StorefrontLayout({ children }: { children: React.R
       <main className="flex-1 pb-[calc(1.5rem+var(--safe-bottom))]">
         <Container className="py-4 sm:py-6">{children}</Container>
       </main>
-      <footer className="mt-10 border-t border-[var(--border)] py-8">
-        <Container className="flex flex-wrap items-center justify-between gap-4 text-sm text-[var(--muted)]">
-          <div className="flex flex-wrap gap-4">
-            <Link href="/blog" className="hover:text-[var(--fg)]">المدونة</Link>
-            {footerPages.map((pg) => (
-              <Link key={pg.slug} href={`/pages/${encodeURIComponent(pg.slug)}`} className="hover:text-[var(--fg)]">{pg.title}</Link>
-            ))}
-          </div>
-          <span>© {new Date().getFullYear()} {store?.name}</span>
-        </Container>
-      </footer>
+      <StoreFooter
+        store={{ name: store?.name ?? "المتجر", logoUrl: store?.logoUrl, description: store?.description }}
+        footer={readFooterSettings(s)}
+        vatNumber={typeof s.vatNumber === "string" ? s.vatNumber : ""}
+        pages={footerPages}
+      />
     </div>
   );
 }

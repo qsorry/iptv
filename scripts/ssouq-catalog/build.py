@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 """Build a single self-contained HTML preview (catalog.html) from products.json."""
 import json, subprocess, html, collections, datetime
+import footer_html
+FOOTER = footer_html.load()
 
 P = json.load(open('products.json', encoding='utf-8'))
 used = sorted({i['icon'] for p in P for g in p['groups'] for i in g['items']})
 UI_ICONS = ['magnify','close','chevron-down','chevron-up','open-in-new','image-off-outline','cart-outline','tag-outline',
             'check-circle-outline','package-variant-closed','sale','sort','filter-variant','information-outline',
             'shape-outline','store-outline','format-list-bulleted','chevron-right','chevron-left','cloud-download-outline']
-names = sorted(set(used) | set(UI_ICONS))
+names = sorted(set(used) | set(UI_ICONS) | set(footer_html.icon_names(FOOTER)))
 def camel(n): return 'mdi' + ''.join(w.capitalize() for w in n.split('-'))
 js = "const m=require('@mdi/js');const out={};for(const n of %s){const k=%s;out[n]=m[k]||null}console.log(JSON.stringify(out))" % (
     json.dumps(names), "'mdi'+n.split('-').map(w=>w[0].toUpperCase()+w.slice(1)).join('')")
@@ -352,6 +354,6 @@ dialog::backdrop{background:rgba(8,18,26,.6);backdrop-filter:blur(2px)}
 </body>
 </html>
 '''
-out = page.replace('__SPRITE__', sprite).replace('__DATA__', data_json).replace('__DATE__', generated)
+out = page.replace('</style>', footer_html.CSS + '</style>', 1).replace('</main>', '</main>\n' + footer_html.render(FOOTER), 1).replace('__SPRITE__', sprite).replace('__DATA__', data_json).replace('__DATE__', generated)
 open('catalog.html', 'w', encoding='utf-8').write(out)
 print('catalog.html', len(out)//1024, 'KB', len(P), 'products', len(names), 'icons')
