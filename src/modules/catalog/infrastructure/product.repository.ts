@@ -4,6 +4,23 @@ import { products, productVariants, productMedia } from "@/infrastructure/databa
 import { offsetOf, paginate, type Pagination } from "@/core/pagination";
 
 export const productRepository = {
+  /** المنتجات المنشورة للعرض العام مع السعر والصورة الأولى. */
+  async listPublic(storeId: string, executor: DbExecutor = db) {
+    const rows = await executor
+      .select({
+        id: products.id,
+        name: products.name,
+        slug: products.slug,
+        shortDescription: products.shortDescription,
+        price: productVariants.price,
+      })
+      .from(products)
+      .innerJoin(productVariants, and(eq(productVariants.productId, products.id), eq(productVariants.isDefault, true)))
+      .where(and(eq(products.storeId, storeId), eq(products.status, "active"), isNull(products.deletedAt)))
+      .orderBy(desc(products.publishedAt));
+    return rows;
+  },
+
   async findBySlug(storeId: string, slug: string, executor: DbExecutor = db) {
     return executor.query.products.findFirst({
       where: and(eq(products.storeId, storeId), eq(products.slug, slug), isNull(products.deletedAt)),
