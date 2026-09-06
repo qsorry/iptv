@@ -20,7 +20,7 @@ const nav = [
  * - كمبيوتر (md+): شريط جانبي ثابت.
  * - جوال: شريط علوي مع زر قائمة يفتح درج منزلق.
  */
-export function AdminShell({ email, children }: { email: string; children: React.ReactNode }) {
+export function AdminShell({ email, storeUrl, children }: { email: string; storeUrl: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -47,7 +47,17 @@ export function AdminShell({ email, children }: { email: string; children: React
 
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
     <div className={cn("flex h-full flex-col p-4", mobile && "pt-[calc(1rem+var(--safe-top))]")}>
-      <div className="mb-6 text-lg font-bold">لوحة التحكم</div>
+      <div className="mb-4 text-lg font-bold">لوحة التحكم</div>
+      {storeUrl && (
+        <a
+          href={storeUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mb-4 block rounded-[var(--radius)] border border-[var(--border)] px-3 py-2.5 text-center text-sm hover:bg-black/5"
+        >
+          عرض المتجر ↗
+        </a>
+      )}
       <NavLinks />
       <div className="mt-auto border-t border-[var(--border)] pt-4 text-xs text-[var(--muted)]">
         <div className="mb-1 truncate" dir="ltr">{email}</div>

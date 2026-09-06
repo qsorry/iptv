@@ -23,13 +23,13 @@ export async function requireSession() {
  * سياق لوحة التحكم: مستخدم مسجّل + متجر نشط يملك عضوية فيه.
  * المتجر النشط من الكوكي، وإلا أول عضوية للمستخدم.
  */
-export async function getAdminContext(): Promise<StoreContext & { storeName: string; userEmail: string }> {
+export async function getAdminContext(): Promise<StoreContext & { storeName: string; storeSlug: string; userEmail: string }> {
   const session = await requireSession();
   const cookieStore = await cookies();
   const preferred = cookieStore.get(ACTIVE_STORE_COOKIE)?.value;
 
   const memberships = await db
-    .select({ storeId: storeMembers.storeId, role: storeMembers.role, storeName: stores.name })
+    .select({ storeId: storeMembers.storeId, role: storeMembers.role, storeName: stores.name, storeSlug: stores.slug })
     .from(storeMembers)
     .innerJoin(stores, eq(stores.id, storeMembers.storeId))
     .where(and(eq(storeMembers.userId, session.user.id), eq(storeMembers.status, "active")));
@@ -37,7 +37,7 @@ export async function getAdminContext(): Promise<StoreContext & { storeName: str
   const active = memberships.find((m) => m.storeId === preferred) ?? memberships[0];
   if (!active) redirect("/admin/onboarding");
 
-  return { storeId: active.storeId, role: active.role, userId: session.user.id, storeName: active.storeName, userEmail: session.user.email };
+  return { storeId: active.storeId, role: active.role, userId: session.user.id, storeName: active.storeName, storeSlug: active.storeSlug, userEmail: session.user.email };
 }
 
 /** المتجر الذي تعرضه واجهة المتجر، بناءً على الهيدرات التي وضعها middleware. */
