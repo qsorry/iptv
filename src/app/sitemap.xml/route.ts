@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { getStorefrontStore } from "@/core/tenancy/server";
 import { productRepository } from "@/modules/catalog";
+import { listPublishedPosts, listFooterPages } from "@/modules/content";
 
 /** sitemap لكل متجر حسب مضيفه. يشمل الرئيسية وصفحات المنتجات المنشورة. */
 export async function GET() {
@@ -14,6 +15,9 @@ export async function GET() {
   if (store) {
     const products = await productRepository.listPublic(store.id);
     for (const p of products) urls.push(`${origin}/products/${encodeURIComponent(p.slug)}`);
+    urls.push(`${origin}/blog`);
+    for (const post of await listPublishedPosts(store.id)) urls.push(`${origin}/blog/${encodeURIComponent(post.slug)}`);
+    for (const pg of await listFooterPages(store.id)) urls.push(`${origin}/pages/${encodeURIComponent(pg.slug)}`);
   }
 
   const xml =

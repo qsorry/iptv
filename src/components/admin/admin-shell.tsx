@@ -15,6 +15,8 @@ const nav = [
   { href: "/admin/inventory", label: "المخزون" },
   { href: "/admin/coupons", label: "الكوبونات" },
   { href: "/admin/reviews", label: "التقييمات" },
+  { href: "/admin/pages", label: "الصفحات" },
+  { href: "/admin/blog", label: "المدونة" },
   { href: "/admin/settings", label: "الإعدادات" },
 ];
 

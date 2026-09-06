@@ -4,6 +4,7 @@ import { getStorefrontStore } from "@/core/tenancy/server";
 import { readCartId } from "@/core/tenancy/cart-cookie";
 import { getCartView } from "@/modules/carts";
 import { listPublicCategories } from "@/modules/catalog";
+import { listFooterPages } from "@/modules/content";
 import { themeVars } from "@/modules/stores";
 import { db } from "@/infrastructure/database/client";
 import { storeSettings } from "@/infrastructure/database/schema";
@@ -20,6 +21,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
   const themeKey = (settings?.settings as Record<string, unknown> | undefined)?.theme as string | undefined;
   const vars = themeVars(themeKey, brand);
   const cats = store ? await listPublicCategories(store.id) : [];
+  const footerPages = store ? await listFooterPages(store.id) : [];
   return (
     <div style={vars as React.CSSProperties}>
       <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--surface)] pt-[var(--safe-top)]">
@@ -49,6 +51,17 @@ export default async function StorefrontLayout({ children }: { children: React.R
       <main className="pb-[calc(1.5rem+var(--safe-bottom))]">
         <Container className="py-4 sm:py-6">{children}</Container>
       </main>
+      <footer className="mt-10 border-t border-[var(--border)] py-8">
+        <Container className="flex flex-wrap items-center justify-between gap-4 text-sm text-[var(--muted)]">
+          <div className="flex flex-wrap gap-4">
+            <Link href="/blog" className="hover:text-[var(--fg)]">المدونة</Link>
+            {footerPages.map((pg) => (
+              <Link key={pg.slug} href={`/pages/${encodeURIComponent(pg.slug)}`} className="hover:text-[var(--fg)]">{pg.title}</Link>
+            ))}
+          </div>
+          <span>© {new Date().getFullYear()} {store?.name}</span>
+        </Container>
+      </footer>
     </div>
   );
 }
