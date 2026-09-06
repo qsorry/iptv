@@ -1,10 +1,11 @@
 import { inArray, eq, and } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
-import { carts, cartItems, productVariants, products, stores, warehouses } from "@/infrastructure/database/schema";
+import { carts, cartItems, productVariants, products, stores, storeSettings, warehouses } from "@/infrastructure/database/schema";
 import { NotFoundError, ValidationError } from "@/core/errors";
 import { publishEvent } from "@/core/events";
 import { toMinor, toDecimal, multiply, sum, percentOf } from "@/core/money";
 import { reserveStock } from "@/modules/inventory";
+import { applyCoupon, recordRedemption } from "@/modules/promotions";
 import { orderRepository } from "../infrastructure/order.repository";
 
 export interface CreateOrderInput {
@@ -21,9 +22,18 @@ export interface CreateOrderInput {
     postalCode?: string;
   };
   notes?: string;
+  /** رمز كوبون اختياري يُطبَّق على المجموع الفرعي. */
+  couponCode?: string;
 }
 
-const VAT_PERCENT = 15;
+const DEFAULT_VAT_PERCENT = 15;
+
+/** نسبة الضريبة للمتجر من إعداداته، وإلا 15%. */
+function taxPercentFor(settings: Record<string, unknown> | null | undefined): number {
+  const v = settings?.taxPercent;
+  const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : NaN;
+  return Number.isFinite(n) && n >= 0 && n <= 100 ? n : DEFAULT_VAT_PERCENT;
+}
 
 /**
  * CreateOrder
@@ -64,13 +74,25 @@ export async function createOrder(input: CreateOrderInput) {
       }
       const unit = toMinor(found.variant.price);
       const lineTotal = multiply(unit, line.quantity);
-      const tax = percentOf(lineTotal, VAT_PERCENT);
-      return { line, found, unit, lineTotal, tax };
+      return { line, found, unit, lineTotal };
     });
 
     const subtotal = sum(...items.map((i) => i.lineTotal));
-    const taxTotal = sum(...items.map((i) => i.tax));
-    const grandTotal = subtotal + taxTotal;
+    const customerId = input.customerId ?? cart.customerId ?? undefined;
+
+    // الخصم قبل الضريبة.
+    let discountTotal = 0;
+    let coupon: { couponId: string; code: string; discount: number } | null = null;
+    if (input.couponCode) {
+      coupon = await applyCoupon(tx, { storeId: input.storeId, code: input.couponCode, subtotal, customerId });
+      discountTotal = coupon.discount;
+    }
+
+    const settings = await tx.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, input.storeId) });
+    const taxPercent = taxPercentFor(settings?.settings);
+    const taxableBase = subtotal - discountTotal;
+    const taxTotal = percentOf(taxableBase, taxPercent);
+    const grandTotal = taxableBase + taxTotal;
 
     const warehouse = await tx.query.warehouses.findFirst({
       where: and(eq(warehouses.storeId, input.storeId), eq(warehouses.isDefault, true)),
@@ -80,16 +102,21 @@ export async function createOrder(input: CreateOrderInput) {
     const order = await orderRepository.insert(
       {
         storeId: input.storeId,
-        customerId: input.customerId ?? cart.customerId,
+        customerId,
         orderNumber: await orderRepository.nextOrderNumber(input.storeId, tx),
         currencyCode: store.currencyCode,
         subtotal: toDecimal(subtotal),
+        discountTotal: toDecimal(discountTotal),
         taxTotal: toDecimal(taxTotal),
         grandTotal: toDecimal(grandTotal),
         notes: input.notes,
       },
       tx,
     );
+
+    if (coupon) {
+      await recordRedemption(tx, { couponId: coupon.couponId, orderId: order.id, customerId, amountMinor: discountTotal });
+    }
 
     // حجز المخزون للمنتجات المادية فقط.
     const physical = items.filter((i) => i.found.product.productType === "physical");
@@ -112,8 +139,7 @@ export async function createOrder(input: CreateOrderInput) {
         sku: i.found.variant.sku,
         unitPrice: toDecimal(i.unit),
         quantity: i.line.quantity,
-        taxTotal: toDecimal(i.tax),
-        total: toDecimal(i.lineTotal + i.tax),
+        total: toDecimal(i.lineTotal),
       })),
       tx,
     );

@@ -11,6 +11,7 @@ export interface ManualOrderInput {
   quantity: number;
   customerEmail?: string;
   customerName?: string;
+  couponCode?: string;
 }
 
 /**
@@ -42,6 +43,7 @@ export async function createManualOrder(ctx: StoreContext, input: ManualOrderInp
     storeId: ctx.storeId,
     cartId: cart.id,
     customerId,
+    couponCode: input.couponCode,
     shippingAddress: { fullName: input.customerName ?? "عميل", country: "SA", city: "-" },
   });
 }

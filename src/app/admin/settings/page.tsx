@@ -2,6 +2,9 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getAdminContext } from "@/core/tenancy/server";
 import { updateSubdomain, listDomains, addDomain, removeDomain } from "@/modules/stores";
+import { db } from "@/infrastructure/database/client";
+import { storeSettings } from "@/infrastructure/database/schema";
+import { eq } from "drizzle-orm";
 import { AppError } from "@/core/errors";
 import { PageHeader } from "@/components/admin/page-header";
 import { Card } from "@/components/ui/card";
@@ -18,6 +21,8 @@ function errorMessage(e: unknown, fallback: string): string {
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
   const ctx = await getAdminContext();
   const domains = await listDomains(ctx.storeId);
+  const settingsRow = await db.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, ctx.storeId) });
+  const taxPercent = (settingsRow?.settings as Record<string, unknown> | undefined)?.taxPercent ?? 15;
   const { error, ok } = await searchParams;
   const scheme = PLATFORM_DOMAIN.includes("localhost") ? "http" : "https";
   const storeUrl = `${scheme}://${ctx.storeSlug}.${PLATFORM_DOMAIN}`;
@@ -55,6 +60,17 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     revalidatePath("/admin/settings");
   }
 
+  async function saveTax(formData: FormData) {
+    "use server";
+    const c = await getAdminContext();
+    const pct = Math.max(0, Math.min(100, Number(formData.get("taxPercent")) || 0));
+    const row = await db.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, c.storeId) });
+    const merged = { ...((row?.settings as Record<string, unknown>) ?? {}), taxPercent: pct };
+    await db.update(storeSettings).set({ settings: merged, updatedAt: new Date() }).where(eq(storeSettings.storeId, c.storeId));
+    revalidatePath("/admin/settings");
+    redirect("/admin/settings?ok=1");
+  }
+
   return (
     <div className="max-w-2xl">
       <PageHeader title="الإعدادات" />
@@ -80,6 +96,18 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             <Button type="submit" size="sm">حفظ</Button>
           </div>
           <p className="text-xs text-[var(--muted)]">أحرف إنجليزية وأرقام وشرطات فقط.</p>
+        </form>
+      </Card>
+
+      {/* الضريبة */}
+      <h2 className="mb-2 mt-8 text-sm font-semibold text-[var(--muted)]">الضريبة</h2>
+      <Card>
+        <form action={saveTax} className="flex flex-wrap items-end gap-2">
+          <label className="block text-sm">
+            نسبة ضريبة القيمة المضافة (%)
+            <Input name="taxPercent" type="number" step="0.01" min="0" max="100" defaultValue={String(taxPercent)} dir="ltr" className="mt-1 max-w-[140px]" />
+          </label>
+          <Button type="submit" size="sm">حفظ</Button>
         </form>
       </Card>
 
