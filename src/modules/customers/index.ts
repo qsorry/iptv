@@ -1,1 +1,1 @@
-export { upsertCustomer, ordersByEmail } from "./application/customers";
+export { upsertCustomer, ordersByEmail, listCustomers } from "./application/customers";

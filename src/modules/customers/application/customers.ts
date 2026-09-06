@@ -1,4 +1,4 @@
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, sql } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
 import { customers, orders } from "@/infrastructure/database/schema";
 
@@ -27,4 +27,23 @@ export async function ordersByEmail(storeId: string, email: string) {
     .from(orders)
     .where(and(eq(orders.storeId, storeId), eq(orders.customerId, customer.id)))
     .orderBy(desc(orders.placedAt));
+}
+
+/** قائمة عملاء المتجر مع عدد الطلبات وإجمالي الإنفاق (من الطلبات المدفوعة). */
+export async function listCustomers(storeId: string) {
+  return db
+    .select({
+      id: customers.id,
+      email: customers.email,
+      phone: customers.phone,
+      firstName: customers.firstName,
+      createdAt: customers.createdAt,
+      orders: sql<number>`count(${orders.id}) filter (where ${orders.id} is not null)::int`,
+      spent: sql<string>`coalesce(sum(${orders.grandTotal}) filter (where ${orders.paymentStatus} = 'paid'), 0)`,
+    })
+    .from(customers)
+    .leftJoin(orders, eq(orders.customerId, customers.id))
+    .where(eq(customers.storeId, storeId))
+    .groupBy(customers.id)
+    .orderBy(sql`max(${customers.createdAt}) desc`);
 }
