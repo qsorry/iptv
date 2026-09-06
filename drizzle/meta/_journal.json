@@ -43,6 +43,13 @@
       "when": 1788675024956,
       "tag": "0005_reviews",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788675431116,
+      "tag": "0006_store_branding",
+      "breakpoints": true
     }
   ]
 }

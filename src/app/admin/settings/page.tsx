@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getAdminContext } from "@/core/tenancy/server";
-import { updateSubdomain, listDomains, addDomain, removeDomain } from "@/modules/stores";
+import { updateSubdomain, listDomains, addDomain, removeDomain, updateBranding } from "@/modules/stores";
+import { stores } from "@/infrastructure/database/schema";
 import { db } from "@/infrastructure/database/client";
 import { storeSettings } from "@/infrastructure/database/schema";
 import { eq } from "drizzle-orm";
@@ -22,6 +23,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const ctx = await getAdminContext();
   const domains = await listDomains(ctx.storeId);
   const settingsRow = await db.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, ctx.storeId) });
+  const storeRow = await db.query.stores.findFirst({ where: eq(stores.id, ctx.storeId) });
   const taxPercent = (settingsRow?.settings as Record<string, unknown> | undefined)?.taxPercent ?? 15;
   const { error, ok } = await searchParams;
   const scheme = PLATFORM_DOMAIN.includes("localhost") ? "http" : "https";
@@ -71,12 +73,48 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     redirect("/admin/settings?ok=1");
   }
 
+  async function saveBranding(formData: FormData) {
+    "use server";
+    const c = await getAdminContext();
+    let msg: string | null = null;
+    try {
+      await updateBranding(c, {
+        name: String(formData.get("name")),
+        brandColor: String(formData.get("brandColor")),
+        logoUrl: String(formData.get("logoUrl") || ""),
+        description: String(formData.get("description") || ""),
+      });
+    } catch (e) {
+      msg = errorMessage(e, "تعذّر حفظ الهوية");
+    }
+    revalidatePath("/admin/settings");
+    redirect(msg ? `/admin/settings?error=${encodeURIComponent(msg)}` : "/admin/settings?ok=1");
+  }
+
   return (
     <div className="max-w-2xl">
       <PageHeader title="الإعدادات" />
 
       {error && <p className="mb-4 rounded-[var(--radius)] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {ok && <p className="mb-4 rounded-[var(--radius)] border border-green-200 bg-green-50 p-3 text-sm text-green-700">تم الحفظ.</p>}
+
+      {/* هوية المتجر */}
+      <h2 className="mb-2 text-sm font-semibold text-[var(--muted)]">هوية المتجر</h2>
+      <Card className="mb-8">
+        <form action={saveBranding} className="space-y-4">
+          <label className="block text-sm">اسم المتجر<Input name="name" defaultValue={storeRow?.name ?? ""} required className="mt-1" /></label>
+          <label className="block text-sm">
+            لون العلامة
+            <div className="mt-1 flex items-center gap-2">
+              <input type="color" name="brandColor" defaultValue={storeRow?.brandColor ?? "#004d73"} className="h-10 w-14 rounded border border-[var(--border)]" />
+              <span className="text-xs text-[var(--muted)]" dir="ltr">{storeRow?.brandColor}</span>
+            </div>
+          </label>
+          <label className="block text-sm">رابط الشعار (اختياري)<Input name="logoUrl" defaultValue={storeRow?.logoUrl ?? ""} dir="ltr" placeholder="https://.../logo.png" className="mt-1" /></label>
+          <label className="block text-sm">وصف المتجر (اختياري)<Input name="description" defaultValue={storeRow?.description ?? ""} className="mt-1" /></label>
+          <Button type="submit" size="sm">حفظ الهوية</Button>
+        </form>
+      </Card>
 
       {/* عنوان المتجر على المنصة */}
       <h2 className="mb-2 text-sm font-semibold text-[var(--muted)]">عنوان متجرك على المنصة</h2>

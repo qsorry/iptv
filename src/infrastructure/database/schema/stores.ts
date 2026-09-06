@@ -13,6 +13,8 @@ export const stores = pgTable("stores", {
   timezone: text("timezone").default("Asia/Riyadh").notNull(),
   locale: text("locale").default("ar").notNull(),
   logoUrl: text("logo_url"),
+  brandColor: text("brand_color").default("#004d73").notNull(),
+  description: text("description"),
   ...timestamps(),
 });
 

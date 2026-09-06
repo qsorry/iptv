@@ -10,11 +10,18 @@ export default async function StorefrontLayout({ children }: { children: React.R
   const cartId = store ? await readCartId(store.id) : undefined;
   const cart = store && cartId ? await getCartView(store.id, cartId) : null;
   const count = cart?.count ?? 0;
+  const brand = store?.brandColor ?? "#004d73";
   return (
-    <>
+    <div style={{ ["--brand" as string]: brand }}>
       <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--surface)] pt-[var(--safe-top)]">
         <Container className="flex items-center justify-between py-3 sm:py-4">
-          <Link href="/" className="text-lg font-bold sm:text-xl">{store?.name ?? "المتجر"}</Link>
+          <Link href="/" className="flex items-center gap-2 text-lg font-bold sm:text-xl">
+            {store?.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={store.logoUrl} alt={store.name} className="h-8 w-8 rounded object-cover" />
+            ) : null}
+            {store?.name ?? "المتجر"}
+          </Link>
           <nav className="flex items-center gap-1 text-sm sm:gap-3">
             <Link href="/cart" className="touch-target rounded-[var(--radius)] px-3 py-2 hover:bg-black/5">السلة{count > 0 && <span className="ms-1 rounded-full bg-[var(--brand)] px-1.5 text-xs text-white" dir="ltr">{count}</span>}</Link>
             <Link href="/account" className="touch-target rounded-[var(--radius)] px-3 py-2 hover:bg-black/5">حسابي</Link>
@@ -24,6 +31,6 @@ export default async function StorefrontLayout({ children }: { children: React.R
       <main className="pb-[calc(1.5rem+var(--safe-bottom))]">
         <Container className="py-4 sm:py-6">{children}</Container>
       </main>
-    </>
+    </div>
   );
 }
