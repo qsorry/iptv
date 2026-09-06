@@ -314,6 +314,9 @@ export default async function ProductDetailPage({
                           كل سطر كود واحد. تُسلَّم تلقائياً عند نجاح الدفع، وتظهر للعميل مفصولة سطراً بسطر عند علامة |. المكرر يُتجاهل.
                         </p>
                       </form>
+                      <p className="border-t border-[var(--border)] pt-3 text-xs text-[var(--muted)]">
+                        بدل لصق الأكواد يدوياً يمكنك <Link href="/admin/subscriptions?tab=mappings" className="text-[var(--brand)] underline">ربط هذا المنتج بلوحة اشتراكات عبر API</Link> ليُنشأ الاشتراك تلقائياً عند الدفع (باقة الأعمال).
+                      </p>
                     </Card>
                   ),
                 },

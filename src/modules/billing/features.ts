@@ -5,6 +5,8 @@ export const FEATURES = {
   notifySms: "notify.sms",
   sallaImport: "salla.import",
   customDomain: "domain.custom",
+  /** ربط الاشتراكات الرقمية عبر API (أتمتة التزويد). حصرية للباقة الأعلى. */
+  subscriptionsApi: "subscriptions.api",
 } as const;
 
 export type Feature = (typeof FEATURES)[keyof typeof FEATURES];

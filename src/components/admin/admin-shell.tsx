@@ -15,6 +15,7 @@ const nav: { href: string; label: string; icon: keyof typeof icons; badge?: keyo
   { href: "/admin/orders", label: "الطلبات", icon: "bag", badge: "pendingOrders" },
   { href: "/admin/customers", label: "العملاء", icon: "users" },
   { href: "/admin/inventory", label: "المخزون", icon: "layers" },
+  { href: "/admin/subscriptions", label: "الاشتراكات", icon: "plug" },
   { href: "/admin/coupons", label: "الكوبونات", icon: "ticket" },
   { href: "/admin/reviews", label: "التقييمات", icon: "chat", badge: "pendingReviews" },
   { href: "/admin/reports", label: "التقارير", icon: "chart" },
@@ -36,6 +37,7 @@ const icons = {
   chart: "M4 20V10M10 20V4M16 20v-7M20 20H3",
   page: "M6 3h9l5 5v13H6V3Zm9 0v5h5M9 12h6M9 16h6",
   megaphone: "M3 11v2a1 1 0 0 0 1 1h2l4 4V6L6 10H4a1 1 0 0 0-1 1Zm12-4v10a4 4 0 0 0 0-10Z",
+  plug: "M9 3v4m6-4v4M6 7h12v3a6 6 0 0 1-12 0V7Zm6 9v5",
   gear: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7.4-3a7.4 7.4 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2l-.4-2.6H9.5l-.4 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7.4 7.4 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2l.4 2.6h5l.4-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.06-.4.1-.8.1-1.2Z",
 } as const;
 
