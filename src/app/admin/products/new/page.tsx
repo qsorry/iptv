@@ -22,6 +22,7 @@ export default async function NewProductPage({ searchParams }: { searchParams: P
         status: formData.get("publish") ? "active" : "draft",
         categoryId: String(formData.get("categoryId") || "") || undefined,
         shortDescription: String(formData.get("shortDescription") || "") || undefined,
+        description: String(formData.get("description") || "") || undefined,
         variants: [{ name: "الافتراضي", price: String(formData.get("price")), isDefault: true }],
       });
     } catch (e) {
@@ -73,6 +74,11 @@ export default async function NewProductPage({ searchParams }: { searchParams: P
         <label className="block text-sm">
           وصف مختصر (اختياري)
           <Input name="shortDescription" className="mt-1" />
+        </label>
+
+        <label className="block text-sm">
+          الوصف الكامل (اختياري)
+          <textarea name="description" rows={5} className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base" />
         </label>
 
         <label className="flex items-center gap-2 text-sm">
