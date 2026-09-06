@@ -36,3 +36,8 @@ Inputs: the storefront category listing (`api.salla.dev/store/v1/products?source
 header `Store-Identifier`), the admin product records (Salla MCP `products_list`), and the scraped product pages.
 Images are downloaded once into `public/media/subscriptions/<product-id>/gallery-N.ext` (product gallery) and
 `public/media/subscriptions/shared/<hash>.ext` (setup screenshots embedded in descriptions, shared across products).
+
+## Publishing to the platform
+- `public/catalog/subscriptions.html` is served at https://com.ssouq.net/catalog/subscriptions.html after deploy.
+- `docs/ssouq-catalog/subscriptions-import.csv` (from `subs_export.py`) can be uploaded at `/admin/products/import`
+  (columns: name, price, short_description, description as HTML with icon bullets, images as `|`-separated hosted URLs, type=digital, status=active).
