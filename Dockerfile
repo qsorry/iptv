@@ -28,8 +28,12 @@ COPY --from=build --chown=app:app /app/public ./public
 COPY --from=build --chown=app:app /app/.next/standalone ./
 COPY --from=build --chown=app:app /app/.next/static ./.next/static
 # ملفات الهجرة + سكربت تطبيقها عند الإقلاع.
+# مخرجات standalone لا تتضمن الحزم كاملة، لذا نضع drizzle-orm و postgres (بلا تبعيات)
+# بجانب السكربت مباشرة حتى يجدها Node عند الإقلاع.
 COPY --from=build --chown=app:app /app/drizzle ./drizzle
 COPY --from=build --chown=app:app /app/scripts/migrate.mjs ./scripts/migrate.mjs
+COPY --from=deps --chown=app:app /app/node_modules/drizzle-orm ./scripts/node_modules/drizzle-orm
+COPY --from=deps --chown=app:app /app/node_modules/postgres ./scripts/node_modules/postgres
 
 USER app
 EXPOSE 3000

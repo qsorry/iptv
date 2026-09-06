@@ -11,7 +11,7 @@ if (!url) {
 
 const client = postgres(url, { max: 1, prepare: false });
 try {
-  await migrate(drizzle(client), { migrationsFolder: "./drizzle" });
+  await migrate(drizzle(client), { migrationsFolder: new URL("../drizzle", import.meta.url).pathname });
   console.log("✓ الهجرات مطبّقة");
 } catch (error) {
   console.error("✗ فشل تطبيق الهجرات", error);
