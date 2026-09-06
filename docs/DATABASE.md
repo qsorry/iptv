@@ -5,7 +5,7 @@
 | المجموعة | الجداول |
 |---|---|
 | STORES | stores, store_domains, store_settings |
-| IDENTITY | profiles, store_members |
+| IDENTITY | users, sessions, accounts, verifications (Better Auth), store_members |
 | CATALOG | categories, brands, products, product_variants, product_options, product_option_values, variant_option_values, product_media |
 | INVENTORY | warehouses, inventory_levels, inventory_movements |
 | CUSTOMERS | customers, customer_addresses |
@@ -25,7 +25,6 @@ npm run db:migrate    # تطبيق الهجرات على DATABASE_URL
 npm run db:studio     # متصفح بيانات محلي
 ```
 
-## RLS
-Drizzle يتصل عبر اتصال مباشر يتجاوز RLS، لذا عزل المستأجرين مسؤولية طبقة التطبيق
-(`StoreContext` إلزامي في كل حالة استخدام). عند فتح وصول مباشر من المتصفح لأي جدول
-عبر Supabase client، يجب تفعيل RLS على ذلك الجدول أولاً.
+## عزل المستأجرين
+كل الوصول من الخادم عبر Drizzle، وعزل المستأجرين مسؤولية طبقة التطبيق:
+`StoreContext` إلزامي في كل حالة استخدام، وكل استعلام تجاري مقيد بـ `store_id`.

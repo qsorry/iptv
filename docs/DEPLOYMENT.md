@@ -1,42 +1,44 @@
 # النشر على Coolify
 
 ## 1. قاعدة البيانات
-1. في Coolify: **+ New Resource → Database → PostgreSQL** (الإصدار 17).
-2. بعد التشغيل، انسخ **Internal Connection URL**. هذا هو `DATABASE_URL` للتطبيق.
-3. لا تفعّل الوصول العام (Public Port) إلا مؤقتاً عند الحاجة لأداة خارجية.
+1. **+ New Resource → Database → PostgreSQL** (الإصدار 17).
+2. انسخ **Internal Connection URL** → هذا هو `DATABASE_URL`.
+3. لا تفعّل الوصول العام (Public Port) إلا مؤقتاً.
 
-## 2. التطبيق
-1. **+ New Resource → Application → GitHub** واختر مستودع `qsorry/iptv` والفرع المطلوب.
-2. **Build Pack: Dockerfile** (الملف في جذر المستودع).
-3. **Port: 3000**.
-4. أضف الدومين في **Domains** وسيصدر Coolify شهادة SSL تلقائياً.
+## 2. التخزين (MinIO)
+1. **+ New Resource → Service → MinIO**.
+2. أنشئ bucket باسم `commerce` واجعل سياسته `public-read` (للصور).
+3. أنشئ Access Key، وضع القيم في `S3_*`. `S3_ENDPOINT` هو رابط الـ API (المنفذ 9000) وليس الـ Console.
 
-## 3. متغيرات البيئة
-في تبويب **Environment Variables**:
+## 3. التطبيق
+1. **+ New Resource → Application → GitHub** واختر المستودع والفرع.
+2. **Build Pack: Dockerfile**، **Port: 3000**.
+3. **Domains**: الدومين الرئيسي + `https://*.platform.com` للمتاجر (انظر §5).
+
+## 4. متغيرات البيئة
 
 | المتغير | ملاحظة |
 |---|---|
-| `DATABASE_URL` | من الخطوة 1 |
-| `NEXT_PUBLIC_APP_URL` | فعّل **Build Variable** لأنه يُدمج وقت البناء |
-| `NEXT_PUBLIC_SUPABASE_URL` | Build Variable |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Build Variable |
-| `SUPABASE_SERVICE_ROLE_KEY` | وقت التشغيل فقط |
-
-## 4. الهجرات
-تُطبَّق تلقائياً عند إقلاع الحاوية (`scripts/migrate.mjs` قبل `server.js`).
-إذا فشلت الهجرة لا يبدأ التطبيق، وستجد السبب في Logs.
+| `DATABASE_URL` | من §1 |
+| `BETTER_AUTH_SECRET` | `openssl rand -base64 32` |
+| `NEXT_PUBLIC_APP_URL` | `https://platform.com` — فعّل **Build Variable** |
+| `PLATFORM_DOMAIN` | `platform.com` بدون بروتوكول |
+| `S3_ENDPOINT` / `S3_BUCKET` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_PUBLIC_URL` | من §2 |
 
 ## 5. المتاجر على subdomains
-لتشغيل `*.platform.com`:
-- أضف سجل DNS من نوع A لـ `*` يشير إلى خادم Coolify.
-- في Domains أضف `https://*.platform.com` بجانب الدومين الرئيسي.
-- Traefik داخل Coolify يوجّه كل الطلبات للتطبيق، وmiddleware يحدد المتجر من الـ Host.
+- سجل DNS من نوع A لـ `*.platform.com` يشير إلى خادم Coolify.
+- Traefik داخل Coolify يوجّه كل الطلبات للتطبيق؛ `middleware.ts` يقرأ Host ويحدد المتجر.
+- الدومينات المخصصة للتجار (`www.myshop.com`) تُسجَّل في جدول `store_domains` ويوجّه التاجر CNAME إلى `platform.com`.
+
+## 6. الهجرات
+تُطبَّق تلقائياً عند إقلاع الحاوية (`scripts/migrate.mjs` قبل `server.js`). إن فشلت لا يبدأ التطبيق.
 
 ## التطوير المحلي
 ```bash
-docker compose up -d        # PostgreSQL محلي
-cp .env.example .env.local
+docker compose up -d        # PostgreSQL + MinIO
+cp .env.example .env.local  # عدّل BETTER_AUTH_SECRET ومفاتيح MinIO (minio / minio12345)
 npm install
 npm run db:migrate
 npm run dev
 ```
+لاختبار subdomains محلياً: `PLATFORM_DOMAIN=localhost:3000` وافتح `http://shop.localhost:3000` (المتصفحات الحديثة تحلّ `*.localhost` تلقائياً).

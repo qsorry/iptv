@@ -1,9 +1,6 @@
 /**
  * Module: identity
- * الهيكل داخل كل Module:
- *   application/     حالات الاستخدام (create-x.ts, update-x.ts ...)
- *   infrastructure/  المستودعات (x.repository.ts)
- *   validations/     مخططات zod
- *   presentation/    مكونات React الخاصة بالوحدة (اختياري)
+ * المصادقة نفسها تديرها Better Auth (lib/auth.ts). هذه الوحدة لما يتعلق بالمستخدم داخل المنصة:
+ * العضويات، الأدوار، الدعوات.
  */
-export {};
+export { listMemberships } from "./application/list-memberships";

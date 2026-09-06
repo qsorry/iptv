@@ -1,6 +1,6 @@
 # البنية المعمارية
 
-**Multi-tenant Modular Monolith** على Next.js + PostgreSQL (Supabase).
+**Multi-tenant Modular Monolith** على Next.js + PostgreSQL + Better Auth + تخزين S3، مستضاف على Coolify.
 
 ```
 Clients (Storefront / Admin / Mobile لاحقاً)
@@ -11,7 +11,7 @@ Clients (Storefront / Admin / Mobile لاحقاً)
         │
    Shared Core        (src/core)           ← أخطاء، مال، أحداث، آلات حالة، tenancy
         │
-   Infrastructure     (src/infrastructure) ← Drizzle schema، DB client، storage، تكاملات
+   Infrastructure     (src/infrastructure) ← Drizzle schema، DB client، S3 storage، تكاملات
 ```
 
 ## الهيكل
@@ -34,18 +34,18 @@ src/
   infrastructure/
     database/schema/  مصدر الحقيقة لقاعدة البيانات (Drizzle)
     database/client.ts
-    storage/
+    storage/          تجريد S3 (MinIO / R2)
     integrations/salla/
   components/ ui/ shared/ storefront/ admin/
-  lib/                env, utils, slugify, api helpers
+  lib/                env, auth (Better Auth), utils, slugify, api helpers
 drizzle/              هجرات SQL مولَّدة (لا تُعدَّل يدوياً)
-supabase/             config + Edge Functions
+scripts/              migrate.mjs (عند الإقلاع) + اختبارات دخانية
 ```
 
 ## القواعد الذهبية
 1. **UI لا يحتوي Business Logic.** الصفحات تستدعي حالات الاستخدام من `modules/*` فقط.
 2. **كل جدول تجاري يحمل `store_id`** وكل حالة استخدام تستقبل `StoreContext`.
-3. **الوصول لقاعدة البيانات من الخادم فقط** عبر Drizzle. المتصفح لا يتصل بـ Supabase مباشرة إلا للمصادقة.
+3. **الوصول لقاعدة البيانات من الخادم فقط** عبر Drizzle. المتصفح يتعامل مع `/api/*` فقط.
 4. **المال بالهللة كأعداد صحيحة** في الكود، و`numeric(12,2)` في القاعدة. لا float.
 5. **لا تعديل مخزون بدون صف في `inventory_movements`.**
 6. **Snapshot** في `order_items` و`order_addresses`. الطلب القديم لا يتأثر بتغير المنتج.
@@ -68,3 +68,12 @@ Validate cart → Load current prices → Calculate tax → Lock store row
 | TypeScript | camelCase | `productId`, `isActive` |
 | مكونات React | PascalCase | `ProductCard` |
 | الملفات | kebab-case | `create-order.ts` |
+
+## تحديد المستأجر (Tenancy)
+```
+Host: shop.platform.com → middleware → x-store-slug: shop → getStorefrontStore()
+Host: platform.com      → لوحة التحكم؛ المتجر النشط من كوكي active_store أو أول عضوية
+Host: www.myshop.com    → x-store-domain → بحث في store_domains
+```
+المصادقة عبر Better Auth (`lib/auth.ts`) بجداول `users / sessions / accounts / verifications`،
+و`store_members` يربط المستخدم بالمتجر والدور.

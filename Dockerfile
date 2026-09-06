@@ -12,10 +12,9 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 # متغيرات NEXT_PUBLIC_* تُدمج وقت البناء؛ تُمرَّر من Coolify كـ Build Args.
 ARG NEXT_PUBLIC_APP_URL
-ARG NEXT_PUBLIC_SUPABASE_URL
-ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 # قيم مؤقتة لاجتياز التحقق وقت البناء فقط؛ القيم الحقيقية تأتي وقت التشغيل.
-ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
+ENV DATABASE_URL=postgresql://build:build@localhost:5432/build \
+    BETTER_AUTH_SECRET=build-time-placeholder-secret-not-used-at-runtime
 RUN npm run build
 
 # ---- runtime ----

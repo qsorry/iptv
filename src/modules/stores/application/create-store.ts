@@ -12,7 +12,7 @@ export const createStoreSchema = z.object({
 });
 
 /** تهيئة متجر جديد: المتجر + الإعدادات + المالك + مستودع افتراضي. */
-export async function createStore(rawInput: z.infer<typeof createStoreSchema>) {
+export async function createStore(rawInput: z.input<typeof createStoreSchema>) {
   const parsed = createStoreSchema.safeParse(rawInput);
   if (!parsed.success) throw new ValidationError(undefined, parsed.error.flatten());
   const input = parsed.data;

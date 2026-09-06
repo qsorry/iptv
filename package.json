@@ -14,14 +14,15 @@
     "test:smoke": "tsx scripts/dev/smoke-order-flow.ts"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.6.1",
-    "@supabase/supabase-js": "^2.49.1",
+    "@aws-sdk/client-s3": "^3.1127.0",
+    "better-auth": "^1.7.2",
     "clsx": "^2.1.1",
-    "drizzle-orm": "^0.41.0",
+    "drizzle-orm": "^0.45.2",
     "next": "15.3.0",
     "postgres": "^3.4.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "server-only": "^0.0.1",
     "tailwind-merge": "^3.2.0",
     "zod": "^3.24.2"
   },
@@ -30,7 +31,7 @@
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "autoprefixer": "^10.4.21",
-    "drizzle-kit": "^0.30.6",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9.24.0",
     "eslint-config-next": "15.3.0",
     "postcss": "^8.5.3",

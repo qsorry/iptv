@@ -4,7 +4,8 @@
 - [x] هيكل Modular Monolith متعدد المستأجرين
 - [x] مخطط قاعدة البيانات الأساسي (30 جدولاً) + هجرة أولى
 - [x] حالات استخدام مرجعية: createStore, createProduct, adjustStock, createOrder, transitionOrder
-- [ ] مصادقة Supabase + ربط المستخدم بالمتجر (store_members) + middleware يحدد المتجر من الدومين
+- [x] مصادقة Better Auth + عضويات المتاجر + middleware يحدد المتجر من الدومين + onboarding أول متجر
+- [x] نشر Coolify: Dockerfile + هجرات عند الإقلاع + MinIO للتخزين
 - [ ] لوحة التحكم: CRUD المنتجات والتصنيفات، عرض الطلبات، تعديل المخزون
 - [ ] واجهة المتجر: قائمة المنتجات، صفحة المنتج، السلة، Checkout بدون دفع (COD)
 

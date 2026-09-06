@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { requireSession } from "@/core/tenancy/server";
+import { SignOutButton } from "@/components/shared/sign-out-button";
 
 const nav = [
   { href: "/admin/dashboard", label: "الرئيسية" },
@@ -9,10 +11,12 @@ const nav = [
   { href: "/admin/settings", label: "الإعدادات" },
 ];
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const session = await requireSession();
+
   return (
     <div className="flex min-h-screen">
-      <aside className="w-60 border-l bg-white p-4">
+      <aside className="flex w-60 flex-col border-l bg-white p-4">
         <div className="mb-6 text-lg font-bold">لوحة التحكم</div>
         <nav className="space-y-1 text-sm">
           {nav.map((item) => (
@@ -21,6 +25,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </Link>
           ))}
         </nav>
+        <div className="mt-auto border-t pt-4 text-xs text-gray-500">
+          <div className="truncate" dir="ltr">{session.user.email}</div>
+          <SignOutButton />
+        </div>
       </aside>
       <section className="flex-1 p-6">{children}</section>
     </div>

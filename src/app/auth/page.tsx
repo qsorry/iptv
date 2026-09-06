@@ -1,3 +1,13 @@
-export default function AuthPage() {
-  return <h1 className="p-8 text-2xl font-semibold">تسجيل الدخول</h1>;
+import { redirect } from "next/navigation";
+import { getSession } from "@/core/tenancy/server";
+import { AuthForm } from "@/components/shared/auth-form";
+
+export default async function AuthPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+  if (await getSession()) redirect("/admin");
+  const { next } = await searchParams;
+  return (
+    <main className="flex min-h-screen items-center justify-center p-6">
+      <AuthForm next={next ?? "/admin"} />
+    </main>
+  );
 }

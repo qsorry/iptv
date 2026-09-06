@@ -4,7 +4,7 @@
  */
 import { eq } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
-import { carts, cartItems, customers, domainEvents, inventoryLevels, orderItems, profiles, warehouses } from "@/infrastructure/database/schema";
+import { carts, cartItems, customers, domainEvents, inventoryLevels, orderItems, users, warehouses } from "@/infrastructure/database/schema";
 import { createStore } from "@/modules/stores";
 import { createProduct } from "@/modules/catalog";
 import { adjustStock } from "@/modules/inventory";
@@ -17,7 +17,7 @@ const assert = (cond: unknown, msg: string) => {
 };
 
 async function main() {
-  const [owner] = await db.insert(profiles).values({ id: crypto.randomUUID(), fullName: "Owner" }).returning();
+  const [owner] = await db.insert(users).values({ name: "Owner", email: `owner${Date.now()}@test.com` }).returning();
   const store = await createStore({ name: `متجر تجريبي ${Date.now()}`, ownerUserId: owner.id });
   const ctx = { storeId: store.id, userId: owner.id, role: "owner" as const };
   assert(store.currencyCode === "SAR", "إنشاء المتجر بعملة SAR");
