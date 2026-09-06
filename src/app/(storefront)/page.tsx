@@ -33,10 +33,18 @@ export default async function StorefrontHome() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {items.map((p) => (
             <Link key={p.id} href={`/products/${encodeURIComponent(p.slug)}`}>
-              <Card className="h-full transition hover:border-[var(--brand)]">
+              <Card className="h-full overflow-hidden p-0 transition hover:border-[var(--brand)]">
+                {p.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.image} alt={p.name} className="aspect-square w-full object-cover" />
+                ) : (
+                  <div className="flex aspect-square items-center justify-center bg-black/5 text-xs text-[var(--muted)]">لا صورة</div>
+                )}
+                <div className="p-3">
                 <div className="font-medium">{p.name}</div>
                 {p.shortDescription && <div className="mt-1 line-clamp-2 text-xs text-[var(--muted)]">{p.shortDescription}</div>}
                 <div className="mt-2 font-semibold text-[var(--brand)]" dir="ltr">{formatMoney(toMinor(p.price), store.currencyCode)}</div>
+                </div>
               </Card>
             </Link>
           ))}

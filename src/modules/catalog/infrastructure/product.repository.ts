@@ -13,6 +13,7 @@ export const productRepository = {
         slug: products.slug,
         shortDescription: products.shortDescription,
         price: productVariants.price,
+        image: sql<string | null>`(select url from product_media pm where pm.product_id = ${products.id} order by pm.is_primary desc, pm.position asc limit 1)`,
       })
       .from(products)
       .innerJoin(productVariants, and(eq(productVariants.productId, products.id), eq(productVariants.isDefault, true)))
@@ -34,7 +35,7 @@ export const productRepository = {
   },
 
   async listMedia(productId: string, executor: DbExecutor = db) {
-    return executor.select().from(productMedia).where(eq(productMedia.productId, productId));
+    return executor.select().from(productMedia).where(eq(productMedia.productId, productId)).orderBy(desc(productMedia.isPrimary), productMedia.position);
   },
 
   async findByIdWithVariants(storeId: string, id: string, executor: DbExecutor = db) {

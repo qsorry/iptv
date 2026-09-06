@@ -63,11 +63,23 @@ export async function addProductImageUrl(ctx: StoreContext, productId: string, u
   const product = await db.query.products.findFirst({ where: and(eq(products.storeId, ctx.storeId), eq(products.id, productId)) });
   if (!product) throw new NotFoundError("المنتج", productId);
   const existing = await db.select({ id: productMedia.id }).from(productMedia).where(eq(productMedia.productId, productId));
-  const [row] = await db.insert(productMedia).values({ productId, type: "image", url, altText, position: existing.length }).returning();
+  const [row] = await db
+    .insert(productMedia)
+    .values({ productId, type: "image", url, altText, position: existing.length, isPrimary: existing.length === 0 })
+    .returning();
   return row;
 }
 
 export async function removeProductImage(ctx: StoreContext, productId: string, mediaId: string) {
   requireRole(ctx, "owner", "admin", "staff");
   await db.delete(productMedia).where(and(eq(productMedia.id, mediaId), eq(productMedia.productId, productId)));
+}
+
+/** يجعل صورة رئيسية ويلغي الرئيسية عن الباقي. */
+export async function setPrimaryImage(ctx: StoreContext, productId: string, mediaId: string) {
+  requireRole(ctx, "owner", "admin", "staff");
+  await db.transaction(async (tx) => {
+    await tx.update(productMedia).set({ isPrimary: false }).where(eq(productMedia.productId, productId));
+    await tx.update(productMedia).set({ isPrimary: true }).where(and(eq(productMedia.id, mediaId), eq(productMedia.productId, productId)));
+  });
 }

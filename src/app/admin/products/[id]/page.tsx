@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { getAdminContext } from "@/core/tenancy/server";
-import { productRepository, updateProduct, deleteProduct, addProductImageUrl, removeProductImage } from "@/modules/catalog";
+import { productRepository, updateProduct, deleteProduct, addProductImageUrl, removeProductImage, setPrimaryImage, uploadProductImages } from "@/modules/catalog";
 import { addCodes, codeRepository } from "@/modules/codes";
 import { AppError } from "@/core/errors";
 import { PageHeader } from "@/components/admin/page-header";
@@ -71,6 +71,29 @@ export default async function ProductDetailPage({
     "use server";
     const c = await getAdminContext();
     await removeProductImage(c, id, String(formData.get("mediaId")));
+    revalidatePath(`/admin/products/${id}`);
+  }
+
+  async function uploadImages(formData: FormData) {
+    "use server";
+    const c = await getAdminContext();
+    const files = formData.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
+    let msg: string | null = null;
+    try {
+      if (files.length === 0) throw new AppError("اختر صورة واحدة على الأقل", "EMPTY", 422);
+      const r = await uploadProductImages(c, id, files);
+      msg = `تم رفع ${r.added} صورة`;
+    } catch (e) {
+      msg = e instanceof AppError ? e.message : "تعذّر رفع الصور";
+    }
+    revalidatePath(`/admin/products/${id}`);
+    redirect(`/admin/products/${id}?ok=${encodeURIComponent(msg)}`);
+  }
+
+  async function makePrimary(formData: FormData) {
+    "use server";
+    const c = await getAdminContext();
+    await setPrimaryImage(c, id, String(formData.get("mediaId")));
     revalidatePath(`/admin/products/${id}`);
   }
 
@@ -153,24 +176,49 @@ export default async function ProductDetailPage({
             key: "images",
             label: `الصور (${media.length})`,
             content: (
-              <Card className="space-y-4">
+              <Card className="space-y-5">
                 {media.length > 0 && (
-                  <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
                     {media.map((m) => (
-                      <div key={m.id} className="relative">
+                      <div key={m.id} className={`relative overflow-hidden rounded-[var(--radius)] border ${m.isPrimary ? "border-[var(--brand)] ring-1 ring-[var(--brand)]" : "border-[var(--border)]"}`}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={m.url} alt={m.altText ?? ""} className="aspect-square w-full rounded-[var(--radius)] border border-[var(--border)] object-cover" />
-                        <form action={deleteImage} className="absolute left-1 top-1">
-                          <input type="hidden" name="mediaId" value={m.id} />
-                          <button className="rounded bg-black/60 px-1.5 text-xs text-white">حذف</button>
-                        </form>
+                        <img src={m.url} alt={m.altText ?? ""} className="aspect-square w-full object-cover" />
+                        {m.isPrimary && (
+                          <span className="absolute right-1 top-1 rounded bg-[var(--brand)] px-1.5 py-0.5 text-[10px] text-white">رئيسية</span>
+                        )}
+                        <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1">
+                          {!m.isPrimary && (
+                            <form action={makePrimary}>
+                              <input type="hidden" name="mediaId" value={m.id} />
+                              <button className="text-[11px] text-white hover:underline">تعيين رئيسية</button>
+                            </form>
+                          )}
+                          <form action={deleteImage} className="ml-auto">
+                            <input type="hidden" name="mediaId" value={m.id} />
+                            <button className="text-[11px] text-red-200 hover:underline">حذف</button>
+                          </form>
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
-                <form action={addImage} className="flex flex-wrap items-center gap-2">
+
+                <form action={uploadImages} className="space-y-2">
+                  <label className="block text-sm font-medium">رفع صور (يمكن اختيار أكثر من صورة)</label>
+                  <input
+                    type="file"
+                    name="files"
+                    accept="image/*"
+                    multiple
+                    className="block w-full text-sm file:mr-3 file:rounded-[var(--radius)] file:border file:border-[var(--border)] file:bg-[var(--surface)] file:px-3 file:py-2 file:text-sm"
+                  />
+                  <Button type="submit" size="sm">رفع الصور</Button>
+                </form>
+
+                <form action={addImage} className="flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-4">
+                  <span className="w-full text-xs text-[var(--muted)]">أو أضف صورة برابط:</span>
                   <Input name="url" placeholder="https://.../image.jpg" dir="ltr" className="min-w-0 flex-1" />
-                  <Button type="submit" size="sm">إضافة صورة</Button>
+                  <Button type="submit" size="sm" variant="secondary">إضافة رابط</Button>
                 </form>
               </Card>
             ),

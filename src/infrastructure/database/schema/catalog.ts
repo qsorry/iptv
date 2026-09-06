@@ -116,5 +116,6 @@ export const productMedia = pgTable("product_media", {
   url: text("url").notNull(),
   altText: text("alt_text"),
   position: integer("position").default(0).notNull(),
+  isPrimary: boolean("is_primary").default(false).notNull(),
   ...timestamps(),
 });
