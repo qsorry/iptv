@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-export default async function ImportPage({ searchParams }: { searchParams: Promise<{ created?: string; skipped?: string; failed?: string; error?: string }> }) {
+export default async function ImportPage({ searchParams }: { searchParams: Promise<{ created?: string; updated?: string; skipped?: string; failed?: string; error?: string }> }) {
   await getAdminContext();
   const sp = await searchParams;
 
@@ -29,8 +29,9 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
     try {
       const rows = mapCsvRows(csvToObjects(csv));
       if (rows.length === 0) throw new AppError("لا توجد صفوف صالحة. تأكد من صف الترويسة.", "EMPTY", 422);
-      const r = await importProducts(ctx, rows);
-      redirect(`/admin/products/import?created=${r.created}&skipped=${r.skipped}&failed=${r.failed}`);
+      const updateExisting = formData.get("updateExisting") === "on";
+      const r = await importProducts(ctx, rows, { updateExisting });
+      redirect(`/admin/products/import?created=${r.created}&updated=${r.updated}&skipped=${r.skipped}&failed=${r.failed}`);
     } catch (e) {
       if (e instanceof AppError) redirect(`/admin/products/import?error=${encodeURIComponent(e.message)}`);
       throw e;
@@ -43,7 +44,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
 
       {sp.created !== undefined && (
         <p className="mb-4 rounded-[var(--radius)] border border-green-200 bg-green-50 p-3 text-sm text-green-700">
-          تم الاستيراد: أُضيف {sp.created}، تم تخطي {sp.skipped} (مكرر)، فشل {sp.failed}.
+          تم الاستيراد: أُضيف {sp.created}، حُدِّث {sp.updated ?? 0}، تم تخطي {sp.skipped} (مكرر)، فشل {sp.failed}.
         </p>
       )}
       {sp.error && <p className="mb-4 rounded-[var(--radius)] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{sp.error}</p>}
@@ -75,6 +76,16 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
             className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 font-mono text-xs"
           />
         </Card>
+
+        <label className="flex items-start gap-3 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3 text-sm">
+          <input type="checkbox" name="updateExisting" className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            <span className="font-medium">تحديث المنتجات الموجودة</span>
+            <span className="mt-0.5 block text-xs text-[var(--muted)]">
+              عند وجود منتج بنفس الاسم، حدّث وصفه وسعره (وأضف صوره إن لم تكن له صور) بدل تخطّيه.
+            </span>
+          </span>
+        </label>
 
         <Button type="submit">استيراد</Button>
       </form>

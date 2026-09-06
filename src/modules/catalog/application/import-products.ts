@@ -1,8 +1,10 @@
+import { eq } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
+import { productMedia } from "@/infrastructure/database/schema";
 import type { StoreContext } from "@/core/tenancy";
 import { requireRole } from "@/core/tenancy";
 import { createProduct } from "./create-product";
-import { addProductImageUrl } from "./update-product";
+import { addProductImageUrl, updateProduct } from "./update-product";
 import { productRepository } from "../infrastructure/product.repository";
 import { slugify } from "@/lib/slugify";
 
@@ -34,15 +36,26 @@ const mapType = (t?: string): "physical" | "digital" | "service" => {
 
 export interface ImportResult {
   created: number;
+  updated: number;
   skipped: number;
   failed: number;
   errors: string[];
 }
 
-/** يستورد صفوف منتجات إلى المتجر. يتخطّى المكرر (نفس الـ slug) ويجمع الأخطاء دون إيقاف. */
-export async function importProducts(ctx: StoreContext, rows: ImportRow[]): Promise<ImportResult> {
+export interface ImportOptions {
+  /** عند وجود منتج بنفس الـ slug: حدّث الوصف والسعر والصور بدل التخطّي. */
+  updateExisting?: boolean;
+}
+
+/**
+ * يستورد صفوف منتجات إلى المتجر.
+ * - افتراضياً يتخطّى المكرر (نفس الـ slug).
+ * - مع `updateExisting` يحدّث الوصف/الوصف المختصر/السعر، ويضيف الصور إن لم تكن للمنتج صور.
+ * يجمع الأخطاء دون إيقاف.
+ */
+export async function importProducts(ctx: StoreContext, rows: ImportRow[], options: ImportOptions = {}): Promise<ImportResult> {
   requireRole(ctx, "owner", "admin");
-  const result: ImportResult = { created: 0, skipped: 0, failed: 0, errors: [] };
+  const result: ImportResult = { created: 0, updated: 0, skipped: 0, failed: 0, errors: [] };
 
   for (const row of rows) {
     const name = (row.name ?? "").trim();
@@ -56,7 +69,35 @@ export async function importProducts(ctx: StoreContext, rows: ImportRow[]): Prom
     const slug = slugify(name);
     const exists = await productRepository.findBySlug(ctx.storeId, slug);
     if (exists) {
-      result.skipped++;
+      if (!options.updateExisting) {
+        result.skipped++;
+        continue;
+      }
+      try {
+        await updateProduct(ctx, exists.id, {
+          shortDescription: row.shortDescription || undefined,
+          description: row.description || undefined,
+          price,
+        });
+        // أضف الصور فقط إذا لم يكن للمنتج صور بعد (تجنّب التكرار).
+        const urls = (row.images ?? []).map((u) => u.trim()).filter(Boolean);
+        if (urls.length > 0) {
+          const [media] = await db.select({ id: productMedia.id }).from(productMedia).where(eq(productMedia.productId, exists.id)).limit(1);
+          if (!media) {
+            for (const u of urls) {
+              try {
+                await addProductImageUrl(ctx, exists.id, u);
+              } catch {
+                /* رابط صورة غير صالح: تجاهل */
+              }
+            }
+          }
+        }
+        result.updated++;
+      } catch (e) {
+        result.failed++;
+        if (result.errors.length < 20) result.errors.push(`${name}: ${e instanceof Error ? e.message : "خطأ"}`);
+      }
       continue;
     }
 
