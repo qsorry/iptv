@@ -1,6 +1,6 @@
 import { and, eq, isNull, sql, desc } from "drizzle-orm";
 import { db, type DbExecutor } from "@/infrastructure/database/client";
-import { products, productVariants } from "@/infrastructure/database/schema";
+import { products, productVariants, productMedia } from "@/infrastructure/database/schema";
 import { offsetOf, paginate, type Pagination } from "@/core/pagination";
 
 export const productRepository = {
@@ -14,6 +14,10 @@ export const productRepository = {
     return executor.query.products.findFirst({
       where: and(eq(products.storeId, storeId), eq(products.id, id), isNull(products.deletedAt)),
     });
+  },
+
+  async listMedia(productId: string, executor: DbExecutor = db) {
+    return executor.select().from(productMedia).where(eq(productMedia.productId, productId));
   },
 
   async findByIdWithVariants(storeId: string, id: string, executor: DbExecutor = db) {

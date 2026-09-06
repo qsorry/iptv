@@ -1,19 +1,92 @@
+import { redirect, notFound } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { getAdminContext } from "@/core/tenancy/server";
-import { productRepository } from "@/modules/catalog";
-import { formatMoney, toMinor } from "@/core/money";
+import { productRepository, updateProduct, deleteProduct, addProductImageUrl, removeProductImage } from "@/modules/catalog";
+import { addCodes, codeRepository } from "@/modules/codes";
+import { AppError } from "@/core/errors";
 import { PageHeader } from "@/components/admin/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
-const statusLabel: Record<string, string> = { draft: "مسودة", active: "منشور", archived: "مؤرشف" };
-
-export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProductDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string; ok?: string }>;
+}) {
   const ctx = await getAdminContext();
   const { id } = await params;
+  const { error, ok } = await searchParams;
   const product = await productRepository.findByIdWithVariants(ctx.storeId, id);
   if (!product) notFound();
+
+  const media = await productRepository.listMedia(id);
+  const defaultVariant = product.variants.find((v) => v.isDefault) ?? product.variants[0];
+  const codes = defaultVariant ? await codeRepository.summary(ctx.storeId, defaultVariant.id) : null;
+
+  async function saveDetails(formData: FormData) {
+    "use server";
+    const c = await getAdminContext();
+    let msg: string | null = null;
+    try {
+      await updateProduct(c, id, {
+        name: String(formData.get("name")),
+        shortDescription: String(formData.get("shortDescription") || "") || null,
+        description: String(formData.get("description") || "") || null,
+        status: String(formData.get("status")) as "draft" | "active" | "archived",
+        price: String(formData.get("price")),
+      });
+    } catch (e) {
+      msg = e instanceof AppError ? e.message : "تعذّر الحفظ";
+    }
+    revalidatePath(`/admin/products/${id}`);
+    redirect(msg ? `/admin/products/${id}?error=${encodeURIComponent(msg)}` : `/admin/products/${id}?ok=1`);
+  }
+
+  async function remove() {
+    "use server";
+    const c = await getAdminContext();
+    await deleteProduct(c, id);
+    redirect("/admin/products");
+  }
+
+  async function addImage(formData: FormData) {
+    "use server";
+    const c = await getAdminContext();
+    let msg: string | null = null;
+    try {
+      await addProductImageUrl(c, id, String(formData.get("url")));
+    } catch (e) {
+      msg = e instanceof AppError ? e.message : "تعذّرت إضافة الصورة";
+    }
+    revalidatePath(`/admin/products/${id}`);
+    redirect(msg ? `/admin/products/${id}?error=${encodeURIComponent(msg)}` : `/admin/products/${id}?ok=1`);
+  }
+
+  async function deleteImage(formData: FormData) {
+    "use server";
+    const c = await getAdminContext();
+    await removeProductImage(c, id, String(formData.get("mediaId")));
+    revalidatePath(`/admin/products/${id}`);
+  }
+
+  async function pasteCodes(formData: FormData) {
+    "use server";
+    const c = await getAdminContext();
+    const variantId = String(formData.get("variantId"));
+    let msg: string | null = null;
+    try {
+      const r = await addCodes(c, variantId, String(formData.get("codes")));
+      msg = `added:${r.added}`;
+    } catch (e) {
+      msg = e instanceof AppError ? e.message : "تعذّرت إضافة الأكواد";
+    }
+    revalidatePath(`/admin/products/${id}`);
+    redirect(`/admin/products/${id}?ok=${encodeURIComponent(msg)}`);
+  }
 
   return (
     <div className="max-w-2xl">
@@ -26,30 +99,120 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         }
       />
 
-      <Card className="space-y-3">
-        <Row label="الحالة" value={statusLabel[product.status] ?? product.status} />
-        <Row label="النوع" value={product.productType} />
-        {product.shortDescription && <Row label="وصف مختصر" value={product.shortDescription} />}
+      {error && <p className="mb-4 rounded-[var(--radius)] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {ok && <p className="mb-4 rounded-[var(--radius)] border border-green-200 bg-green-50 p-3 text-sm text-green-700">تم الحفظ. {ok !== "1" ? ok : ""}</p>}
+
+      {/* التفاصيل */}
+      <form action={saveDetails} className="space-y-4">
+        <Card className="space-y-4">
+          <label className="block text-sm">
+            الاسم
+            <Input name="name" defaultValue={product.name} required className="mt-1" />
+          </label>
+          <label className="block text-sm">
+            السعر (ر.س)
+            <Input name="price" type="number" step="0.01" min="0" defaultValue={defaultVariant?.price} dir="ltr" required className="mt-1" />
+          </label>
+          <label className="block text-sm">
+            الحالة
+            <select
+              name="status"
+              defaultValue={product.status}
+              className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base"
+            >
+              <option value="draft">مسودة</option>
+              <option value="active">منشور</option>
+              <option value="archived">مؤرشف</option>
+            </select>
+          </label>
+          <label className="block text-sm">
+            وصف مختصر
+            <Input name="shortDescription" defaultValue={product.shortDescription ?? ""} className="mt-1" />
+          </label>
+          <label className="block text-sm">
+            الوصف
+            <textarea
+              name="description"
+              defaultValue={product.description ?? ""}
+              rows={4}
+              className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base"
+            />
+          </label>
+          <Button type="submit">حفظ التغييرات</Button>
+        </Card>
+      </form>
+
+      {/* الصور */}
+      <h2 className="mb-2 mt-8 text-sm font-semibold text-[var(--muted)]">الصور</h2>
+      <Card className="space-y-4">
+        {media.length > 0 && (
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+            {media.map((m) => (
+              <div key={m.id} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={m.url} alt={m.altText ?? ""} className="aspect-square w-full rounded-[var(--radius)] border border-[var(--border)] object-cover" />
+                <form action={deleteImage} className="absolute left-1 top-1">
+                  <input type="hidden" name="mediaId" value={m.id} />
+                  <button className="rounded bg-black/60 px-1.5 text-xs text-white">حذف</button>
+                </form>
+              </div>
+            ))}
+          </div>
+        )}
+        <form action={addImage} className="flex flex-wrap items-center gap-2">
+          <Input name="url" placeholder="https://.../image.jpg" dir="ltr" className="min-w-0 flex-1" />
+          <Button type="submit" size="sm">إضافة صورة</Button>
+        </form>
       </Card>
 
-      <h2 className="mb-2 mt-6 text-sm font-semibold text-[var(--muted)]">الأسعار</h2>
-      <div className="grid gap-3">
-        {product.variants.map((v) => (
-          <Card key={v.id} className="flex items-center justify-between">
-            <span>{v.name}</span>
-            <span className="font-semibold" dir="ltr">{formatMoney(toMinor(v.price), ctx.storeId ? "SAR" : "SAR")}</span>
+      {/* الأكواد الرقمية */}
+      {defaultVariant && (
+        <>
+          <h2 className="mb-2 mt-8 text-sm font-semibold text-[var(--muted)]">الأكواد الرقمية</h2>
+          <Card className="space-y-4">
+            {codes && (
+              <div className="flex flex-wrap gap-4 text-sm">
+                <Stat label="متاح" value={codes.available} strong />
+                <Stat label="مُسلَّم" value={codes.delivered} />
+                <Stat label="محجوز" value={codes.reserved} />
+              </div>
+            )}
+            <form action={pasteCodes} className="space-y-2">
+              <input type="hidden" name="variantId" value={defaultVariant.id} />
+              <label className="block text-sm">الصق الأكواد (كود في كل سطر)</label>
+              <textarea
+                name="codes"
+                rows={5}
+                dir="ltr"
+                placeholder={"CODE-1\nCODE-2\nCODE-3"}
+                className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 font-mono text-sm"
+              />
+              <Button type="submit" size="sm">إضافة الأكواد</Button>
+              <p className="text-xs text-[var(--muted)]">
+                تُسلَّم للمشتري تلقائياً عند نجاح الدفع فقط. المكرر يُتجاهل.
+              </p>
+            </form>
           </Card>
-        ))}
-      </div>
+        </>
+      )}
+
+      {/* حذف المنتج */}
+      <h2 className="mb-2 mt-8 text-sm font-semibold text-[var(--muted)]">منطقة الخطر</h2>
+      <Card>
+        <form action={remove}>
+          <Button type="submit" variant="secondary" className="border-red-300 text-red-600">حذف المنتج</Button>
+          <p className="mt-2 text-xs text-[var(--muted)]">يُخفى المنتج ويبقى تاريخ الطلبات محفوظاً.</p>
+        </form>
+      </Card>
     </div>
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, strong }: { label: string; value: number; strong?: boolean }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-sm text-[var(--muted)]">{label}</span>
-      <span className="text-sm">{value}</span>
+    <div>
+      <div className={strong ? "text-xl font-bold" : "text-xl"}>{value}</div>
+      <div className="text-xs text-[var(--muted)]">{label}</div>
     </div>
   );
 }
