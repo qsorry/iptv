@@ -1,0 +1,19 @@
+# بيئة تطوير محلية: PostgreSQL فقط. التطبيق يعمل بـ npm run dev خارج Docker.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: commerce
+      POSTGRES_PASSWORD: commerce
+      POSTGRES_DB: commerce
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U commerce"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  pgdata:

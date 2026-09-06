@@ -5,11 +5,13 @@
 
 ## المتطلبات
 - Node.js 22+
-- مشروع Supabase (أو Postgres محلي)
+- Docker (لتشغيل PostgreSQL محلياً)
+- الاستضافة: Coolify (راجع docs/DEPLOYMENT.md)
 
 ## البدء
 ```bash
-cp .env.example .env.local     # عبّئ DATABASE_URL ومفاتيح Supabase
+docker compose up -d           # PostgreSQL محلي
+cp .env.example .env.local
 npm install
 npm run db:migrate             # ينشئ الجداول
 npm run dev
@@ -29,3 +31,4 @@ npm run dev
 - [البنية المعمارية](docs/ARCHITECTURE.md)
 - [قاعدة البيانات](docs/DATABASE.md)
 - [خارطة الطريق](docs/ROADMAP.md)
+- [النشر على Coolify](docs/DEPLOYMENT.md)
