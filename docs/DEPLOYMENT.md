@@ -30,7 +30,12 @@
 - Traefik داخل Coolify يوجّه كل الطلبات للتطبيق؛ `middleware.ts` يقرأ Host ويحدد المتجر.
 - الدومينات المخصصة للتجار (`www.myshop.com`) تُسجَّل في جدول `store_domains` ويوجّه التاجر CNAME إلى `platform.com`.
 
-## 6. الهجرات
+## 6. فحص الصحة (مهم)
+إعداد Coolify الافتراضي يفحص المنفذ 80 والمسار `/`، بينما التطبيق يعمل على 3000. إن بقي الافتراضي
+تُعلَّم الحاوية unhealthy ويعرض Traefik «no available server». في قسم **Healthcheck** بالتطبيق:
+**Port: 3000**، **Path: /api/health**. أو عطّل فحص Coolify واعتمد على `HEALTHCHECK` في الـ Dockerfile.
+
+## 7. الهجرات
 تُطبَّق تلقائياً عند إقلاع الحاوية (`scripts/migrate.mjs` قبل `server.js`). إن فشلت لا يبدأ التطبيق.
 
 ## التطوير المحلي
