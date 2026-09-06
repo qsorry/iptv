@@ -71,6 +71,26 @@ export async function productReviews(productId: string) {
   return { rows, count, average, breakdown };
 }
 
+/** أفضل التقييمات المنشورة عبر المتجر (لعرضها كآراء عملاء في الرئيسية). */
+export async function storeTestimonials(storeId: string, limit = 6) {
+  return db
+    .select({
+      id: reviews.id,
+      rating: reviews.rating,
+      title: reviews.title,
+      body: reviews.body,
+      authorName: reviews.authorName,
+      verified: reviews.verified,
+      productName: products.name,
+      productSlug: products.slug,
+    })
+    .from(reviews)
+    .innerJoin(products, eq(products.id, reviews.productId))
+    .where(and(eq(reviews.storeId, storeId), eq(reviews.status, "approved"), sql`${reviews.rating} >= 4`, sql`${reviews.body} is not null`))
+    .orderBy(desc(reviews.rating), desc(reviews.createdAt))
+    .limit(limit);
+}
+
 /** قائمة تقييمات المتجر للوحة التحكم (حسب الحالة). */
 export function listStoreReviews(storeId: string, status?: "pending" | "approved" | "rejected") {
   const where = status ? and(eq(reviews.storeId, storeId), eq(reviews.status, status)) : eq(reviews.storeId, storeId);

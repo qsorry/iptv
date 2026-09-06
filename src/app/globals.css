@@ -50,3 +50,105 @@ body {
     min-height: 40px;
   }
 }
+
+/*
+ * تنسيق محتوى HTML للوصف (المستورد من سلة وغيرها) دون الحاجة لإضافة typography.
+ * يجعل العناوين والقوائم والصور والجداول واضحة للعميل.
+ */
+.prose {
+  line-height: 1.85;
+  color: var(--fg);
+  word-break: break-word;
+}
+.prose > :first-child {
+  margin-top: 0;
+}
+.prose > :last-child {
+  margin-bottom: 0;
+}
+.prose p {
+  margin: 0.75em 0;
+}
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  margin: 1.4em 0 0.6em;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.prose h1 {
+  font-size: 1.5em;
+}
+.prose h2 {
+  font-size: 1.3em;
+}
+.prose h3 {
+  font-size: 1.12em;
+}
+.prose h4 {
+  font-size: 1em;
+}
+.prose ul,
+.prose ol {
+  margin: 0.75em 0;
+  padding-inline-start: 1.5em;
+}
+.prose ul {
+  list-style: disc;
+}
+.prose ol {
+  list-style: decimal;
+}
+.prose li {
+  margin: 0.35em 0;
+}
+.prose a {
+  color: var(--brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  margin: 1em 0;
+}
+.prose strong,
+.prose b {
+  font-weight: 700;
+}
+.prose blockquote {
+  margin: 1em 0;
+  padding-inline-start: 1em;
+  border-inline-start: 3px solid var(--border);
+  color: var(--muted);
+}
+.prose hr {
+  margin: 1.5em 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  display: block;
+  overflow-x: auto;
+}
+.prose th,
+.prose td {
+  border: 1px solid var(--border);
+  padding: 0.5em 0.75em;
+  text-align: start;
+}
+.prose th {
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+  font-weight: 700;
+}
+.prose iframe,
+.prose video {
+  max-width: 100%;
+  margin: 1em 0;
+  border-radius: var(--radius);
+}

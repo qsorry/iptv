@@ -12,6 +12,7 @@ export {
   themeVars,
   googleFontHref,
   contrastOn,
+  isDarkTheme,
   type ThemePalette,
   type ThemeConfig,
 } from "./themes";

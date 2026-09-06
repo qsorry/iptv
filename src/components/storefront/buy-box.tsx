@@ -1,8 +1,33 @@
 "use client";
 
 import { useState } from "react";
+import { useFormStatus } from "react-dom";
 import { formatMoney, toMinor } from "@/core/money";
 import { Button } from "@/components/ui/button";
+
+/** زر الإضافة مع حالة انتظار (سبينر) أثناء التوجّه إلى السلة. */
+function AddButton({ digital }: { digital: boolean }) {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" disabled={pending} className="w-full py-3 text-base sm:w-auto sm:px-8">
+      {pending ? (
+        <>
+          <svg viewBox="0 0 24 24" className="h-5 w-5 animate-spin" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M12 3a9 9 0 1 0 9 9" />
+          </svg>
+          جارٍ الإضافة…
+        </>
+      ) : (
+        <>
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 7h12l1 13H5L6 7Zm3 0a3 3 0 0 1 6 0" />
+          </svg>
+          {digital ? "اشترِ الآن" : "أضف إلى السلة"}
+        </>
+      )}
+    </Button>
+  );
+}
 
 export interface BuyVariant {
   id: string;
@@ -109,9 +134,7 @@ export function BuyBox({
       <form action={action}>
         <input type="hidden" name="variantId" value={variantId} />
         <input type="hidden" name="quantity" value={qty} />
-        <Button type="submit" className="w-full py-3 text-base sm:w-auto sm:px-8">
-          {digital ? "اشترِ الآن" : "أضف إلى السلة"}
-        </Button>
+        <AddButton digital={digital} />
       </form>
     </div>
   );

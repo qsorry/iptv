@@ -60,7 +60,24 @@ export async function getStorefrontStore() {
   // وصول عبر مجلد: /s/<slug> يضبط كوكي المتجر النشط.
   const cookieStore = await cookies();
   const preview = cookieStore.get("store_preview")?.value;
-  if (preview) return db.query.stores.findFirst({ where: and(eq(stores.slug, preview), eq(stores.status, "active")) });
+  if (preview) {
+    const byCookie = await db.query.stores.findFirst({ where: and(eq(stores.slug, preview), eq(stores.status, "active")) });
+    if (byCookie) return byCookie;
+  }
+
+  // احتياطي موثوق: بعض المتصفحات داخل التطبيقات (واتساب/إنستغرام) تُسقط كوكي إعادة التوجيه،
+  // فيصل الزائر إلى "/" بلا كوكي. نعيد المتجر الافتراضي حتى يفتح الرابط دائماً.
+  const defaultSlug = process.env.DEFAULT_STORE_SLUG;
+  if (defaultSlug) {
+    const byEnv = await db.query.stores.findFirst({ where: and(eq(stores.slug, defaultSlug), eq(stores.status, "active")) });
+    if (byEnv) return byEnv;
+  }
+
+  // وإلا: إن كان هناك متجر نشط واحد فقط على المنصة، اعرضه (نشر أحادي المتجر).
+  const activeStores = await db.select({ id: stores.id }).from(stores).where(eq(stores.status, "active")).limit(2);
+  if (activeStores.length === 1) {
+    return db.query.stores.findFirst({ where: eq(stores.id, activeStores[0].id) });
+  }
 
   return null;
 }

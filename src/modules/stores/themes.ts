@@ -106,7 +106,15 @@ export interface ThemeConfig {
   roundness?: string;
 }
 
-/** متغيرات CSS للثيم مع لون العلامة كـ accent والخط والاستدارة. */
+/** هل الثيم المختار داكن؟ (لضبط color-scheme في واجهة المتجر). */
+export function isDarkTheme(themeKey: string | undefined): boolean {
+  return THEMES[themeKey ?? DEFAULT_THEME]?.palette.dark ?? false;
+}
+
+/**
+ * متغيرات CSS للثيم (Material 3): لون العلامة، أسطح متدرّجة اللون (surface containers)،
+ * الخط، والاستدارة. أدوار الألوان تُشتق عبر color-mix لتناسق الوضعين الفاتح/الداكن.
+ */
 export function themeVars(config: string | ThemeConfig | undefined, brandColor: string): Record<string, string> {
   const cfg: ThemeConfig = typeof config === "string" ? { theme: config } : (config ?? {});
   const t = THEMES[cfg.theme ?? DEFAULT_THEME]?.palette ?? THEMES[DEFAULT_THEME].palette;
@@ -117,6 +125,13 @@ export function themeVars(config: string | ThemeConfig | undefined, brandColor: 
     "--brand-fg": contrastOn(brandColor),
     "--bg": t.bg,
     "--surface": t.surface,
+    // أسطح Material 3 المتدرّجة (elevation عبر اللون لا الظل فقط).
+    "--surface-1": `color-mix(in srgb, ${t.surface} 97%, ${t.fg})`,
+    "--surface-2": `color-mix(in srgb, ${t.surface} 94%, ${t.fg})`,
+    "--surface-3": `color-mix(in srgb, ${t.surface} 90%, ${t.fg})`,
+    // حاويات لونية بلون العلامة (tonal containers).
+    "--brand-container": `color-mix(in srgb, ${brandColor} 14%, ${t.surface})`,
+    "--brand-container-fg": `color-mix(in srgb, ${brandColor} 78%, ${t.fg})`,
     "--fg": t.fg,
     "--muted": t.muted,
     "--border": t.border,

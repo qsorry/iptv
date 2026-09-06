@@ -4,15 +4,16 @@ import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getStorefrontStore } from "@/core/tenancy/server";
 import { productRepository } from "@/modules/catalog";
-import { formatMoney, toMinor } from "@/core/money";
 import { Card } from "@/components/ui/card";
 import { productReviews, submitReview } from "@/modules/reviews";
+import { AppError } from "@/core/errors";
 import { addToCart } from "@/modules/carts";
 import { readCartId, writeCartId } from "@/core/tenancy/cart-cookie";
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { BuyBox } from "@/components/storefront/buy-box";
 import { ProductTabs } from "@/components/storefront/product-tabs";
 import { ReviewForm } from "@/components/storefront/review-form";
+import { ProductGrid } from "@/components/storefront/product-grid";
 
 async function load(slug: string) {
   const store = await getStorefrontStore();
@@ -31,12 +32,24 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!data) return { title: "منتج غير متوفر" };
   const { store, product, media } = data;
   const title = product.seoTitle ?? product.name;
-  const description = (product.seoDescription ?? product.shortDescription ?? "").replace(/<[^>]+>/g, "").slice(0, 160) || product.name;
+  const description =
+    (product.seoDescription ?? product.shortDescription ?? product.description ?? "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 160) || product.name;
   const images = media.filter((m) => m.type === "image").map((m) => m.url);
   return {
-    title: `${title} — ${store.name}`,
+    title,
     description,
-    openGraph: { title, description, images: images.length ? images : store.logoUrl ? [store.logoUrl] : undefined, type: "website" },
+    alternates: { canonical: `/products/${encodeURIComponent(product.slug)}` },
+    openGraph: {
+      title,
+      description,
+      images: images.length ? images : store.logoUrl ? [store.logoUrl] : undefined,
+      type: "website",
+      siteName: store.name,
+    },
     twitter: { card: images.length ? "summary_large_image" : "summary", title, description },
   };
 }
@@ -58,8 +71,15 @@ const TRUST = [
   { icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10Z", title: "دعم متواصل", sub: "فريقنا جاهز لمساعدتك" },
 ];
 
-export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function ProductPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ reviewed?: string; review_error?: string }>;
+}) {
   const { slug } = await params;
+  const sp = await searchParams;
   const data = await load(slug);
   if (!data) notFound();
   const { store, product, media, related } = data;
@@ -70,17 +90,23 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
   async function addReview(formData: FormData) {
     "use server";
-    const s = await getStorefrontStore();
-    if (!s) return;
-    await submitReview(s.id, {
-      productId: product!.id,
-      rating: Number(formData.get("rating")) || 5,
-      authorName: String(formData.get("authorName") || "") || undefined,
-      email: String(formData.get("email") || "") || undefined,
-      body: String(formData.get("body") || "") || undefined,
-    });
-    revalidatePath(`/products/${encodeURIComponent(product!.slug)}`);
-    redirect(`/products/${encodeURIComponent(product!.slug)}?reviewed=1`);
+    const target = `/products/${encodeURIComponent(product!.slug)}`;
+    let err: string | null = null;
+    try {
+      const s = await getStorefrontStore();
+      if (!s) throw new AppError("تعذّر تحديد المتجر", "NO_STORE", 400);
+      await submitReview(s.id, {
+        productId: product!.id,
+        rating: Number(formData.get("rating")) || 5,
+        authorName: String(formData.get("authorName") || "") || undefined,
+        email: String(formData.get("email") || "") || undefined,
+        body: String(formData.get("body") || "") || undefined,
+      });
+    } catch (e) {
+      err = e instanceof AppError ? e.message : "تعذّر إرسال التقييم، حاول مرة أخرى";
+    }
+    revalidatePath(target);
+    redirect(err ? `${target}?review_error=${encodeURIComponent(err)}` : `${target}?reviewed=1`);
   }
 
   async function addToCartAction(formData: FormData) {
@@ -95,24 +121,60 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     redirect("/cart");
   }
 
+  const metaDesc = (product.seoDescription ?? product.shortDescription ?? product.description ?? "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 300);
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
-    description: (product.shortDescription ?? "").replace(/<[^>]+>/g, ""),
+    description: metaDesc,
     image: images.map((m) => m.url),
+    sku: variant?.sku ?? undefined,
+    brand: { "@type": "Brand", name: store.name },
     offers: {
       "@type": "Offer",
       price: variant?.price,
       priceCurrency: store.currencyCode,
       availability: "https://schema.org/InStock",
+      itemCondition: "https://schema.org/NewCondition",
     },
-    ...(reviewCount > 0 ? { aggregateRating: { "@type": "AggregateRating", ratingValue: average, reviewCount } } : {}),
+    ...(reviewCount > 0
+      ? {
+          aggregateRating: { "@type": "AggregateRating", ratingValue: average, reviewCount, bestRating: 5, worstRating: 1 },
+          review: reviewRows.slice(0, 5).map((r) => ({
+            "@type": "Review",
+            reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: 5 },
+            author: { "@type": "Person", name: r.authorName ?? "زائر" },
+            ...(r.body ? { reviewBody: r.body } : {}),
+          })),
+        }
+      : {}),
+  };
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "الرئيسية", item: "/" },
+      { "@type": "ListItem", position: 2, name: product.name },
+    ],
   };
 
   return (
     <div className="mx-auto max-w-5xl">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
+
+      {sp.reviewed && (
+        <p className="mb-4 rounded-[var(--radius)] border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+          شكراً لك! تم استلام تقييمك وسيظهر بعد مراجعته من المتجر.
+        </p>
+      )}
+      {sp.review_error && (
+        <p className="mb-4 rounded-[var(--radius)] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{sp.review_error}</p>
+      )}
 
       {/* مسار التنقّل */}
       <nav className="mb-4 flex flex-wrap items-center gap-1.5 text-xs text-[var(--muted)]">
@@ -234,24 +296,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       {related.length > 0 && (
         <section className="mt-12">
           <h2 className="mb-4 text-lg font-semibold">منتجات ذات صلة</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {related.map((p) => (
-              <Link key={p.id} href={`/products/${encodeURIComponent(p.slug)}`}>
-                <Card className="h-full overflow-hidden p-0 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-                  {p.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.image} alt={p.name} className="aspect-square w-full object-cover" />
-                  ) : (
-                    <div className="flex aspect-square items-center justify-center bg-black/5 text-xs text-[var(--muted)]">لا صورة</div>
-                  )}
-                  <div className="p-3">
-                    <div className="line-clamp-1 text-sm font-medium">{p.name}</div>
-                    <div className="mt-1 font-semibold text-[var(--brand)]" dir="ltr">{formatMoney(toMinor(p.price), store.currencyCode)}</div>
-                  </div>
-                </Card>
-              </Link>
-            ))}
-          </div>
+          <ProductGrid items={related} currency={store.currencyCode} />
         </section>
       )}
     </div>

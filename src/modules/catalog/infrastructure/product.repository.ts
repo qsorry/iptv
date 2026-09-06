@@ -3,18 +3,24 @@ import { db, type DbExecutor } from "@/infrastructure/database/client";
 import { products, productVariants, productMedia } from "@/infrastructure/database/schema";
 import { offsetOf, paginate, type Pagination } from "@/core/pagination";
 
+/** أعمدة بطاقة المنتج العامة: السعر، الصورة، سعر المقارنة، ومتوسط/عدد التقييم. */
+const publicCardColumns = {
+  id: products.id,
+  name: products.name,
+  slug: products.slug,
+  shortDescription: products.shortDescription,
+  price: productVariants.price,
+  compareAtPrice: productVariants.compareAtPrice,
+  image: sql<string | null>`(select url from product_media pm where pm.product_id = ${products.id} order by pm.is_primary desc, pm.position asc limit 1)`,
+  ratingAvg: sql<number>`coalesce((select round(avg(rating)::numeric, 1) from reviews rv where rv.product_id = ${products.id} and rv.status = 'approved'), 0)::float`,
+  ratingCount: sql<number>`(select count(*)::int from reviews rv where rv.product_id = ${products.id} and rv.status = 'approved')`,
+};
+
 export const productRepository = {
-  /** المنتجات المنشورة للعرض العام مع السعر والصورة الأولى. */
+  /** المنتجات المنشورة للعرض العام مع السعر والصورة الأولى والخصم والتقييم. */
   async listPublic(storeId: string, executor: DbExecutor = db) {
     const rows = await executor
-      .select({
-        id: products.id,
-        name: products.name,
-        slug: products.slug,
-        shortDescription: products.shortDescription,
-        price: productVariants.price,
-        image: sql<string | null>`(select url from product_media pm where pm.product_id = ${products.id} order by pm.is_primary desc, pm.position asc limit 1)`,
-      })
+      .select(publicCardColumns)
       .from(products)
       .innerJoin(productVariants, and(eq(productVariants.productId, products.id), eq(productVariants.isDefault, true)))
       .where(and(eq(products.storeId, storeId), eq(products.status, "active"), isNull(products.deletedAt)))
@@ -31,14 +37,7 @@ export const productRepository = {
       ne(products.id, productId),
     );
     const select = executor
-      .select({
-        id: products.id,
-        name: products.name,
-        slug: products.slug,
-        shortDescription: products.shortDescription,
-        price: productVariants.price,
-        image: sql<string | null>`(select url from product_media pm where pm.product_id = ${products.id} order by pm.is_primary desc, pm.position asc limit 1)`,
-      })
+      .select(publicCardColumns)
       .from(products)
       .innerJoin(productVariants, and(eq(productVariants.productId, products.id), eq(productVariants.isDefault, true)));
 
@@ -51,6 +50,25 @@ export const productRepository = {
       return [...rows, ...extra.filter((r) => !seen.has(r.id))].slice(0, limit);
     }
     return select.where(base).orderBy(desc(products.publishedAt)).limit(limit);
+  },
+
+  /** بحث نصّي في المنتجات المنشورة (الاسم والوصف). */
+  async search(storeId: string, q: string, limit = 40, executor: DbExecutor = db) {
+    const term = `%${q.trim().replace(/[%_]/g, "")}%`;
+    return executor
+      .select(publicCardColumns)
+      .from(products)
+      .innerJoin(productVariants, and(eq(productVariants.productId, products.id), eq(productVariants.isDefault, true)))
+      .where(
+        and(
+          eq(products.storeId, storeId),
+          eq(products.status, "active"),
+          isNull(products.deletedAt),
+          sql`(${products.name} ilike ${term} or coalesce(${products.shortDescription},'') ilike ${term} or coalesce(${products.description},'') ilike ${term})`,
+        ),
+      )
+      .orderBy(desc(products.publishedAt))
+      .limit(limit);
   },
 
   async findBySlug(storeId: string, slug: string, executor: DbExecutor = db) {
