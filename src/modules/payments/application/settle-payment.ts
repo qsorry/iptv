@@ -4,6 +4,7 @@ import { NotFoundError, ValidationError } from "@/core/errors";
 import { publishEvent } from "@/core/events";
 import { orderRepository } from "@/modules/orders";
 import { assignCodesForOrder } from "@/modules/codes";
+import { createInvoiceForOrder } from "@/modules/invoices";
 
 export interface SettlePaymentInput {
   storeId: string;
@@ -51,6 +52,7 @@ export async function settlePayment(input: SettlePaymentInput) {
     // نجاح: الطلب مدفوع ومؤكَّد، ثم تُخصَّص الأكواد.
     await orderRepository.updateStatus(order.id, { paymentStatus: "paid", status: "confirmed" }, tx);
     const assignments = await assignCodesForOrder(tx, { storeId: input.storeId, orderId: order.id });
+    await createInvoiceForOrder(tx, { storeId: input.storeId, orderId: order.id });
 
     await orderRepository.addEvent(
       { orderId: order.id, eventType: "payment.succeeded", description: "نجح الدفع", metadata: { assignments } },

@@ -47,7 +47,12 @@ export default async function AdminOrderPage({
     <div className="max-w-2xl">
       <PageHeader
         title={`طلب ${order.orderNumber}`}
-        action={<Link href="/admin/orders"><Button variant="secondary">رجوع</Button></Link>}
+        action={
+          <div className="flex gap-2">
+            {paid && <Link href={`/admin/orders/${id}/invoice`}><Button variant="secondary" size="sm">الفاتورة</Button></Link>}
+            <Link href="/admin/orders"><Button variant="secondary">رجوع</Button></Link>
+          </div>
+        }
       />
       {error && <p className="mb-4 rounded-[var(--radius)] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {ok && <p className="mb-4 rounded-[var(--radius)] border border-green-200 bg-green-50 p-3 text-sm text-green-700">تم تعليم الطلب كمدفوع وتسليم الأكواد.</p>}

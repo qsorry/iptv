@@ -25,6 +25,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const settingsRow = await db.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, ctx.storeId) });
   const storeRow = await db.query.stores.findFirst({ where: eq(stores.id, ctx.storeId) });
   const taxPercent = (settingsRow?.settings as Record<string, unknown> | undefined)?.taxPercent ?? 15;
+  const vatNumber = (settingsRow?.settings as Record<string, unknown> | undefined)?.vatNumber ?? "";
   const curSettings = (settingsRow?.settings as Record<string, unknown> | undefined) ?? {};
   const curTheme = (curSettings.theme as string | undefined) ?? DEFAULT_THEME;
   const curLayout = (curSettings.layout as string | undefined) ?? (curSettings.productLayout as string | undefined) ?? DEFAULT_LAYOUT;
@@ -69,8 +70,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     "use server";
     const c = await getAdminContext();
     const pct = Math.max(0, Math.min(100, Number(formData.get("taxPercent")) || 0));
+    const vatNumber = String(formData.get("vatNumber") || "").trim();
     const row = await db.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, c.storeId) });
-    const merged = { ...((row?.settings as Record<string, unknown>) ?? {}), taxPercent: pct };
+    const merged = { ...((row?.settings as Record<string, unknown>) ?? {}), taxPercent: pct, vatNumber };
     await db.update(storeSettings).set({ settings: merged, updatedAt: new Date() }).where(eq(storeSettings.storeId, c.storeId));
     revalidatePath("/admin/settings");
     redirect("/admin/settings?ok=1");
@@ -196,6 +198,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <label className="block text-sm">
             نسبة ضريبة القيمة المضافة (%)
             <Input name="taxPercent" type="number" step="0.01" min="0" max="100" defaultValue={String(taxPercent)} dir="ltr" className="mt-1 max-w-[140px]" />
+          </label>
+          <label className="block text-sm">
+            الرقم الضريبي (للفاتورة)
+            <Input name="vatNumber" defaultValue={String(vatNumber)} dir="ltr" className="mt-1 max-w-[240px]" />
           </label>
           <Button type="submit" size="sm">حفظ</Button>
         </form>
