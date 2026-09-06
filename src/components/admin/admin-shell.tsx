@@ -9,6 +9,7 @@ import { SignOutButton } from "@/components/shared/sign-out-button";
 const nav = [
   { href: "/admin/dashboard", label: "الرئيسية" },
   { href: "/admin/products", label: "المنتجات" },
+  { href: "/admin/categories", label: "التصنيفات" },
   { href: "/admin/orders", label: "الطلبات" },
   { href: "/admin/customers", label: "العملاء" },
   { href: "/admin/inventory", label: "المخزون" },

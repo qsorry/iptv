@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getAdminContext } from "@/core/tenancy/server";
-import { createProduct } from "@/modules/catalog";
+import { createProduct, listCategories } from "@/modules/catalog";
 import { AppError } from "@/core/errors";
 import { PageHeader } from "@/components/admin/page-header";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 export default async function NewProductPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   await getAdminContext();
   const { error } = await searchParams;
+  const cats = await listCategories((await getAdminContext()).storeId);
 
   async function action(formData: FormData) {
     "use server";
@@ -19,6 +20,7 @@ export default async function NewProductPage({ searchParams }: { searchParams: P
         name: String(formData.get("name")),
         productType: (String(formData.get("productType")) as "physical" | "digital" | "service") || "physical",
         status: formData.get("publish") ? "active" : "draft",
+        categoryId: String(formData.get("categoryId") || "") || undefined,
         shortDescription: String(formData.get("shortDescription") || "") || undefined,
         variants: [{ name: "الافتراضي", price: String(formData.get("price")), isDefault: true }],
       });
@@ -57,6 +59,14 @@ export default async function NewProductPage({ searchParams }: { searchParams: P
             <option value="physical">منتج مادي</option>
             <option value="digital">منتج رقمي</option>
             <option value="service">خدمة</option>
+          </select>
+        </label>
+
+        <label className="block text-sm">
+          التصنيف (اختياري)
+          <select name="categoryId" className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base">
+            <option value="">بدون</option>
+            {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </label>
 

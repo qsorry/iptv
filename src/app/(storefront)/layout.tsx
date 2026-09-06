@@ -3,6 +3,7 @@ import { Container } from "@/components/ui/container";
 import { getStorefrontStore } from "@/core/tenancy/server";
 import { readCartId } from "@/core/tenancy/cart-cookie";
 import { getCartView } from "@/modules/carts";
+import { listPublicCategories } from "@/modules/catalog";
 import { themeVars } from "@/modules/stores";
 import { db } from "@/infrastructure/database/client";
 import { storeSettings } from "@/infrastructure/database/schema";
@@ -18,6 +19,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
   const settings = store ? await db.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, store.id) }) : null;
   const themeKey = (settings?.settings as Record<string, unknown> | undefined)?.theme as string | undefined;
   const vars = themeVars(themeKey, brand);
+  const cats = store ? await listPublicCategories(store.id) : [];
   return (
     <div style={vars as React.CSSProperties}>
       <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--surface)] pt-[var(--safe-top)]">
@@ -34,6 +36,15 @@ export default async function StorefrontLayout({ children }: { children: React.R
             <Link href="/account" className="touch-target rounded-[var(--radius)] px-3 py-2 hover:bg-black/5">حسابي</Link>
           </nav>
         </Container>
+        {cats.length > 0 && (
+          <Container className="flex gap-4 overflow-x-auto pb-2 text-sm">
+            {cats.map((c) => (
+              <Link key={c.id} href={`/categories/${encodeURIComponent(c.slug)}`} className="whitespace-nowrap text-[var(--muted)] hover:text-[var(--fg)]">
+                {c.name}
+              </Link>
+            ))}
+          </Container>
+        )}
       </header>
       <main className="pb-[calc(1.5rem+var(--safe-bottom))]">
         <Container className="py-4 sm:py-6">{children}</Container>
