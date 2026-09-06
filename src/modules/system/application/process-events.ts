@@ -2,6 +2,7 @@ import { and, eq, lt, sql } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
 import { domainEvents } from "@/infrastructure/database/schema";
 import { notifyCodesDelivered } from "@/modules/notifications";
+import { provisionSubscriptionsForOrder } from "@/modules/subscriptions";
 
 const MAX_ATTEMPTS = 5;
 
@@ -9,7 +10,11 @@ const MAX_ATTEMPTS = 5;
 async function handle(event: typeof domainEvents.$inferSelect) {
   switch (event.eventType) {
     case "payment.succeeded":
-      if (event.storeId) await notifyCodesDelivered(event.storeId, event.aggregateId);
+      if (event.storeId) {
+        // أولاً: إنشاء الاشتراكات المرتبطة بمزوّدي API (إن كان المتجر مؤهلاً)، ثم إشعار العميل بكل ما سُلِّم.
+        await provisionSubscriptionsForOrder(event.storeId, event.aggregateId);
+        await notifyCodesDelivered(event.storeId, event.aggregateId);
+      }
       break;
     default:
       // نوع بلا معالج: يُعتبر مُعالَجاً (لا شيء يُفعل).

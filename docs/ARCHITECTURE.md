@@ -36,6 +36,7 @@ src/
     database/client.ts
     storage/          تجريد S3 (MinIO / R2)
     integrations/salla/
+    integrations/subscriptions/  مزوّد HTTP عام + قوالب Shebik/Falcon لأتمتة الاشتراكات (انظر SUBSCRIPTIONS_API.md)
   components/ ui/ shared/ storefront/ admin/
   lib/                env, auth (Better Auth), utils, slugify, api helpers
 drizzle/              هجرات SQL مولَّدة (لا تُعدَّل يدوياً)
