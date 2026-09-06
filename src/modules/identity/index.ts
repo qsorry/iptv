@@ -4,3 +4,4 @@
  * العضويات، الأدوار، الدعوات.
  */
 export { listMemberships } from "./application/list-memberships";
+export { listMembers, addMember, updateMemberRole, removeMember } from "./application/team";

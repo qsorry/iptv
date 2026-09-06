@@ -18,6 +18,7 @@ const nav = [
   { href: "/admin/reviews", label: "التقييمات" },
   { href: "/admin/pages", label: "الصفحات" },
   { href: "/admin/blog", label: "المدونة" },
+  { href: "/admin/team", label: "الفريق" },
   { href: "/admin/settings", label: "الإعدادات" },
 ];
 
