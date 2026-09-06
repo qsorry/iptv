@@ -20,6 +20,10 @@
 - الفرع المنشور: `claude/iptv-link-13fas8` (هو الفرع الافتراضي في GitHub)
 - الدفع إلى الفرع يُطلق نشراً تلقائياً عبر GitHub webhook.
 
+## إدارة المنصة
+- مدير المنصة يُحدَّد بمتغير `PLATFORM_ADMIN_EMAILS` (إيميلات مفصولة بفاصلة) ويرى `/admin/platform` لتغيير باقات المتاجر.
+- الباقات الافتراضية في `src/modules/billing/plans.ts` (free / pro / business)؛ الأعلى تنفرد بميزة `subscriptions.api`.
+
 ## الهجرات
 - تُطبَّق تلقائياً عند إقلاع الحاوية عبر `scripts/migrate.mjs` قبل `server.js`.
 - لإضافة/تعديل جدول: عدّل ملفات `src/infrastructure/database/schema/*.ts` ثم
