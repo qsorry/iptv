@@ -55,6 +55,7 @@ export function AdminShell({
   email,
   storeUrl,
   badges,
+  platformAdmin = false,
   children,
 }: {
   storeName: string;
@@ -62,6 +63,7 @@ export function AdminShell({
   email: string;
   storeUrl: string;
   badges: Badges;
+  platformAdmin?: boolean;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -98,7 +100,7 @@ export function AdminShell({
 
       {/* التنقل */}
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-4">
-        {nav.map((item) => {
+        {[...nav, ...(platformAdmin ? [{ href: "/admin/platform", label: "إدارة المنصة", icon: "gear" as const }] : [])].map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           const count = item.badge ? badges[item.badge] : 0;
           return (

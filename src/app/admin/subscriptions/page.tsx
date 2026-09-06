@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { getAdminContext } from "@/core/tenancy/server";
 import { AppError } from "@/core/errors";
-import { ensureDefaultPlans, getStorePlan, HIGHEST_PLAN } from "@/modules/billing";
+import { ensureDefaultPlans, getStorePlan, HIGHEST_PLAN, isPlatformAdmin } from "@/modules/billing";
 import {
   canUseSubscriptionsApi,
   listProviders,
@@ -63,7 +63,11 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
           <p className="text-sm font-medium">
             الخاصية متاحة لباقة «{HIGHEST_PLAN.name}» فقط. باقتك الحالية: {plan?.name ?? "بدون اشتراك"}.
           </p>
-          <p className="text-xs text-[var(--muted)]">للترقية تواصل مع إدارة المنصة.</p>
+          {isPlatformAdmin(ctx.userEmail) ? (
+            <Link href="/admin/platform" className="inline-block text-sm font-medium text-[var(--brand)] underline">أنت مدير المنصة: رقِّ هذا المتجر من صفحة إدارة المنصة</Link>
+          ) : (
+            <p className="text-xs text-[var(--muted)]">للترقية تواصل مع إدارة المنصة.</p>
+          )}
         </Card>
       </div>
     );

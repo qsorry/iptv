@@ -5,6 +5,7 @@ import { db } from "@/infrastructure/database/client";
 import { stores } from "@/infrastructure/database/schema";
 import { eq } from "drizzle-orm";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { isPlatformAdmin } from "@/modules/billing";
 
 const PLATFORM_DOMAIN = process.env.PLATFORM_DOMAIN ?? "localhost:3000";
 
@@ -25,7 +26,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const badges = active ? await sidebarBadges(active.storeId) : { pendingOrders: 0, pendingReviews: 0 };
 
   return (
-    <AdminShell storeName={storeName} logoUrl={logoUrl} email={session.user.email} storeUrl={storeUrl} badges={badges}>
+    <AdminShell storeName={storeName} logoUrl={logoUrl} email={session.user.email} storeUrl={storeUrl} badges={badges} platformAdmin={isPlatformAdmin(session.user.email)}>
       {children}
     </AdminShell>
   );

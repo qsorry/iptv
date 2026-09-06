@@ -20,6 +20,8 @@ const schema = z.object({
   /** الإيميل (Resend). */
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().optional(),
+  /** إيميلات مديري المنصة (مفصولة بفاصلة). يرون صفحة /admin/platform لإدارة باقات المتاجر. */
+  PLATFORM_ADMIN_EMAILS: z.string().optional(),
 });
 
 export const env = schema.parse({
@@ -36,4 +38,5 @@ export const env = schema.parse({
   CRON_SECRET: process.env.CRON_SECRET,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   EMAIL_FROM: process.env.EMAIL_FROM,
+  PLATFORM_ADMIN_EMAILS: process.env.PLATFORM_ADMIN_EMAILS,
 });
