@@ -46,7 +46,7 @@ export function parseCsv(text: string): string[][] {
 
 /** يحوّل CSV إلى كائنات باستخدام صف الترويسة كمفاتيح (بأحرف صغيرة ومشذّبة). */
 export function csvToObjects(text: string): Record<string, string>[] {
-  const rows = parseCsv(text);
+  const rows = parseCsv(text.replace(/^\uFEFF/, ""));
   if (rows.length < 2) return [];
   const headers = rows[0].map((h) => h.trim().toLowerCase());
   return rows.slice(1).map((r) => {

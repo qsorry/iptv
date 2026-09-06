@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs } from "@/components/ui/tabs";
 
 export default async function ProductDetailPage({
   params,
@@ -102,108 +103,126 @@ export default async function ProductDetailPage({
       {error && <p className="mb-4 rounded-[var(--radius)] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {ok && <p className="mb-4 rounded-[var(--radius)] border border-green-200 bg-green-50 p-3 text-sm text-green-700">تم الحفظ. {ok !== "1" ? ok : ""}</p>}
 
-      {/* التفاصيل */}
-      <form action={saveDetails} className="space-y-4">
-        <Card className="space-y-4">
-          <label className="block text-sm">
-            الاسم
-            <Input name="name" defaultValue={product.name} required className="mt-1" />
-          </label>
-          <label className="block text-sm">
-            السعر (ر.س)
-            <Input name="price" type="number" step="0.01" min="0" defaultValue={defaultVariant?.price} dir="ltr" required className="mt-1" />
-          </label>
-          <label className="block text-sm">
-            الحالة
-            <select
-              name="status"
-              defaultValue={product.status}
-              className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base"
-            >
-              <option value="draft">مسودة</option>
-              <option value="active">منشور</option>
-              <option value="archived">مؤرشف</option>
-            </select>
-          </label>
-          <label className="block text-sm">
-            وصف مختصر
-            <Input name="shortDescription" defaultValue={product.shortDescription ?? ""} className="mt-1" />
-          </label>
-          <label className="block text-sm">
-            الوصف
-            <textarea
-              name="description"
-              defaultValue={product.description ?? ""}
-              rows={4}
-              className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base"
-            />
-          </label>
-          <Button type="submit">حفظ التغييرات</Button>
-        </Card>
-      </form>
-
-      {/* الصور */}
-      <h2 className="mb-2 mt-8 text-sm font-semibold text-[var(--muted)]">الصور</h2>
-      <Card className="space-y-4">
-        {media.length > 0 && (
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-            {media.map((m) => (
-              <div key={m.id} className="relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={m.url} alt={m.altText ?? ""} className="aspect-square w-full rounded-[var(--radius)] border border-[var(--border)] object-cover" />
-                <form action={deleteImage} className="absolute left-1 top-1">
-                  <input type="hidden" name="mediaId" value={m.id} />
-                  <button className="rounded bg-black/60 px-1.5 text-xs text-white">حذف</button>
+      <Tabs
+        items={[
+          {
+            key: "details",
+            label: "التفاصيل",
+            content: (
+              <form action={saveDetails} className="space-y-4">
+                <Card className="space-y-4">
+                  <label className="block text-sm">
+                    الاسم
+                    <Input name="name" defaultValue={product.name} required className="mt-1" />
+                  </label>
+                  <label className="block text-sm">
+                    السعر (ر.س)
+                    <Input name="price" type="number" step="0.01" min="0" defaultValue={defaultVariant?.price} dir="ltr" required className="mt-1" />
+                  </label>
+                  <label className="block text-sm">
+                    الحالة
+                    <select
+                      name="status"
+                      defaultValue={product.status}
+                      className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base"
+                    >
+                      <option value="draft">مسودة</option>
+                      <option value="active">منشور</option>
+                      <option value="archived">مؤرشف</option>
+                    </select>
+                  </label>
+                  <label className="block text-sm">
+                    وصف مختصر
+                    <Input name="shortDescription" defaultValue={product.shortDescription ?? ""} className="mt-1" />
+                  </label>
+                  <label className="block text-sm">
+                    الوصف
+                    <textarea
+                      name="description"
+                      defaultValue={product.description ?? ""}
+                      rows={4}
+                      className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base"
+                    />
+                  </label>
+                  <Button type="submit">حفظ التغييرات</Button>
+                </Card>
+              </form>
+            ),
+          },
+          {
+            key: "images",
+            label: `الصور (${media.length})`,
+            content: (
+              <Card className="space-y-4">
+                {media.length > 0 && (
+                  <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                    {media.map((m) => (
+                      <div key={m.id} className="relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={m.url} alt={m.altText ?? ""} className="aspect-square w-full rounded-[var(--radius)] border border-[var(--border)] object-cover" />
+                        <form action={deleteImage} className="absolute left-1 top-1">
+                          <input type="hidden" name="mediaId" value={m.id} />
+                          <button className="rounded bg-black/60 px-1.5 text-xs text-white">حذف</button>
+                        </form>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <form action={addImage} className="flex flex-wrap items-center gap-2">
+                  <Input name="url" placeholder="https://.../image.jpg" dir="ltr" className="min-w-0 flex-1" />
+                  <Button type="submit" size="sm">إضافة صورة</Button>
                 </form>
-              </div>
-            ))}
-          </div>
-        )}
-        <form action={addImage} className="flex flex-wrap items-center gap-2">
-          <Input name="url" placeholder="https://.../image.jpg" dir="ltr" className="min-w-0 flex-1" />
-          <Button type="submit" size="sm">إضافة صورة</Button>
-        </form>
-      </Card>
-
-      {/* الأكواد الرقمية */}
-      {defaultVariant && (
-        <>
-          <h2 className="mb-2 mt-8 text-sm font-semibold text-[var(--muted)]">الأكواد الرقمية</h2>
-          <Card className="space-y-4">
-            {codes && (
-              <div className="flex flex-wrap gap-4 text-sm">
-                <Stat label="متاح" value={codes.available} strong />
-                <Stat label="مُسلَّم" value={codes.delivered} />
-                <Stat label="محجوز" value={codes.reserved} />
-              </div>
-            )}
-            <form action={pasteCodes} className="space-y-2">
-              <input type="hidden" name="variantId" value={defaultVariant.id} />
-              <label className="block text-sm">الصق الأكواد (كود في كل سطر)</label>
-              <textarea
-                name="codes"
-                rows={5}
-                dir="ltr"
-                placeholder={"CODE-1\nCODE-2\nCODE-3"}
-                className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 font-mono text-sm"
-              />
-              <Button type="submit" size="sm">إضافة الأكواد</Button>
-              <p className="text-xs text-[var(--muted)]">
-                تُسلَّم للمشتري تلقائياً عند نجاح الدفع فقط. المكرر يُتجاهل.
-              </p>
-            </form>
-          </Card>
-        </>
-      )}
-
-      {/* حذف المنتج */}
-      <h2 className="mb-2 mt-8 text-sm font-semibold text-[var(--muted)]">منطقة الخطر</h2>
-      <Card>
-        <form action={remove}>
-          <Button type="submit" variant="secondary" className="border-red-300 text-red-600">حذف المنتج</Button>
-          <p className="mt-2 text-xs text-[var(--muted)]">يُخفى المنتج ويبقى تاريخ الطلبات محفوظاً.</p>
-        </form>
-      </Card>
+              </Card>
+            ),
+          },
+          ...(defaultVariant
+            ? [
+                {
+                  key: "codes",
+                  label: `الأكواد${codes ? ` (${codes.available})` : ""}`,
+                  content: (
+                    <Card className="space-y-4">
+                      {codes && (
+                        <div className="flex flex-wrap gap-6 text-sm">
+                          <Stat label="متاح" value={codes.available} strong />
+                          <Stat label="مُسلَّم" value={codes.delivered} />
+                          <Stat label="محجوز" value={codes.reserved} />
+                        </div>
+                      )}
+                      <form action={pasteCodes} className="space-y-2">
+                        <input type="hidden" name="variantId" value={defaultVariant.id} />
+                        <label className="block text-sm">الصق الأكواد (كل كود في سطر مستقل)</label>
+                        <textarea
+                          name="codes"
+                          rows={6}
+                          dir="ltr"
+                          placeholder={"HOST:http://ssouqhost.vip|UserName:xxxx|Password:yyyy\nHOST:http://ssouqhost.vip|UserName:aaaa|Password:bbbb"}
+                          className="w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 font-mono text-xs"
+                        />
+                        <Button type="submit" size="sm">إضافة الأكواد</Button>
+                        <p className="text-xs text-[var(--muted)]">
+                          كل سطر كود واحد. تُسلَّم تلقائياً عند نجاح الدفع، وتظهر للعميل مفصولة سطراً بسطر عند علامة |. المكرر يُتجاهل.
+                        </p>
+                      </form>
+                    </Card>
+                  ),
+                },
+              ]
+            : []),
+          {
+            key: "danger",
+            label: "خطر",
+            content: (
+              <Card>
+                <form action={remove}>
+                  <Button type="submit" variant="secondary" className="border-red-300 text-red-600">حذف المنتج</Button>
+                  <p className="mt-2 text-xs text-[var(--muted)]">يُخفى المنتج ويبقى تاريخ الطلبات محفوظاً.</p>
+                </form>
+              </Card>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

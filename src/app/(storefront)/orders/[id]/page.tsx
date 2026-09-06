@@ -7,6 +7,7 @@ import { orderItems } from "@/infrastructure/database/schema";
 import { eq } from "drizzle-orm";
 import { formatMoney, toMinor } from "@/core/money";
 import { Card } from "@/components/ui/card";
+import { codeLines } from "@/lib/format-code";
 
 const payLabel: Record<string, string> = {
   unpaid: "بانتظار الدفع",
@@ -57,7 +58,11 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
                   <div className="mb-1 text-xs font-semibold text-green-700">أكوادك:</div>
                   <ul className="space-y-1">
                     {itemCodes.map((code, i) => (
-                      <li key={i} className="select-all rounded bg-white px-2 py-1 font-mono text-sm" dir="ltr">{code}</li>
+                      <li key={i} className="select-all rounded bg-white p-2 font-mono text-sm" dir="ltr">
+                        {codeLines(code).map((line, j) => (
+                          <div key={j}>{line}</div>
+                        ))}
+                      </li>
                     ))}
                   </ul>
                 </div>

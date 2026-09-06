@@ -5,10 +5,10 @@ import type { StoreContext } from "@/core/tenancy";
 import { requireRole } from "@/core/tenancy";
 import { NotFoundError, ValidationError } from "@/core/errors";
 
-/** يفصل نص اللصق إلى أكواد فريدة (سطر لكل كود، ويقبل الفاصلة أيضاً). */
+/** يفصل نص اللصق إلى أكواد فريدة: كل سطر = كود واحد (قد يحتوي | و : داخله). */
 export function parseCodes(raw: string): string[] {
   const seen = new Set<string>();
-  for (const part of raw.split(/[\r\n,]+/)) {
+  for (const part of raw.split(/\r?\n/)) {
     const code = part.trim();
     if (code) seen.add(code);
   }

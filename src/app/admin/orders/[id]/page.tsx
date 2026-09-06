@@ -9,6 +9,7 @@ import { AppError } from "@/core/errors";
 import { formatMoney, toMinor } from "@/core/money";
 import { PageHeader } from "@/components/admin/page-header";
 import { Card } from "@/components/ui/card";
+import { codeLines } from "@/lib/format-code";
 import { Button } from "@/components/ui/button";
 
 const payLabel: Record<string, string> = { unpaid: "غير مدفوع", paid: "مدفوع", failed: "فشل", refunded: "مُسترجع", authorized: "مُصرّح", partially_refunded: "مُسترجع جزئياً" };
@@ -71,7 +72,13 @@ export default async function AdminOrderPage({
           <h2 className="mb-2 mt-6 text-sm font-semibold text-[var(--muted)]">الأكواد المُسلَّمة</h2>
           <Card>
             <ul className="space-y-1">
-              {codes.map((c, i) => <li key={i} className="font-mono text-sm" dir="ltr">{c.code}</li>)}
+              {codes.map((c, i) => (
+                <li key={i} className="rounded bg-black/5 p-2 font-mono text-sm" dir="ltr">
+                  {codeLines(c.code).map((line, j) => (
+                    <div key={j}>{line}</div>
+                  ))}
+                </li>
+              ))}
             </ul>
           </Card>
         </>
