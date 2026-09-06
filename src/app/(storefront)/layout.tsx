@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { Container } from "@/components/ui/container";
 import { getStorefrontStore } from "@/core/tenancy/server";
 import { readCartId } from "@/core/tenancy/cart-cookie";
 import { getCartView } from "@/modules/carts";
 import { listPublicCategories } from "@/modules/catalog";
 import { listFooterPages } from "@/modules/content";
-import { themeVars, googleFontHref, isDarkTheme, readFooterSettings } from "@/modules/stores";
+import { themeModeVars, googleFontHref, readFooterSettings } from "@/modules/stores";
 import { StoreFooter } from "@/components/storefront/store-footer";
+import { ThemeToggle } from "@/components/storefront/theme-toggle";
+import { THEME_INIT_SCRIPT, THEME_MODE_KEY, THEME_ROOT_ID, isThemeMode, type ThemeMode } from "@/components/storefront/theme-mode";
 import { db } from "@/infrastructure/database/client";
 import { storeSettings } from "@/infrastructure/database/schema";
 import { eq } from "drizzle-orm";
@@ -31,28 +33,56 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+/** يحوّل متغيرات الثيم إلى تصريحات CSS. القيم من ثوابت الكود ولون العلامة المُتحقَّق منه. */
+function cssDecls(vars: Record<string, string>): string {
+  return Object.entries(vars)
+    .map(([k, v]) => `${k}:${v}`)
+    .join(";");
+}
+
+/**
+ * CSS الثيم لجذر المتجر: لوحة الوضع الفاتح افتراضياً، الداكن عند `data-theme="dark"`
+ * أو عند تفضيل النظام للداكن ما لم يختر الزائر الفاتح صراحةً (اختيار الزائر من مبدّل الثيم).
+ */
+function themeCss(light: Record<string, string>, dark: Record<string, string>): string {
+  const root = `#${THEME_ROOT_ID}`;
+  return [
+    `${root}{${cssDecls(light)};color-scheme:light}`,
+    `${root}[data-theme="dark"]{${cssDecls(dark)};color-scheme:dark}`,
+    `@media (prefers-color-scheme: dark){${root}:not([data-theme="light"]){${cssDecls(dark)};color-scheme:dark}}`,
+  ].join("\n");
+}
+
 /** Layout واجهة المتجر. يُحدَّد المتجر من الدومين عبر middleware (core/tenancy). */
 export default async function StorefrontLayout({ children }: { children: React.ReactNode }) {
   const store = await getStorefrontStore();
   const cartId = store ? await readCartId(store.id) : undefined;
   const cart = store && cartId ? await getCartView(store.id, cartId) : null;
   const count = cart?.count ?? 0;
-  const brand = store?.brandColor ?? "#004d73";
+  const rawBrand = store?.brandColor ?? "#004d73";
+  const brand = /^#[0-9a-fA-F]{6}$/.test(rawBrand) ? rawBrand : "#004d73";
   const settings = store ? await db.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, store.id) }) : null;
   const s = (settings?.settings as Record<string, unknown> | undefined) ?? {};
-  const vars = themeVars(
+  const palettes = themeModeVars(
     { theme: s.theme as string | undefined, font: s.font as string | undefined, roundness: s.roundness as string | undefined },
     brand,
   );
   const fontHref = googleFontHref(s.font as string | undefined);
-  const dark = isDarkTheme(s.theme as string | undefined);
+  // وضع الزائر المحفوظ في الكوكي يُرسَم من الخادم لتفادي وميض الثيم؛ السكربت أدناه يراعي localStorage أيضاً.
+  const cookieMode = (await cookies()).get(THEME_MODE_KEY)?.value;
+  const mode: ThemeMode = isThemeMode(cookieMode) ? cookieMode : "system";
   const cats = store ? await listPublicCategories(store.id) : [];
   const footerPages = store ? await listFooterPages(store.id) : [];
   return (
     <div
+      id={THEME_ROOT_ID}
+      data-theme={mode === "system" ? undefined : mode}
+      suppressHydrationWarning
       className="flex min-h-screen flex-col bg-[var(--bg)] text-[var(--fg)]"
-      style={{ ...(vars as React.CSSProperties), fontFamily: "var(--font)", colorScheme: dark ? "dark" : "light" }}
+      style={{ fontFamily: "var(--font)" }}
     >
+      <style dangerouslySetInnerHTML={{ __html: themeCss(palettes.light, palettes.dark) }} />
+      <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       {fontHref && <link rel="stylesheet" href={fontHref} />}
       <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_85%,transparent)] pt-[var(--safe-top)] backdrop-blur-md">
         <Container className="flex items-center gap-3 py-3 sm:py-4">
@@ -78,6 +108,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
             <Link href="/search" aria-label="بحث" className="touch-target grid h-10 w-10 place-items-center rounded-full hover:bg-[var(--surface-2)] sm:hidden">
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
             </Link>
+            <ThemeToggle initialMode={mode} />
             <Link href="/cart" className="touch-target relative grid h-10 w-10 place-items-center rounded-full hover:bg-[var(--surface-2)]" aria-label="السلة">
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 7h12l1 13H5L6 7Zm3 0a3 3 0 0 1 6 0" /></svg>
               {count > 0 && <span className="absolute -top-0.5 -start-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-[var(--brand)] px-1 text-[10px] font-bold text-[var(--brand-fg)]" dir="ltr">{count}</span>}
