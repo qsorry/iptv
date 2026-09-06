@@ -38,6 +38,7 @@ export default async function ProductDetailPage({
         shortDescription: String(formData.get("shortDescription") || "") || null,
         description: String(formData.get("description") || "") || null,
         status: String(formData.get("status")) as "draft" | "active" | "archived",
+        productType: String(formData.get("productType")) as "physical" | "digital" | "service",
         price: String(formData.get("price")),
       });
     } catch (e) {
@@ -162,18 +163,33 @@ export default async function ProductDetailPage({
                     السعر (ر.س)
                     <Input name="price" type="number" step="0.01" min="0" defaultValue={defaultVariant?.price} dir="ltr" required className="mt-1" />
                   </label>
-                  <label className="block text-sm">
-                    الحالة
-                    <select
-                      name="status"
-                      defaultValue={product.status}
-                      className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base"
-                    >
-                      <option value="draft">مسودة</option>
-                      <option value="active">منشور</option>
-                      <option value="archived">مؤرشف</option>
-                    </select>
-                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="block text-sm">
+                      الحالة
+                      <select
+                        name="status"
+                        defaultValue={product.status}
+                        className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base"
+                      >
+                        <option value="draft">مسودة</option>
+                        <option value="active">منشور</option>
+                        <option value="archived">مؤرشف</option>
+                      </select>
+                    </label>
+                    <label className="block text-sm">
+                      النوع
+                      <select
+                        name="productType"
+                        defaultValue={product.productType}
+                        className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base"
+                      >
+                        <option value="digital">رقمي (كود/اشتراك)</option>
+                        <option value="physical">مادي (يُشحن)</option>
+                        <option value="service">خدمة</option>
+                      </select>
+                    </label>
+                  </div>
+                  <p className="text-xs text-[var(--muted)]">المنتج الرقمي يُسلَّم فوراً بكود دون شحن؛ المادي يتطلب عنوان شحن.</p>
                   <label className="block text-sm">
                     وصف مختصر
                     <Input name="shortDescription" defaultValue={product.shortDescription ?? ""} className="mt-1" />

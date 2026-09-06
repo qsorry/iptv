@@ -96,13 +96,32 @@ export const productRepository = {
     return { ...product, variants };
   },
 
-  async list(storeId: string, p: Pagination, executor: DbExecutor = db) {
-    const where = and(eq(products.storeId, storeId), isNull(products.deletedAt));
+  async list(storeId: string, p: Pagination, opts: { type?: "physical" | "digital" | "service" } = {}, executor: DbExecutor = db) {
+    const where = and(
+      eq(products.storeId, storeId),
+      isNull(products.deletedAt),
+      opts.type ? eq(products.productType, opts.type) : undefined,
+    );
     const [rows, [{ count }]] = await Promise.all([
       executor.select().from(products).where(where).orderBy(desc(products.createdAt)).limit(p.perPage).offset(offsetOf(p)),
       executor.select({ count: sql<number>`count(*)::int` }).from(products).where(where),
     ]);
     return paginate(rows, count, p);
+  },
+
+  /** أعداد المنتجات حسب النوع (لأزرار التصفية). */
+  async countsByType(storeId: string, executor: DbExecutor = db) {
+    const rows = await executor
+      .select({ type: products.productType, n: sql<number>`count(*)::int` })
+      .from(products)
+      .where(and(eq(products.storeId, storeId), isNull(products.deletedAt)))
+      .groupBy(products.productType);
+    const out: Record<string, number> = { all: 0, physical: 0, digital: 0, service: 0 };
+    for (const r of rows) {
+      out[r.type] = r.n;
+      out.all += r.n;
+    }
+    return out;
   },
 
   async insert(values: typeof products.$inferInsert, executor: DbExecutor = db) {

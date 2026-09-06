@@ -13,6 +13,7 @@ export interface UpdateProductInput {
   shortDescription?: string | null;
   description?: string | null;
   status?: "draft" | "active" | "archived";
+  productType?: "physical" | "digital" | "service";
   price?: string; // للمتغيّر الافتراضي
 }
 
@@ -26,6 +27,7 @@ export async function updateProduct(ctx: StoreContext, productId: string, input:
   if (input.name !== undefined) patch.name = input.name;
   if (input.shortDescription !== undefined) patch.shortDescription = input.shortDescription;
   if (input.description !== undefined) patch.description = input.description;
+  if (input.productType !== undefined) patch.productType = input.productType;
   if (input.status !== undefined) {
     patch.status = input.status;
     if (input.status === "active" && !product.publishedAt) patch.publishedAt = new Date();

@@ -6,11 +6,32 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 
 const statusLabel: Record<string, string> = { draft: "مسودة", active: "منشور", archived: "مؤرشف" };
+const typeMeta: Record<string, { label: string; cls: string }> = {
+  digital: { label: "رقمي", cls: "bg-[color-mix(in_srgb,var(--brand)_15%,transparent)] text-[var(--brand)]" },
+  physical: { label: "مادي", cls: "bg-amber-100 text-amber-700" },
+  service: { label: "خدمة", cls: "bg-purple-100 text-purple-700" },
+};
 
-export default async function ProductsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+function TypeBadge({ type }: { type: string }) {
+  const m = typeMeta[type] ?? { label: type, cls: "bg-black/5 text-[var(--muted)]" };
+  return <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${m.cls}`}>{m.label}</span>;
+}
+
+export default async function ProductsPage({ searchParams }: { searchParams: Promise<{ page?: string; type?: string }> }) {
   const ctx = await getAdminContext();
-  const { page } = await searchParams;
-  const result = await productRepository.list(ctx.storeId, { page: Number(page) || 1, perPage: 20 });
+  const { page, type } = await searchParams;
+  const activeType = type === "digital" || type === "physical" || type === "service" ? type : undefined;
+  const [result, counts] = await Promise.all([
+    productRepository.list(ctx.storeId, { page: Number(page) || 1, perPage: 20 }, { type: activeType }),
+    productRepository.countsByType(ctx.storeId),
+  ]);
+
+  const tabs: { key: string | undefined; label: string; count: number }[] = [
+    { key: undefined, label: "الكل", count: counts.all },
+    { key: "digital", label: "رقمي", count: counts.digital },
+    { key: "physical", label: "مادي (يُشحن)", count: counts.physical },
+    { key: "service", label: "خدمة", count: counts.service },
+  ];
 
   return (
     <div>
@@ -23,6 +44,21 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
           </div>
         }
       />
+
+      {/* تصفية حسب النوع */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {tabs.map((t) => (
+          <Link
+            key={t.label}
+            href={t.key ? `/admin/products?type=${t.key}` : "/admin/products"}
+            className={`rounded-full border px-3 py-1.5 text-sm transition ${
+              activeType === t.key ? "border-[var(--brand)] bg-[var(--brand)] text-[var(--brand-fg)]" : "border-[var(--border)] hover:bg-black/5"
+            }`}
+          >
+            {t.label} <span dir="ltr" className="opacity-70">({t.count})</span>
+          </Link>
+        ))}
+      </div>
 
       {result.data.length === 0 ? (
         <EmptyState
@@ -42,9 +78,12 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
               <Link
                 key={p.id}
                 href={`/admin/products/${p.id}`}
-                className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4"
+                className="block rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 hover:bg-black/5"
               >
-                <div className="font-medium">{p.name}</div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-medium">{p.name}</div>
+                  <TypeBadge type={p.productType} />
+                </div>
                 <div className="mt-1 text-xs text-[var(--muted)]">{statusLabel[p.status] ?? p.status}</div>
               </Link>
             ))}
@@ -67,7 +106,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
                       <Link href={`/admin/products/${p.id}`} className="font-medium hover:underline">{p.name}</Link>
                     </td>
                     <td className="p-3 text-[var(--muted)]">{statusLabel[p.status] ?? p.status}</td>
-                    <td className="p-3 text-[var(--muted)]">{p.productType}</td>
+                    <td className="p-3"><TypeBadge type={p.productType} /></td>
                   </tr>
                 ))}
               </tbody>

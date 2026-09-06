@@ -65,8 +65,10 @@ function Stars({ value, className = "" }: { value: number; className?: string })
   );
 }
 
-const TRUST = [
-  { icon: "M13 2 3 14h7l-1 8 10-12h-7l1-8Z", title: "تسليم فوري", sub: "الكود يصلك مباشرة بعد الدفع" },
+const trustFor = (digital: boolean) => [
+  digital
+    ? { icon: "M13 2 3 14h7l-1 8 10-12h-7l1-8Z", title: "تسليم فوري", sub: "الكود يصلك مباشرة بعد الدفع" }
+    : { icon: "M3 7h13v8H3zM16 10h3l2 3v2h-5M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm12 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z", title: "شحن سريع", sub: "نوصّل طلبك إلى عنوانك" },
   { icon: "M12 2 4 6v6c0 5 3.4 8.5 8 10 4.6-1.5 8-5 8-10V6l-8-4Zm0 6 3 3-4 4-2-2", title: "دفع آمن", sub: "بوابات دفع موثوقة ومشفّرة" },
   { icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10Z", title: "دعم متواصل", sub: "فريقنا جاهز لمساعدتك" },
 ];
@@ -210,7 +212,7 @@ export default async function ProductPage({
 
           {/* شارات الثقة */}
           <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
-            {TRUST.map((t) => (
+            {trustFor(isDigital).map((t) => (
               <div key={t.title} className="flex items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3">
                 <svg viewBox="0 0 24 24" className="mt-0.5 h-5 w-5 shrink-0 text-[var(--brand)]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
                   <path d={t.icon} />
