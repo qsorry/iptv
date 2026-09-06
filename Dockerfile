@@ -32,10 +32,14 @@ COPY --from=build --chown=app:app /app/.next/static ./.next/static
 # بجانب السكربت مباشرة حتى يجدها Node عند الإقلاع.
 COPY --from=build --chown=app:app /app/drizzle ./drizzle
 COPY --from=build --chown=app:app /app/scripts/migrate.mjs ./scripts/migrate.mjs
+COPY --from=build --chown=app:app /app/scripts/seed-imports.mjs ./scripts/seed-imports.mjs
+# بيانات استيراد سلة (طلبات تاريخية) تُدرَج مرة واحدة عند الإقلاع (idempotent).
+COPY --from=build --chown=app:app /app/data ./data
 COPY --from=deps --chown=app:app /app/node_modules/drizzle-orm ./scripts/node_modules/drizzle-orm
 COPY --from=deps --chown=app:app /app/node_modules/postgres ./scripts/node_modules/postgres
 
 USER app
 EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=5 CMD curl -fsS http://localhost:3000/api/health || exit 1
-CMD ["sh", "-c", "node scripts/migrate.mjs && node server.js"]
+# الهجرات ثم بذرة الاستيراد (لا تُفشل الإقلاع) ثم الخادم.
+CMD ["sh", "-c", "node scripts/migrate.mjs && node scripts/seed-imports.mjs; node server.js"]

@@ -6,10 +6,10 @@ import { formatMoney, toMinor } from "@/core/money";
 import { Button } from "@/components/ui/button";
 
 /** زر الإضافة مع حالة انتظار (سبينر) أثناء التوجّه إلى السلة. */
-function AddButton({ digital }: { digital: boolean }) {
+function AddButton({ digital, className }: { digital: boolean; className?: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending} className="w-full py-3 text-base sm:w-auto sm:px-8">
+    <Button type="submit" disabled={pending} className={className ?? "w-full py-3 text-base sm:w-auto sm:px-8"}>
       {pending ? (
         <>
           <svg viewBox="0 0 24 24" className="h-5 w-5 animate-spin" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -135,6 +135,25 @@ export function BuyBox({
         <input type="hidden" name="variantId" value={variantId} />
         <input type="hidden" name="quantity" value={qty} />
         <AddButton digital={digital} />
+
+        {/* شريط شراء ثابت أسفل الشاشة على الجوال — يتبع التمرير */}
+        <div
+          className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] backdrop-blur-md lg:hidden"
+          style={{ paddingBottom: "var(--safe-bottom)" }}
+        >
+          <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3">
+            <div className="shrink-0 leading-tight">
+              <div className="text-[11px] text-[var(--muted)]">الإجمالي</div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-lg font-bold text-[var(--brand)]" dir="ltr">{formatMoney(price * qty, currency)}</span>
+                {hasDiscount && (
+                  <span className="text-xs text-[var(--muted)] line-through" dir="ltr">{formatMoney(compareAt * qty, currency)}</span>
+                )}
+              </div>
+            </div>
+            <AddButton digital={digital} className="flex-1 justify-center py-3 text-base" />
+          </div>
+        </div>
       </form>
     </div>
   );

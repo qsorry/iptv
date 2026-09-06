@@ -163,7 +163,7 @@ export default async function ProductPage({
   };
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-5xl pb-24 lg:pb-0">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
 

@@ -1,0 +1,19 @@
+[
+  {
+    "reference_id": 283401716,
+    "date": "2026-09-06T06:08:46+03:00",
+    "total": 39.0,
+    "currency": "SAR",
+    "status": "completed",
+    "payment_status": "paid",
+    "payment_method": "credit_card",
+    "customer": {
+      "full_name": "عبدالله الحربي",
+      "first_name": "عبدالله",
+      "last_name": "الحربي",
+      "email": "ddlliii-100@hotmail.com",
+      "phone": "+966557188001"
+    },
+    "items": [{ "name": "اشتراك سمارت لمدة سنه", "quantity": 1, "unit_price": 39.0 }]
+  }
+]
