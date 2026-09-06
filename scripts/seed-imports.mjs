@@ -129,9 +129,13 @@ async function importOrders(store) {
         const qty = Math.max(1, Number(it.quantity || 1));
         const unit = money(it.unit_price ?? Number(o.total) / qty);
         const total = money(Number(unit) * qty);
+        const nm = String(it.name || "منتج");
+        // اربط العنصر بالمنتج في الكتالوج إن تطابق الاسم (لفتح صفحة المنتج من الطلب).
+        const prod = await sql`select id from products where store_id = ${store.id} and name = ${nm} and deleted_at is null limit 1`;
+        const productId = prod.length ? prod[0].id : null;
         const itemRow = await sql`
-          insert into order_items (order_id, product_name, unit_price, quantity, total)
-          values (${orderId}, ${String(it.name || "منتج")}, ${unit}, ${qty}, ${total})
+          insert into order_items (order_id, product_id, product_name, unit_price, quantity, total)
+          values (${orderId}, ${productId}, ${nm}, ${unit}, ${qty}, ${total})
           returning id`;
         if (!firstItemId) firstItemId = itemRow[0].id;
         // كود الاشتراك على مستوى العنصر (إن وُجد).

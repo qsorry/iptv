@@ -41,5 +41,5 @@ COPY --from=deps --chown=app:app /app/node_modules/postgres ./scripts/node_modul
 USER app
 EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=5 CMD curl -fsS http://localhost:3000/api/health || exit 1
-# الهجرات ثم بذرة الاستيراد (لا تُفشل الإقلاع) ثم الخادم.
-CMD ["sh", "-c", "node scripts/migrate.mjs && node scripts/seed-imports.mjs; node server.js"]
+# الهجرات، ثم بذرة الاستيراد في الخلفية (قد تكون آلاف الطلبات) حتى لا تؤخّر الإقلاع، ثم الخادم.
+CMD ["sh", "-c", "node scripts/migrate.mjs && (node scripts/seed-imports.mjs &) && node server.js"]

@@ -27,15 +27,15 @@ export default async function CustomersPage() {
           {/* بطاقات على الجوال */}
           <div className="grid gap-3 sm:hidden">
             {rows.map((c) => (
-              <div key={c.id} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4">
-                <div className="font-medium">{c.firstName || c.email || "عميل"}</div>
+              <Link key={c.id} href={`/admin/customers/${c.id}`} className="block rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-4 hover:bg-black/5">
+                <div className="font-medium">{[c.firstName, c.lastName].filter(Boolean).join(" ") || c.email || "عميل"}</div>
                 {c.email && <div className="text-xs text-[var(--muted)]" dir="ltr">{c.email}</div>}
                 {c.phone && <div className="text-xs text-[var(--muted)]" dir="ltr">{c.phone}</div>}
                 <div className="mt-2 flex justify-between text-sm">
                   <span className="text-[var(--muted)]">الطلبات: {c.orders}</span>
                   <span className="font-medium" dir="ltr">{formatMoney(toMinor(c.spent), "SAR")}</span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
           {/* جدول على الكمبيوتر */}
@@ -46,8 +46,8 @@ export default async function CustomersPage() {
               </thead>
               <tbody>
                 {rows.map((c) => (
-                  <tr key={c.id} className="border-t border-[var(--border)]">
-                    <td className="p-3 font-medium">{c.firstName || "عميل"}</td>
+                  <tr key={c.id} className="border-t border-[var(--border)] hover:bg-black/5">
+                    <td className="p-3 font-medium"><Link href={`/admin/customers/${c.id}`} className="hover:underline">{[c.firstName, c.lastName].filter(Boolean).join(" ") || "عميل"}</Link></td>
                     <td className="p-3 text-[var(--muted)]" dir="ltr">{c.email || c.phone || "—"}</td>
                     <td className="p-3" dir="ltr">{c.orders}</td>
                     <td className="p-3" dir="ltr">{formatMoney(toMinor(c.spent), "SAR")}</td>

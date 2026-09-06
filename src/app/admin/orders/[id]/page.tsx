@@ -97,7 +97,14 @@ export default async function AdminOrderPage({
       <div className="space-y-2">
         {items.map((it) => (
           <Card key={it.id} className="flex items-center justify-between">
-            <span>{it.productName} <span className="text-[var(--muted)]" dir="ltr">×{it.quantity}</span></span>
+            <span>
+              {it.productId ? (
+                <Link href={`/admin/products/${it.productId}`} className="text-[var(--brand)] hover:underline">{it.productName}</Link>
+              ) : (
+                it.productName
+              )}{" "}
+              <span className="text-[var(--muted)]" dir="ltr">×{it.quantity}</span>
+            </span>
             <span dir="ltr">{formatMoney(toMinor(it.total), order.currencyCode)}</span>
           </Card>
         ))}
