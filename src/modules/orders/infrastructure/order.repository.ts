@@ -1,6 +1,7 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, sql, desc } from "drizzle-orm";
 import { db, type DbExecutor } from "@/infrastructure/database/client";
 import { orders, orderItems, orderAddresses, orderEvents } from "@/infrastructure/database/schema";
+import { offsetOf, paginate, type Pagination } from "@/core/pagination";
 
 export const orderRepository = {
   /** رقم طلب متسلسل لكل متجر. يجب أن يكون صف المتجر مقفولاً (FOR UPDATE) قبل الاستدعاء. */
@@ -11,6 +12,17 @@ export const orderRepository = {
       .where(eq(orders.storeId, storeId));
     return String(1000 + count + 1);
   },
+
+  async list(storeId: string, p: Pagination, executor: DbExecutor = db) {
+    const where = eq(orders.storeId, storeId);
+    const [rows, [{ count }]] = await Promise.all([
+      executor.select().from(orders).where(where).orderBy(desc(orders.placedAt)).limit(p.perPage).offset(offsetOf(p)),
+      executor.select({ count: sql<number>`count(*)::int` }).from(orders).where(where),
+    ]);
+    return paginate(rows, count, p);
+  },
+
+  itemsFor: (orderId: string, executor: DbExecutor = db) => executor.select().from(orderItems).where(eq(orderItems.orderId, orderId)),
 
   async findById(storeId: string, id: string, executor: DbExecutor = db) {
     return executor.query.orders.findFirst({ where: and(eq(orders.storeId, storeId), eq(orders.id, id)) });
