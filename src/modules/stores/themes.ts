@@ -111,6 +111,37 @@ export function isDarkTheme(themeKey: string | undefined): boolean {
   return THEMES[themeKey ?? DEFAULT_THEME]?.palette.dark ?? false;
 }
 
+/** أزواج فاتح ↔ داكن لمبدّل الثيم عند الزائر. ما ليس له زوج صريح يُقابل بـ modern/midnight. */
+const THEME_COUNTERPARTS: Record<string, string> = {
+  modern: "midnight",
+  midnight: "modern",
+  graphite: "carbon",
+  carbon: "graphite",
+  minimal: "carbon",
+};
+
+/** الثيم المقابل في الوضع الآخر (فاتح لثيم داكن، وداكن لثيم فاتح). */
+export function counterpartTheme(themeKey: string | undefined): string {
+  const key = THEMES[themeKey ?? DEFAULT_THEME] ? (themeKey ?? DEFAULT_THEME) : DEFAULT_THEME;
+  return THEME_COUNTERPARTS[key] ?? (isDarkTheme(key) ? "modern" : "midnight");
+}
+
+/**
+ * لوحتا الوضعين للزائر: `light` و`dark`. ثيم التاجر يحدد لوحة وضعه،
+ * والثيم المقابل يحدد الوضع الآخر. الخط والاستدارة مشتركان.
+ */
+export function themeModeVars(
+  config: string | ThemeConfig | undefined,
+  brandColor: string,
+): { light: Record<string, string>; dark: Record<string, string> } {
+  const cfg: ThemeConfig = typeof config === "string" ? { theme: config } : (config ?? {});
+  const own = THEMES[cfg.theme ?? DEFAULT_THEME] ? (cfg.theme ?? DEFAULT_THEME) : DEFAULT_THEME;
+  const other = counterpartTheme(own);
+  const ownVars = themeVars({ ...cfg, theme: own }, brandColor);
+  const otherVars = themeVars({ ...cfg, theme: other }, brandColor);
+  return isDarkTheme(own) ? { light: otherVars, dark: ownVars } : { light: ownVars, dark: otherVars };
+}
+
 /**
  * متغيرات CSS للثيم (Material 3): لون العلامة، أسطح متدرّجة اللون (surface containers)،
  * الخط، والاستدارة. أدوار الألوان تُشتق عبر color-mix لتناسق الوضعين الفاتح/الداكن.

@@ -18,6 +18,10 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/*
+ * الوضع الداكن: تلقائياً حسب النظام، أو صراحةً عبر data-theme على <html>
+ * (يضبطه مبدّل الثيم في واجهة المتجر ويحفظه في localStorage/كوكي).
+ */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0b0f14;
@@ -25,7 +29,19 @@
     --fg: #e5e7eb;
     --muted: #9ca3af;
     --border: #263041;
+    color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #0b0f14;
+  --surface: #131a22;
+  --fg: #e5e7eb;
+  --muted: #9ca3af;
+  --border: #263041;
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 * {

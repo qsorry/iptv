@@ -13,6 +13,8 @@ export {
   googleFontHref,
   contrastOn,
   isDarkTheme,
+  counterpartTheme,
+  themeModeVars,
   type ThemePalette,
   type ThemeConfig,
 } from "./themes";
