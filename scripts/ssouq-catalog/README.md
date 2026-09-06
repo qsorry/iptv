@@ -37,6 +37,20 @@ header `Store-Identifier`), the admin product records (Salla MCP `products_list`
 Images are downloaded once into `public/media/subscriptions/<product-id>/gallery-N.ext` (product gallery) and
 `public/media/subscriptions/shared/<hash>.ext` (setup screenshots embedded in descriptions, shared across products).
 
+## Footer data (contacts, policies, licences, payment methods)
+
+```
+python3 footer_extract.py          # ssouq.com -> data/salla-import/store-footer.json + public/media/store/business-center-certificate.jpg
+```
+
+`footer_extract.py` (stdlib only) reads the Salla `twilight::init` config embedded in the homepage (contacts, social links,
+commercial registration, tax number, Saudi Business Center certificate, enabled payment methods) and the static pages
+under `/ar/p/<slug>` (about, contact, FAQ, shipping & payment, return/refund, privacy), cleaning their Quill HTML into
+plain semantic markup. `footer_html.py` renders the same footer into both previews (`build.py`, `subs_build.py`) using
+the shared design tokens and MDI icons, and `scripts/seed-imports.mjs` seeds the pages + `settings.footer` for the store
+on container boot (idempotent: existing pages/settings are never overwritten). The storefront renders it via
+`src/components/storefront/store-footer.tsx`; merchants edit the values under Admin → Settings → ذيل الصفحة.
+
 ## Publishing to the platform
 - `public/catalog/subscriptions.html` is served at https://com.ssouq.net/catalog/subscriptions.html after deploy.
 - `docs/ssouq-catalog/subscriptions-import.csv` (from `subs_export.py`) can be uploaded at `/admin/products/import`

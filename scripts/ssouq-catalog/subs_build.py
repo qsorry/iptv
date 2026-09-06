@@ -3,6 +3,8 @@
 standalone -> subscriptions.html  (images: hosted URL on com.ssouq.net with CDN fallback)
 embed      -> subscriptions-embed.html (images embedded as resized WebP data URIs, for the Artifact preview)"""
 import json, subprocess, html, collections, datetime, sys, base64, io, os
+import footer_html
+FOOTER = footer_html.load()
 MODE = sys.argv[1] if len(sys.argv) > 1 else 'standalone'
 P = json.load(open('subscriptions.json', encoding='utf-8'))
 REPO = '/home/user/iptv/'
@@ -26,7 +28,7 @@ used = sorted({i['icon'] for p in P for g in p['groups'] for i in g['items']} | 
 UI = ['magnify','close','chevron-down','chevron-up','open-in-new','image-off-outline','tag-outline','check-circle-outline','sort','shape-outline',
       'format-list-bulleted','calendar-month-outline','devices','cash-multiple','star','cart-check','folder-image','link-variant','information-outline',
       'server-network','cloud-download-outline','table-large','view-grid-outline','television-classic','fire','chart-line','apple','android','microsoft-windows','monitor']
-names = sorted(set(used) | set(UI))
+names = sorted(set(used) | set(UI) | set(footer_html.icon_names(FOOTER)))
 js = "const m=require('@mdi/js');const out={};for(const n of %s){out[n]=m['mdi'+n.split('-').map(w=>w[0].toUpperCase()+w.slice(1)).join('')]||null}console.log(JSON.stringify(out))" % json.dumps(names)
 paths = json.loads(subprocess.check_output(['node', '-e', js], cwd='mdi'))
 missing = [n for n, v in paths.items() if not v]; assert not missing, missing
@@ -310,7 +312,7 @@ dialog::backdrop{background:rgba(6,16,24,.65);backdrop-filter:blur(2px)}
 </body>
 </html>
 '''
-out = page.replace('__SPRITE__', sprite).replace('__DATA__', data_json).replace('__DATE__', gen)
+out = page.replace('</style>', footer_html.CSS + '</style>', 1).replace('<dialog id="dlg"', footer_html.render(FOOTER) + '\n<dialog id="dlg"', 1).replace('__SPRITE__', sprite).replace('__DATA__', data_json).replace('__DATE__', gen)
 fn = 'subscriptions.html' if MODE == 'standalone' else 'subscriptions-embed.html'
 open(fn, 'w', encoding='utf-8').write(out)
 print(fn, len(out)//1024, 'KB', len(P), 'products', len(names), 'icons')

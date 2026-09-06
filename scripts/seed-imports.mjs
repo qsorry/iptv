@@ -17,6 +17,7 @@ if (!url) {
 }
 
 const ordersPath = new URL("../data/salla-import/orders.json", import.meta.url).pathname;
+const footerPath = new URL("../data/salla-import/store-footer.json", import.meta.url).pathname;
 
 const money = (n) => Number(n || 0).toFixed(2);
 const cleanEmail = (e) => {
@@ -154,6 +155,58 @@ async function importOrders(store) {
   return { created, skipped };
 }
 
+/**
+ * بيانات ذيل الصفحة والسياسات المستخرجة من ssouq.com (scripts/ssouq-catalog/footer_extract.py).
+ * - الصفحات: تُنشأ منشورة إن لم يوجد نفس slug للمتجر؛ لا تُعدَّل صفحة موجودة (تحرير التاجر له الأولوية).
+ * - إعدادات الذيل: تُكتب مرة واحدة فقط عندما لا يوجد المفتاح `footer` في settings.
+ */
+async function importFooter(store) {
+  if (!existsSync(footerPath)) return { pages: 0, settings: false };
+  let data;
+  try {
+    data = JSON.parse(readFileSync(footerPath, "utf8"));
+  } catch (e) {
+    console.error("seed: تعذّر قراءة store-footer.json —", e.message);
+    return { pages: 0, settings: false };
+  }
+  let created = 0;
+  for (const pg of Array.isArray(data.pages) ? data.pages : []) {
+    if (!pg?.slug || !pg?.title) continue;
+    const exists = await sql`select id from pages where store_id = ${store.id} and slug = ${pg.slug} limit 1`;
+    if (exists.length) continue;
+    await sql`
+      insert into pages (store_id, title, slug, body, seo_description, status, published_at)
+      values (${store.id}, ${pg.title}, ${pg.slug}, ${pg.body || null}, ${pg.seoDescription || null}, 'published', now())`;
+    created++;
+  }
+
+  const c = data.contact || {};
+  const so = data.social || {};
+  const lic = data.licenses || {};
+  const cert = lic.business_center_certificate || {};
+  const known = new Set(["mada", "credit_card", "apple_pay", "stc_pay", "bank_transfer", "cod"]);
+  const footer = {
+    legalName: c.legal_name || "", phone: c.phone || "", whatsapp: c.whatsapp || "", email: c.email || "", address: c.address || "",
+    instagram: so.instagram || "", snapchat: so.snapchat || "", facebook: so.facebook || "", twitter: so.twitter || "", youtube: so.youtube || "",
+    commercialNumber: lic.commercial_number || "", certificateId: cert.id || "", certificateImage: cert.local || cert.image || "", certificateUrl: cert.verify_url || "",
+    payments: (Array.isArray(data.payments) ? data.payments : []).filter((p) => known.has(p)),
+  };
+  const row = await sql`select settings from store_settings where store_id = ${store.id} limit 1`;
+  let wrote = false;
+  if (!row.length) {
+    const merged = { footer };
+    if (lic.tax_number) merged.vatNumber = lic.tax_number;
+    await sql`insert into store_settings (store_id, settings) values (${store.id}, ${sql.json(merged)})`;
+    wrote = true;
+  } else if (!row[0].settings || row[0].settings.footer == null) {
+    const merged = { ...(row[0].settings || {}), footer };
+    if (lic.tax_number && !merged.vatNumber) merged.vatNumber = lic.tax_number;
+    await sql`update store_settings set settings = ${sql.json(merged)}, updated_at = now() where store_id = ${store.id}`;
+    wrote = true;
+  }
+  return { pages: created, settings: wrote };
+}
+
 try {
   const store = await resolveStoreId();
   if (!store) {
@@ -161,6 +214,8 @@ try {
   } else {
     const r = await importOrders(store);
     console.log(`✓ بذرة سلة: طلبات أُضيفت ${r.created}، تخطّي ${r.skipped}`);
+    const f = await importFooter(store);
+    console.log(`✓ بذرة الذيل: صفحات أُضيفت ${f.pages}، إعدادات الذيل ${f.settings ? "كُتبت" : "موجودة مسبقاً"}`);
   }
 } catch (e) {
   console.error("seed: خطأ عام (تجاهُل ومتابعة) —", e?.message || e);
