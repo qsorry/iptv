@@ -46,7 +46,11 @@ export async function getStorefrontStore() {
   const slug = h.get(TENANT_HEADERS.slug);
   const domain = h.get(TENANT_HEADERS.customDomain);
 
-  if (slug) return db.query.stores.findFirst({ where: and(eq(stores.slug, slug), eq(stores.status, "active")) });
+  if (slug) {
+    const bySlug = await db.query.stores.findFirst({ where: and(eq(stores.slug, slug), eq(stores.status, "active")) });
+    if (bySlug) return bySlug;
+    // لا نُرجِع null هنا؛ نتابع إلى الاحتياطي حتى لا تنكسر الصفحة.
+  }
   if (domain) {
     const row = await db
       .select({ store: stores })
@@ -54,7 +58,7 @@ export async function getStorefrontStore() {
       .innerJoin(stores, eq(stores.id, storeDomains.storeId))
       .where(and(eq(storeDomains.domain, domain), eq(stores.status, "active")))
       .limit(1);
-    return row[0]?.store ?? null;
+    if (row[0]?.store) return row[0].store;
   }
 
   // وصول عبر مجلد: /s/<slug> يضبط كوكي المتجر النشط.

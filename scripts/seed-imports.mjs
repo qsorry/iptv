@@ -66,6 +66,20 @@ async function upsertCustomer(storeId, c) {
   return ins[0].id;
 }
 
+/** يُدرج كود اشتراك مُسلَّم مرتبطاً بالطلب (Idempotent بالمتجر+الكود). variant_id قد يكون null للمستورد. */
+async function insertCode(storeId, orderId, orderItemId, code, deliveredAt) {
+  const c = code.trim();
+  if (!c) return;
+  const exists = await sql`select id from digital_codes where store_id = ${storeId} and code = ${c} limit 1`;
+  if (exists.length) {
+    await sql`update digital_codes set order_id = ${orderId}, order_item_id = ${orderItemId}, status = 'delivered', delivered_at = ${deliveredAt} where id = ${exists[0].id}`;
+    return;
+  }
+  await sql`
+    insert into digital_codes (store_id, variant_id, code, status, order_id, order_item_id, delivered_at)
+    values (${storeId}, null, ${c}, 'delivered', ${orderId}, ${orderItemId}, ${deliveredAt})`;
+}
+
 async function importOrders(store) {
   if (!existsSync(ordersPath)) return { created: 0, skipped: 0 };
   let orders;
@@ -98,22 +112,35 @@ async function importOrders(store) {
       const status = o.status === "completed" ? "completed" : o.status === "cancelled" ? "cancelled" : "confirmed";
       const paymentStatus = o.payment_status === "paid" ? "paid" : "unpaid";
 
+      const pm = String(o.payment_method || "").trim();
+      const notes = pm ? `مستورد من سلة · طريقة الدفع: ${pm}` : "مستورد من سلة";
+      const subtotal = money(o.subtotal ?? o.total);
+      const tax = money(o.tax ?? 0);
       const orderRow = await sql`
-        insert into orders (store_id, customer_id, order_number, currency_code, status, payment_status, fulfillment_status, subtotal, discount_total, shipping_total, tax_total, grand_total, placed_at)
+        insert into orders (store_id, customer_id, order_number, currency_code, status, payment_status, fulfillment_status, subtotal, discount_total, shipping_total, tax_total, grand_total, placed_at, notes)
         values (${store.id}, ${customerId}, ${orderNumber}, ${currency}, ${status}, ${paymentStatus},
-                ${paymentStatus === "paid" ? "fulfilled" : "unfulfilled"}, ${grand}, '0', '0', '0', ${grand}, ${placedAt})
+                ${paymentStatus === "paid" ? "fulfilled" : "unfulfilled"}, ${subtotal}, '0', '0', ${tax}, ${grand}, ${placedAt}, ${notes})
         returning id`;
       const orderId = orderRow[0].id;
 
       const items = Array.isArray(o.items) ? o.items : [];
+      let firstItemId = null;
       for (const it of items) {
         const qty = Math.max(1, Number(it.quantity || 1));
         const unit = money(it.unit_price ?? Number(o.total) / qty);
         const total = money(Number(unit) * qty);
-        await sql`
+        const itemRow = await sql`
           insert into order_items (order_id, product_name, unit_price, quantity, total)
-          values (${orderId}, ${String(it.name || "منتج")}, ${unit}, ${qty}, ${total})`;
+          values (${orderId}, ${String(it.name || "منتج")}, ${unit}, ${qty}, ${total})
+          returning id`;
+        if (!firstItemId) firstItemId = itemRow[0].id;
+        // كود الاشتراك على مستوى العنصر (إن وُجد).
+        if (it.code) {
+          await insertCode(store.id, orderId, itemRow[0].id, String(it.code), placedAt);
+        }
       }
+      // كود الاشتراك على مستوى الطلب (صيغة سلة الشائعة: كود واحد للطلب).
+      if (o.code) await insertCode(store.id, orderId, firstItemId, String(o.code), placedAt);
       created++;
     } catch (e) {
       skipped++;

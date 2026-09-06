@@ -1,0 +1,1 @@
+ALTER TABLE "digital_codes" ALTER COLUMN "variant_id" DROP NOT NULL;

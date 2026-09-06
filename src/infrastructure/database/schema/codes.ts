@@ -15,7 +15,8 @@ export const digitalCodes = pgTable(
   {
     id: id(),
     storeId: uuid("store_id").references(() => stores.id, { onDelete: "cascade" }).notNull(),
-    variantId: uuid("variant_id").references(() => productVariants.id, { onDelete: "cascade" }).notNull(),
+    // اختياري: الأكواد المستوردة (تاريخية) قد لا ترتبط بـ variant.
+    variantId: uuid("variant_id").references(() => productVariants.id, { onDelete: "cascade" }),
     code: text("code").notNull(),
     status: codeStatus("status").default("available").notNull(),
     // تُملأ عند التخصيص لطلب.

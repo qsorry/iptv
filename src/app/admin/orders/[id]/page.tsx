@@ -27,8 +27,11 @@ export default async function AdminOrderPage({
   const order = await orderRepository.findById(ctx.storeId, id);
   if (!order) notFound();
   const items = await orderRepository.itemsFor(order.id);
+  const customer = await orderRepository.customerFor(ctx.storeId, order.customerId);
   const paid = order.paymentStatus === "paid";
-  const codes = paid ? await codeRepository.deliveredForOrder(ctx.storeId, order.id) : [];
+  const codes = await codeRepository.deliveredForOrder(ctx.storeId, order.id);
+  const placed = order.placedAt ? new Date(order.placedAt).toLocaleString("ar-SA", { dateStyle: "medium", timeStyle: "short" }) : null;
+  const statusLabel: Record<string, string> = { pending: "قيد الانتظار", confirmed: "مؤكد", processing: "قيد التنفيذ", completed: "مكتمل", cancelled: "ملغي" };
 
   async function markPaid() {
     "use server";
@@ -58,9 +61,37 @@ export default async function AdminOrderPage({
       {ok && <p className="mb-4 rounded-[var(--radius)] border border-green-200 bg-green-50 p-3 text-sm text-green-700">تم تعليم الطلب كمدفوع وتسليم الأكواد.</p>}
 
       <Card className="space-y-2">
+        <Row label="رقم الطلب" value={order.orderNumber} />
+        {placed && <Row label="التاريخ" value={placed} />}
+        <Row label="حالة الطلب" value={statusLabel[order.status] ?? order.status} />
         <Row label="حالة الدفع" value={payLabel[order.paymentStatus] ?? order.paymentStatus} strong={paid} />
         <Row label="الإجمالي" value={formatMoney(toMinor(order.grandTotal), order.currencyCode)} />
+        {order.notes && <Row label="ملاحظات" value={order.notes} />}
       </Card>
+
+      {/* بيانات العميل */}
+      {customer && (
+        <>
+          <h2 className="mb-2 mt-6 text-sm font-semibold text-[var(--muted)]">العميل</h2>
+          <Card className="space-y-2">
+            {(customer.firstName || customer.lastName) && (
+              <Row label="الاسم" value={[customer.firstName, customer.lastName].filter(Boolean).join(" ")} />
+            )}
+            {customer.email && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm text-[var(--muted)]">البريد</span>
+                <a href={`mailto:${customer.email}`} className="text-sm text-[var(--brand)] underline" dir="ltr">{customer.email}</a>
+              </div>
+            )}
+            {customer.phone && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm text-[var(--muted)]">الجوال</span>
+                <a href={`https://wa.me/${customer.phone.replace(/[^\d]/g, "")}`} target="_blank" rel="noreferrer" className="text-sm text-[var(--brand)] underline" dir="ltr">{customer.phone}</a>
+              </div>
+            )}
+          </Card>
+        </>
+      )}
 
       <h2 className="mb-2 mt-6 text-sm font-semibold text-[var(--muted)]">العناصر</h2>
       <div className="space-y-2">
@@ -72,15 +103,15 @@ export default async function AdminOrderPage({
         ))}
       </div>
 
-      {paid && codes.length > 0 && (
+      {codes.length > 0 && (
         <>
-          <h2 className="mb-2 mt-6 text-sm font-semibold text-[var(--muted)]">الأكواد المُسلَّمة</h2>
+          <h2 className="mb-2 mt-6 text-sm font-semibold text-[var(--muted)]">معلومات الاشتراك (الكود)</h2>
           <Card>
-            <ul className="space-y-1">
+            <ul className="space-y-2">
               {codes.map((c, i) => (
-                <li key={i} className="rounded bg-black/5 p-2 font-mono text-sm" dir="ltr">
+                <li key={i} className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface-1)] p-3 font-mono text-sm" dir="ltr">
                   {codeLines(c.code).map((line, j) => (
-                    <div key={j}>{line}</div>
+                    <div key={j} className="break-all">{line}</div>
                   ))}
                 </li>
               ))}
