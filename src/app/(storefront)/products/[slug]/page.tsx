@@ -4,6 +4,10 @@ import { getStorefrontStore } from "@/core/tenancy/server";
 import { productRepository } from "@/modules/catalog";
 import { formatMoney, toMinor } from "@/core/money";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { productReviews, submitReview } from "@/modules/reviews";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 async function load(slug: string) {
   const store = await getStorefrontStore();
@@ -38,6 +42,21 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const { store, product, media } = data;
   const variant = product.variants.find((v) => v.isDefault) ?? product.variants[0];
   const images = media.filter((m) => m.type === "image");
+  const { rows: reviewRows, count: reviewCount, average } = await productReviews(product.id);
+
+  async function addReview(formData: FormData) {
+    "use server";
+    const s = await getStorefrontStore();
+    if (!s) return;
+    await submitReview(s.id, {
+      productId: product!.id,
+      rating: Number(formData.get("rating")) || 5,
+      authorName: String(formData.get("authorName") || "") || undefined,
+      body: String(formData.get("body") || "") || undefined,
+    });
+    revalidatePath(`/products/${encodeURIComponent(product!.slug)}`);
+    redirect(`/products/${encodeURIComponent(product!.slug)}?reviewed=1`);
+  }
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -51,6 +70,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       priceCurrency: store.currencyCode,
       availability: "https://schema.org/InStock",
     },
+    ...(reviewCount > 0
+      ? { aggregateRating: { "@type": "AggregateRating", ratingValue: average, reviewCount } }
+      : {}),
   };
 
   return (
@@ -77,6 +99,52 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           )}
         </div>
       </div>
+
+      {/* التقييمات */}
+      <section className="mt-10">
+        <h2 className="mb-3 text-lg font-semibold">
+          التقييمات {reviewCount > 0 && <span className="text-sm font-normal text-[var(--muted)]" dir="ltr">({average}★ / {reviewCount})</span>}
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-3">
+            {reviewRows.length === 0 ? (
+              <p className="text-sm text-[var(--muted)]">لا توجد تقييمات بعد. كن أول من يقيّم.</p>
+            ) : (
+              reviewRows.map((r) => (
+                <Card key={r.id} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{r.authorName ?? "زائر"}</span>
+                    <span className="text-sm text-yellow-500" dir="ltr">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
+                  </div>
+                  {r.body && <p className="text-sm text-[var(--muted)]">{r.body}</p>}
+                </Card>
+              ))
+            )}
+          </div>
+
+          <Card>
+            <h3 className="mb-2 text-sm font-semibold">أضف تقييمك</h3>
+            <form action={addReview} className="space-y-2">
+              <label className="block text-sm">
+                التقييم
+                <select name="rating" defaultValue="5" className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base">
+                  {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} نجوم</option>)}
+                </select>
+              </label>
+              <label className="block text-sm">
+                الاسم (اختياري)
+                <input name="authorName" className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base" />
+              </label>
+              <label className="block text-sm">
+                تعليقك
+                <textarea name="body" rows={3} className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base" />
+              </label>
+              <Button type="submit" size="sm">إرسال</Button>
+              <p className="text-xs text-[var(--muted)]">يُنشر بعد موافقة المتجر.</p>
+            </form>
+          </Card>
+        </div>
+      </section>
     </div>
   );
 }

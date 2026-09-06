@@ -13,6 +13,7 @@ const nav = [
   { href: "/admin/customers", label: "العملاء" },
   { href: "/admin/inventory", label: "المخزون" },
   { href: "/admin/coupons", label: "الكوبونات" },
+  { href: "/admin/reviews", label: "التقييمات" },
   { href: "/admin/settings", label: "الإعدادات" },
 ];
 
