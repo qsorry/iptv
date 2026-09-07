@@ -29,9 +29,48 @@ export function presentProvider(row: ProviderRow) {
   return { ...rest, apiKeyMasked };
 }
 
+/**
+ * تصحيحات تلقائية لقوالب قديمة عُرف لاحقاً أنها خاطئة (بدون تدخل التاجر).
+ * يرجّع القالب المصحّح أو null إن لم يلزم تغيير.
+ */
+function migrateLegacyConfig(row: ProviderRow): Record<string, unknown> | null {
+  const cfg = row.config as { auth?: { type?: string; name?: string } };
+  // Falcon كان يُرسل المفتاح في X-API-Key؛ الخادم يقبل Bearer فقط.
+  if (row.preset === "falcon" && cfg.auth?.type === "header" && /^x-api-key$/i.test(cfg.auth.name ?? "")) {
+    return { ...row.config, auth: { type: "bearer" } };
+  }
+  return null;
+}
+
 export async function listProviders(ctx: StoreContext) {
   const rows = await subscriptionRepository.listProviders(ctx.storeId);
-  return rows.map(presentProvider);
+  const out: ProviderRow[] = [];
+  for (const row of rows) {
+    const fixed = migrateLegacyConfig(row);
+    if (fixed) {
+      const [updated] = await db
+        .update(subscriptionProviders)
+        .set({ config: fixed, lastError: null, updatedAt: new Date() })
+        .where(eq(subscriptionProviders.id, row.id))
+        .returning();
+      out.push(updated);
+    } else out.push(row);
+  }
+  return out.map(presentProvider);
+}
+
+/** يعيد قالب المزوّد إلى القالب الجاهز الحالي لنوعه (مع الإبقاء على الاسم والمفتاح). */
+export async function resetProviderConfig(ctx: StoreContext, id: string) {
+  await requireSubscriptionsApi(ctx);
+  const row = await subscriptionRepository.findProvider(ctx.storeId, id);
+  if (!row) throw new NotFoundError("المزوّد", id);
+  const preset = PRESETS[row.preset as keyof typeof PRESETS] ?? PRESETS.generic;
+  const [updated] = await db
+    .update(subscriptionProviders)
+    .set({ config: preset.config as unknown as Record<string, unknown>, baseUrl: preset.baseUrl, lastError: null, updatedAt: new Date() })
+    .where(eq(subscriptionProviders.id, id))
+    .returning();
+  return presentProvider(updated);
 }
 
 export async function createProvider(ctx: StoreContext, raw: CreateProviderInput) {
