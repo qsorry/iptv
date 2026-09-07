@@ -16,3 +16,4 @@ export * from "./content";
 export * from "./invoices";
 export * from "./subscriptions";
 export * from "./tracking";
+export * from "./feeds";

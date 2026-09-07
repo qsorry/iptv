@@ -37,6 +37,7 @@ npm run lint
 npm run typecheck
 npm run test:theme   # نظام الثيمات بلا قاعدة بيانات
 npm run test:tracking # محرك التتبّع والإسناد بلا قاعدة بيانات
+npm run test:feeds   # خلاصة المنتجات وحمولة Merchant Center بلا قاعدة بيانات
 npm run test:smoke   # يحتاج قاعدة بيانات فارغة عبر DATABASE_URL (طبّق scripts/migrate.mjs أولاً)؛ يشغّل اختبار الثيمات ثم تدفق الطلب
 ```
 للبناء الكامل: `next build` مع متغيرات وهمية (`DATABASE_URL`, `BETTER_AUTH_SECRET`).
@@ -70,6 +71,12 @@ npm run test:smoke   # يحتاج قاعدة بيانات فارغة عبر DATA
 - الموافقة تُفحص في المحرك قبل كل إرسال؛ لا بكسل قبل موافقة صريحة (PDPL).
 - منصة جديدة = ملف في `adapters/` وسطر في `domain/platforms.ts`. لا كود متناثر في الصفحات.
 - الإسناد (`src/modules/attribution`) يُلتقط من أول زيارة ويُنسخ إلى أعمدة `orders` — لا يمكن استرجاعه لاحقاً.
+
+## الخلاصات وMerchant Center
+- Merchant Center يُغذّى بالـ Content API فقط، و`/feed/products.xml` لكتالوجات Meta وTikTok وSnap. لا تخلطهما على نفس المنتجات (اقرأ `docs/MERCHANT_CENTER.md`).
+- مصدر واحد للكتالوج: `listCatalogRows` + `buildMerchantProduct`؛ لا تبنِ حمولة منتج في مكان آخر.
+- كل تغيير على منتج أو مخزونه يمرّ عبر outbox ثم `merchant_sync_state`؛ لا استدعاء جوجل داخل مسار الحفظ.
+- `payload_hash` يمنع الإرسال العبثي، والمطابقة الليلية تعيد الرفع قبل انتهاء صلاحية المنتج (٣٠ يوماً).
 
 ## الجاهزية لتطبيق جوال مستقبلي (API-first)
 - منطق الأعمال كله في `src/modules/*` مستقل عن الواجهة، ويُستدعى من الصفحات ومن `src/app/api/v1/*`.

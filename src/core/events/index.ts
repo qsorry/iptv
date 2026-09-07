@@ -11,7 +11,10 @@ export type DomainEventName =
   | "payment.refunded"
   | "inventory.low"
   | "inventory.out_of_stock"
-  | "product.published";
+  | "product.published"
+  | "product.updated"
+  | "product.unpublished"
+  | "inventory.changed";
 
 export interface DomainEvent {
   storeId: string | null;

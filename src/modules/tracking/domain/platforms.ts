@@ -1,5 +1,5 @@
 /** المنصات المدعومة في الإطلاق. إضافة منصة = ملف في adapters/ وسطر هنا. */
-export const PLATFORMS = ["ga4", "meta", "tiktok", "snapchat", "clarity", "google"] as const;
+export const PLATFORMS = ["ga4", "meta", "tiktok", "snapchat", "clarity", "google", "merchant"] as const;
 export type Platform = (typeof PLATFORMS)[number];
 
 export interface PlatformField {
@@ -8,6 +8,8 @@ export interface PlatformField {
   /** السر يُشفَّر في القاعدة ولا يُعاد إلا مقنّعاً. */
   secret?: boolean;
   placeholder?: string;
+  /** حقل طويل يُعرض كمساحة نص (ملف JSON مثلاً). */
+  multiline?: boolean;
 }
 
 export interface PlatformDef {
@@ -18,6 +20,8 @@ export interface PlatformDef {
   purpose: "analytics" | "marketing";
   /** هل له Adapter يرسل من السيرفر؟ */
   serverSide: boolean;
+  /** هل يحتاج المتصفح قراءة `config`؟ ما عداه لا يغادر الخادم. */
+  publicConfig?: boolean;
   config: PlatformField[];
   secrets: PlatformField[];
 }
@@ -38,6 +42,7 @@ export const PLATFORM_DEFS: Record<Platform, PlatformDef> = {
     note: "المتصفح والسيرفر معاً مع إزالة التكرار عبر event_id.",
     purpose: "marketing",
     serverSide: true,
+    publicConfig: true,
     config: [{ name: "pixelId", label: "Pixel ID", placeholder: "1234567890" }],
     secrets: [{ name: "accessToken", label: "Access Token" }],
   },
@@ -47,6 +52,7 @@ export const PLATFORM_DEFS: Record<Platform, PlatformDef> = {
     note: "Purchase يقابله CompletePayment.",
     purpose: "marketing",
     serverSide: true,
+    publicConfig: true,
     config: [{ name: "pixelCode", label: "Pixel Code" }],
     secrets: [{ name: "accessToken", label: "Access Token" }],
   },
@@ -56,6 +62,7 @@ export const PLATFORM_DEFS: Record<Platform, PlatformDef> = {
     note: "حصّة سناب في السوق السعودي تبرّر وجوده من اليوم الأول.",
     purpose: "marketing",
     serverSide: true,
+    publicConfig: true,
     config: [{ name: "pixelId", label: "Pixel ID" }],
     secrets: [{ name: "accessToken", label: "Access Token" }],
   },
@@ -65,20 +72,32 @@ export const PLATFORM_DEFS: Record<Platform, PlatformDef> = {
     note: "سطر واحد، مجاني، ويكشف مشاكل تجربة الشراء.",
     purpose: "analytics",
     serverSide: false,
+    publicConfig: true,
     config: [{ name: "projectId", label: "Project ID" }],
     secrets: [],
   },
   google: {
     key: "google",
-    label: "Search Console + Merchant Center",
-    note: "Search Console تحقّق ملكية فقط. خلاصة المنتجات على /feed/products.xml.",
+    label: "Google Search Console",
+    note: "تحقّق ملكية فقط: يُحقن الرمز في وسم <meta> على واجهة المتجر.",
+    purpose: "analytics",
+    serverSide: false,
+    publicConfig: true,
+    config: [{ name: "siteVerification", label: "رمز تحقق Search Console", placeholder: "google-site-verification" }],
+    secrets: [],
+  },
+  merchant: {
+    key: "merchant",
+    label: "Google Merchant Center",
+    note: "دفع الكتالوج بالـ Content API: رفع أولي، مزامنة لحظية عند كل تغيير، ومطابقة ليلية. لا تربط خلاصة مجدولة على نفس المنتجات حتى لا تتنازع مع الـ API.",
     purpose: "analytics",
     serverSide: false,
     config: [
-      { name: "siteVerification", label: "رمز تحقق Search Console", placeholder: "google-site-verification" },
-      { name: "merchantId", label: "Merchant Center ID (اختياري)" },
+      { name: "merchantId", label: "Merchant Center ID", placeholder: "1234567" },
+      { name: "targetCountry", label: "بلد الاستهداف", placeholder: "SA" },
+      { name: "contentLanguage", label: "لغة المحتوى", placeholder: "ar" },
     ],
-    secrets: [],
+    secrets: [{ name: "serviceAccountJson", label: "ملف حساب الخدمة (JSON)", multiline: true }],
   },
 };
 

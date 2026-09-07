@@ -2,6 +2,9 @@ import { db } from "@/infrastructure/database/client";
 import type { StoreContext } from "@/core/tenancy";
 import { requireRole } from "@/core/tenancy";
 import { ValidationError } from "@/core/errors";
+import { publishEvent } from "@/core/events";
+import { eq } from "drizzle-orm";
+import { productVariants } from "@/infrastructure/database/schema";
 import { inventoryRepository } from "../infrastructure/inventory.repository";
 
 type MovementType = "initial" | "purchase" | "return" | "adjustment" | "damage" | "transfer_in" | "transfer_out";
@@ -38,6 +41,19 @@ export async function adjustStock(ctx: StoreContext, input: AdjustStockInput) {
       },
       tx,
     );
+
+    // التوفّر يظهر في خلاصات المنتجات: نفاد المخزون يجب أن يصل جوجل والمنصات
+    // خلال دقيقة، لا في السحب اليومي التالي.
+    const [variant] = await tx.select({ productId: productVariants.productId }).from(productVariants).where(eq(productVariants.id, input.variantId)).limit(1);
+    if (variant) {
+      await publishEvent(tx, {
+        storeId: ctx.storeId,
+        type: "inventory.changed",
+        aggregateType: "product",
+        aggregateId: variant.productId,
+      });
+    }
+
     return level;
   });
 }

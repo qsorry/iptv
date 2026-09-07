@@ -3,6 +3,7 @@ import { db } from "@/infrastructure/database/client";
 import { domainEvents } from "@/infrastructure/database/schema";
 import { notifyCodesDelivered } from "@/modules/notifications";
 import { provisionSubscriptionsForOrder } from "@/modules/subscriptions";
+import { markProductDirty, markProductRemoved, merchantConfig } from "@/modules/feeds";
 
 const MAX_ATTEMPTS = 5;
 
@@ -16,6 +17,22 @@ async function handle(event: typeof domainEvents.$inferSelect) {
         await notifyCodesDelivered(event.storeId, event.aggregateId);
       }
       break;
+
+    // مزامنة الكتالوج مع Merchant Center: الحدث يصفّ المنتج، والعامل يرسله.
+    // لا استدعاء خارجي داخل مسار حفظ المنتج.
+    case "product.published":
+    case "product.updated":
+    case "inventory.changed":
+      if (event.storeId && (await merchantConfig(event.storeId))) {
+        await markProductDirty(event.storeId, event.aggregateId);
+      }
+      break;
+    case "product.unpublished":
+      if (event.storeId && (await merchantConfig(event.storeId))) {
+        await markProductRemoved(event.storeId, event.aggregateId);
+      }
+      break;
+
     default:
       // نوع بلا معالج: يُعتبر مُعالَجاً (لا شيء يُفعل).
       break;
