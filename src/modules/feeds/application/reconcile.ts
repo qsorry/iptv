@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull, lt, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, lt, notInArray, sql } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
 import { merchantSyncState } from "@/infrastructure/database/schema";
 import { contentApiClient } from "../infrastructure/content-api";
@@ -118,7 +118,7 @@ async function syncStatuses(storeId: string, client: ReturnType<typeof contentAp
       and(
         eq(merchantSyncState.storeId, storeId),
         eq(merchantSyncState.status, "disapproved"),
-        stillDisapproved.length > 0 ? sql`${merchantSyncState.googleId} <> all(${stillDisapproved})` : sql`true`,
+        stillDisapproved.length > 0 ? notInArray(merchantSyncState.googleId, stillDisapproved) : sql`true`,
       ),
     );
 
