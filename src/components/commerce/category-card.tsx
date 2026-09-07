@@ -9,6 +9,7 @@ export interface CategoryCardData {
   slug: string;
   description?: string | null;
   imageUrl?: string | null;
+  productCount?: number;
 }
 
 /** درجات لونية تُدوَّر على البطاقات لتنويع الإيقاع البصري؛ كلها حاويات من الرموز الدلالية. */
@@ -55,7 +56,13 @@ export function CategoryCard({ category: c, variant = "default", index = 0 }: Pr
     >
       {icon}
       <span className="text-base font-bold">{c.name}</span>
-      {c.description && <span className="line-clamp-1 text-xs opacity-80">{c.description}</span>}
+      {c.description ? (
+        <span className="line-clamp-1 text-xs opacity-80">{c.description}</span>
+      ) : (
+        typeof c.productCount === "number" && c.productCount > 0 && (
+          <span className="text-xs opacity-80">{c.productCount} منتج</span>
+        )
+      )}
     </Link>
   );
 }

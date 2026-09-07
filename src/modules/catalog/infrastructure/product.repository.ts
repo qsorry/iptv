@@ -1,6 +1,6 @@
 import { and, eq, ne, isNull, sql, desc } from "drizzle-orm";
 import { db, type DbExecutor } from "@/infrastructure/database/client";
-import { products, productVariants, productMedia } from "@/infrastructure/database/schema";
+import { categories, products, productVariants, productMedia } from "@/infrastructure/database/schema";
 import { offsetOf, paginate, type Pagination } from "@/core/pagination";
 
 /** أعمدة بطاقة المنتج العامة: السعر، الصورة، سعر المقارنة، ومتوسط/عدد التقييم. */
@@ -15,6 +15,9 @@ const publicCardColumns = {
   ratingAvg: sql<number>`coalesce((select round(avg(rating)::numeric, 1) from reviews rv where rv.product_id = ${products.id} and rv.status = 'approved'), 0)::float`,
   ratingCount: sql<number>`(select count(*)::int from reviews rv where rv.product_id = ${products.id} and rv.status = 'approved')`,
 };
+
+/** مفتاح التصفية للمنتجات غير المصنّفة. */
+export const UNCATEGORIZED = "none";
 
 export const productRepository = {
   /** المنتجات المنشورة للعرض العام مع السعر والصورة الأولى والخصم والتقييم. */
@@ -111,17 +114,60 @@ export const productRepository = {
     return { ...product, variants };
   },
 
-  async list(storeId: string, p: Pagination, opts: { type?: "physical" | "digital" | "service" } = {}, executor: DbExecutor = db) {
+  /**
+   * قائمة منتجات اللوحة مع اسم تصنيف كل منتج.
+   * `categoryId` يقبل معرّف تصنيف، أو "none" لمنتجات بلا تصنيف.
+   */
+  async list(
+    storeId: string,
+    p: Pagination,
+    opts: { type?: "physical" | "digital" | "service"; categoryId?: string } = {},
+    executor: DbExecutor = db,
+  ) {
+    const categoryFilter =
+      opts.categoryId === undefined
+        ? undefined
+        : opts.categoryId === UNCATEGORIZED
+          ? isNull(products.categoryId)
+          : eq(products.categoryId, opts.categoryId);
     const where = and(
       eq(products.storeId, storeId),
       isNull(products.deletedAt),
       opts.type ? eq(products.productType, opts.type) : undefined,
+      categoryFilter,
     );
     const [rows, [{ count }]] = await Promise.all([
-      executor.select().from(products).where(where).orderBy(desc(products.createdAt)).limit(p.perPage).offset(offsetOf(p)),
+      executor
+        .select({
+          id: products.id,
+          name: products.name,
+          slug: products.slug,
+          status: products.status,
+          productType: products.productType,
+          categoryId: products.categoryId,
+          categoryName: categories.name,
+        })
+        .from(products)
+        .leftJoin(categories, eq(categories.id, products.categoryId))
+        .where(where)
+        .orderBy(desc(products.createdAt))
+        .limit(p.perPage)
+        .offset(offsetOf(p)),
       executor.select({ count: sql<number>`count(*)::int` }).from(products).where(where),
     ]);
     return paginate(rows, count, p);
+  },
+
+  /** أعداد المنتجات حسب التصنيف (لأزرار التصفية)، مع مفتاح "none" لغير المصنّفة. */
+  async countsByCategory(storeId: string, executor: DbExecutor = db) {
+    const rows = await executor
+      .select({ categoryId: products.categoryId, n: sql<number>`count(*)::int` })
+      .from(products)
+      .where(and(eq(products.storeId, storeId), isNull(products.deletedAt)))
+      .groupBy(products.categoryId);
+    const out: Record<string, number> = {};
+    for (const r of rows) out[r.categoryId ?? UNCATEGORIZED] = r.n;
+    return out;
   },
 
   /** أعداد المنتجات حسب النوع (لأزرار التصفية). */
