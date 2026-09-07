@@ -15,6 +15,7 @@ import {
   upsertMapping,
   deleteMapping,
   retryProvision,
+  resetProviderConfig,
   subscriptionRepository,
   providerConfigSchema,
 } from "@/modules/subscriptions";
@@ -133,6 +134,18 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
       await deleteProvider(c, String(formData.get("id")));
     } catch (e) {
       msg = errorMessage(e, "تعذّر حذف المزوّد");
+    }
+    finish(msg, "saved");
+  }
+
+  async function resetConfig(formData: FormData) {
+    "use server";
+    const c = await getAdminContext();
+    let msg: string | null = null;
+    try {
+      await resetProviderConfig(c, String(formData.get("id")));
+    } catch (e) {
+      msg = errorMessage(e, "تعذّرت استعادة القالب");
     }
     finish(msg, "saved");
   }
@@ -265,6 +278,10 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
                 <div className="flex flex-wrap items-center gap-2">
                   <Button type="submit" size="sm">حفظ</Button>
                 </div>
+              </form>
+              <form action={resetConfig} className="mt-2">
+                <input type="hidden" name="id" value={p.id} />
+                <button className="text-xs text-[var(--brand)] hover:underline">استعادة القالب الافتراضي لهذه اللوحة</button>
               </form>
               <form action={removeProvider} className="mt-2">
                 <input type="hidden" name="id" value={p.id} />
