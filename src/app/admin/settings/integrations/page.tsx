@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getAdminContext } from "@/core/tenancy/server";
 import { AppError } from "@/core/errors";
-import { enqueueFullCatalog, listMerchantIssues, merchantConfig, merchantHealth } from "@/modules/feeds";
+import { enqueueFullCatalog, listMerchantIssues, merchantConfig, merchantHealth, storeOrigin } from "@/modules/feeds";
 import {
   PLATFORMS,
   PLATFORM_DEFS,
@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { CopyField } from "@/components/admin/copy-field";
 
 export const metadata = { title: "التكاملات والتتبّع" };
 
@@ -30,13 +31,14 @@ const PATH = "/admin/settings/integrations";
  */
 export default async function IntegrationsPage({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
   const ctx = await getAdminContext();
-  const [integrations, health, failed, merchant, merchantState, merchantIssues] = await Promise.all([
+  const [integrations, health, failed, merchant, merchantState, merchantIssues, origin] = await Promise.all([
     listIntegrations(ctx.storeId),
     trackingHealth(ctx.storeId),
     listFailedEvents(ctx.storeId, 20),
     merchantConfig(ctx.storeId),
     merchantHealth(ctx.storeId),
     listMerchantIssues(ctx.storeId, 20),
+    storeOrigin(ctx.storeId),
   ]);
   const { error, ok } = await searchParams;
   const byPlatform = new Map(integrations.map((i) => [i.platform, i]));
@@ -163,6 +165,16 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
                   </label>
                 ))}
               </div>
+
+              {/* الروابط العامة للمتجر حيث تُلصق فعلاً: خلاصة المنتجات مع كل منصة كتالوج،
+                  وخريطة الموقع مع Search Console. مشتقة من نطاق المتجر، لا تُضبط ولا تُحفظ. */}
+              {def.links && origin && (
+                <div className="space-y-2">
+                  {def.links.map((link) => (
+                    <CopyField key={link.path} value={`${origin}${link.path}`} label={link.label} hint={link.hint} />
+                  ))}
+                </div>
+              )}
 
               <Button type="submit">حفظ</Button>
             </form>

@@ -52,17 +52,27 @@ export async function catalogRowsByIds(storeId: string, productIds: string[], ex
 }
 
 /**
- * عنوان المتجر كما يراه الزائر: دومينه المخصّص إن وُجد، وإلا نطاقه الفرعي.
- * العامل يعمل بلا طلب HTTP فلا يمكنه قراءة Host.
+ * عنوان المتجر كما يراه الزائر. العامل يعمل بلا طلب HTTP فلا يمكنه قراءة Host،
+ * فنكرّر هنا نفس ترتيب الحسم في `getStorefrontStore`:
+ *   دومين مخصّص رئيسي ← نطاق المنصة نفسه للمتجر الافتراضي أو الوحيد ← نطاق فرعي.
+ * الخطأ هنا يعني روابط منتجات لا تعمل، وجوجل يرفض الكتالوج كله عليها.
  */
 export async function storeOrigin(storeId: string, executor: DbExecutor = db): Promise<string | null> {
   const [store] = await executor.select({ slug: stores.slug }).from(stores).where(eq(stores.id, storeId)).limit(1);
   if (!store) return null;
   const scheme = PLATFORM_DOMAIN.includes("localhost") ? "http" : "https";
+
   const [custom] = await executor
     .select({ domain: storeDomains.domain })
     .from(storeDomains)
     .where(and(eq(storeDomains.storeId, storeId), eq(storeDomains.isPrimary, true)))
     .limit(1);
-  return custom ? `${scheme}://${custom.domain}` : `${scheme}://${store.slug}.${PLATFORM_DOMAIN}`;
+  if (custom) return `${scheme}://${custom.domain}`;
+
+  // نشر أحادي المتجر: المتجر يُخدَم على جذر نطاق المنصة لا على نطاق فرعي.
+  if (process.env.DEFAULT_STORE_SLUG === store.slug) return `${scheme}://${PLATFORM_DOMAIN}`;
+  const activeStores = await executor.select({ id: stores.id }).from(stores).where(eq(stores.status, "active")).limit(2);
+  if (activeStores.length === 1 && activeStores[0].id === storeId) return `${scheme}://${PLATFORM_DOMAIN}`;
+
+  return `${scheme}://${store.slug}.${PLATFORM_DOMAIN}`;
 }
