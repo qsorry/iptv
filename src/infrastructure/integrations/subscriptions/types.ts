@@ -89,5 +89,7 @@ export interface ProvisionResult {
 export interface PackageInfo {
   id: string;
   name: string;
+  /** بيانات مُستخرجة من صف الباقة لعرض اسم عربي موحّد. */
+  meta: { months?: number; days?: number; connections?: number; credits?: number };
   raw: unknown;
 }

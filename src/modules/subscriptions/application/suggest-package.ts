@@ -31,6 +31,7 @@ export function extractMonths(text: string): number | null {
   if (has("سنه|سنوي|عام|year|yearly|annual|1y|12m")) return 12;
   if (has("نصف سنه|6m")) return 6;
   if (has("شهرين")) return 2;
+  if (has("شهر واحد")) return 1;
   if (has("شهر|شهري|month|monthly|1m")) return 1;
   return null;
 }
@@ -42,6 +43,7 @@ export function extractConnections(text: string): number | null {
   const m = t.match(new RegExp(`(\\d+)\\s*(جهاز|اجهزه|شاشه|شاشات|اتصال|اتصالات|device|devices|screen|screens|connection|connections|conn|contact|contacts|user|users)${E}`, "u"));
   if (m) return Number(m[1]);
   if (new RegExp(`(?<![\\p{L}\\d])(جهازين|شاشتين|اتصالين)${E}`, "u").test(t)) return 2;
+  if (new RegExp(`(?<![\\p{L}\\d])(جهاز واحد|شاشه واحده|اتصال واحد)${E}`, "u").test(t)) return 1;
   return null;
 }
 

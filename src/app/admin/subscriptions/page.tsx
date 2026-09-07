@@ -21,7 +21,7 @@ import {
   subscriptionRepository,
   providerConfigSchema,
 } from "@/modules/subscriptions";
-import { PRESETS, MAPPING_PARAM_HINTS, type PresetId } from "@/infrastructure/integrations/subscriptions";
+import { PRESETS, MAPPING_PARAM_HINTS, packageLabel, type PresetId } from "@/infrastructure/integrations/subscriptions";
 import { PageHeader } from "@/components/admin/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -93,7 +93,7 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
       .map(async (p) => {
         try {
           const list = await listProviderPackages(ctx, p.id);
-          packagesByProvider.set(p.id, { packages: list.map((x) => ({ id: x.id, name: x.name })) });
+          packagesByProvider.set(p.id, { packages: list.map((x) => ({ id: x.id, name: packageLabel(x) })) });
         } catch (e) {
           packagesByProvider.set(p.id, { packages: [], error: e instanceof Error ? e.message : String(e) });
         }
