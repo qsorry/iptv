@@ -83,15 +83,16 @@ export default async function CategoriesPage({ searchParams }: { searchParams: P
       ) : (
         <ul className="divide-y divide-[var(--border)] rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)]">
           {rows.map((c) => (
-            <li key={c.id} className="flex flex-wrap items-center gap-2 p-3">
-              <form action={rename} className="flex min-w-0 flex-1 items-center gap-2">
+            /* الجوال: اسم التصنيف بسطر كامل ثم الإجراءات تحته. الكمبيوتر: سطر واحد. */
+            <li key={c.id} className="p-3 sm:flex sm:items-center sm:gap-3">
+              <form action={rename} className="flex min-w-0 items-center gap-2 sm:flex-1">
                 <input type="hidden" name="id" value={c.id} />
                 <Input name="name" defaultValue={c.name} aria-label="اسم التصنيف" className="min-w-0 flex-1" />
-                <Button type="submit" size="sm" variant="secondary">حفظ</Button>
+                <Button type="submit" size="sm" variant="secondary" className="shrink-0">حفظ</Button>
               </form>
 
-              <div className="flex items-center gap-3 text-xs">
-                <Link href={`/admin/products?category=${c.id}`} className="whitespace-nowrap text-[var(--brand)] hover:underline">
+              <div className="mt-1 flex flex-wrap items-center gap-x-4 text-xs sm:mt-0 sm:shrink-0">
+                <Link href={`/admin/products?category=${c.id}`} className="touch-target inline-flex items-center whitespace-nowrap text-[var(--brand)] hover:underline">
                   {c.productCount} منتج
                 </Link>
                 <form action={toggleVisibility}>

@@ -8,11 +8,17 @@ import { requireRole } from "@/core/tenancy";
 import { ConflictError, NotFoundError, ValidationError } from "@/core/errors";
 import { slugify } from "@/lib/slugify";
 
-/** عدد المنتجات الحيّة (غير المحذوفة) المرتبطة بالتصنيف — عمود فرعي يُعاد استخدامه. */
-const productCount = sql<number>`(select count(*)::int from products p where p.category_id = ${categories.id} and p.deleted_at is null)`;
+/*
+ * عمود العدّ مكتوب بـ `categories.id` نصاً لا بـ ${categories.id}:
+ * Drizzle يُسقط اسم الجدول في استعلام بجدول واحد بلا join فيصير المرجع "id"
+ * فيلتقطه الجدول الداخلي (p.id) ويعود العدّ صفراً دائماً.
+ */
+
+/** عدد المنتجات الحيّة (غير المحذوفة) المرتبطة بالتصنيف. */
+const productCount = sql<number>`(select count(*)::int from products p where p.category_id = categories.id and p.deleted_at is null)`;
 
 /** عدد المنتجات المنشورة فقط — لواجهة المتجر. */
-const publishedCount = sql<number>`(select count(*)::int from products p where p.category_id = ${categories.id} and p.deleted_at is null and p.status = 'active')`;
+const publishedCount = sql<number>`(select count(*)::int from products p where p.category_id = categories.id and p.deleted_at is null and p.status = 'active')`;
 
 export async function createCategory(ctx: StoreContext, name: string) {
   requireRole(ctx, "owner", "admin", "staff");
