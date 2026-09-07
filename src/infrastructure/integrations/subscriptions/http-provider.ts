@@ -151,15 +151,35 @@ export class HttpSubscriptionProvider {
     if (!spec) return [];
     const call = await this.call(spec, {});
     if (!this.isOk(call)) throw new Error(this.readError(call));
-    const list = getPath(call.body, spec.listPath);
-    const rows: unknown[] = Array.isArray(list) ? list : list && typeof list === "object" ? Object.values(list as object) : [];
+    const list = getPath(call.body, spec.listPath) ?? (Array.isArray(call.body) ? call.body : undefined);
+    if (list == null || typeof list !== "object") {
+      throw new Error(`لم أجد قائمة الباقات في استجابة المزوّد (المسار: ${spec.listPath ?? "الجذر"}). الاستجابة: ${this.redact(call.text.slice(0, 300))}`);
+    }
+    const rows: unknown[] = Array.isArray(list) ? list : Object.values(list as object);
     return rows.map((r) => {
       const row = r as Record<string, unknown>;
-      return {
-        id: String(row[spec.idField ?? "id"] ?? ""),
-        name: String(row[spec.nameField ?? "name"] ?? row[spec.idField ?? "id"] ?? ""),
-        raw: r,
-      };
+      const id = String(getPath(row, spec.idField ?? "id|package_id|pid") ?? "");
+      // قالب الاسم يُقسَّم عند "·"؛ يُحذف أي مقطع لم تُملأ فيه أي قيمة (مثل "· conn" بلا رقم).
+      let name = spec.nameTemplate
+        ? spec.nameTemplate
+            .split("·")
+            .filter((seg) => {
+              const vars = [...seg.matchAll(/\{\{\s*([\w.|]+)\s*\}\}/g)].map((m) => m[1]);
+              return vars.length === 0 || vars.some((v) => getPath(row, v) != null && getPath(row, v) !== "");
+            })
+            .map((seg) => renderTemplate(seg, row).replace(/\s+/g, " ").trim())
+            .filter(Boolean)
+            .join(" · ")
+        : "";
+      if (!name) name = String(getPath(row, spec.nameField ?? "name|title|label|package_name|pkg_name|plan_name") ?? "");
+      if (!name) {
+        // تركيب اسم مقروء من حقول المدة/الاتصالات الشائعة في لوحات IPTV.
+        const dur = getPath(row, "official_duration|duration|months|days");
+        const unit = getPath(row, "official_duration_in|duration_in|duration_unit") ?? (getPath(row, "months") != null ? "months" : getPath(row, "days") != null ? "days" : "");
+        const cons = getPath(row, "max_connections|connections|max_cons");
+        name = [dur != null ? `${dur} ${unit}` : "", cons != null ? `${cons} conn` : ""].filter(Boolean).join(" · ").trim();
+      }
+      return { id, name: name || id, raw: r };
     });
   }
 

@@ -19,7 +19,7 @@ export const providerConfigSchema = z.object({
   auth: authSchema,
   headers: z.record(z.string()).optional(),
   test: endpointSchema.optional(),
-  packages: endpointSchema.extend({ listPath: z.string().optional(), idField: z.string().optional(), nameField: z.string().optional() }).optional(),
+  packages: endpointSchema.extend({ listPath: z.string().optional(), idField: z.string().optional(), nameField: z.string().optional(), nameTemplate: z.string().optional() }).optional(),
   create: endpointSchema,
   result: z.object({
     okPath: z.string().optional(),
