@@ -47,8 +47,8 @@ export const PLATFORM_DEFS: Record<Platform, PlatformDef> = {
   },
   meta: {
     key: "meta",
-    label: "Meta (Pixel + Conversions API)",
-    note: "المتصفح والسيرفر معاً مع إزالة التكرار عبر event_id.",
+    label: "Meta",
+    note: "بكسل + Conversions API. المتصفح والسيرفر بنفس event_id.",
     purpose: "marketing",
     serverSide: true,
     publicConfig: true,
@@ -64,8 +64,8 @@ export const PLATFORM_DEFS: Record<Platform, PlatformDef> = {
   },
   tiktok: {
     key: "tiktok",
-    label: "TikTok (Pixel + Events API)",
-    note: "Purchase يقابله CompletePayment.",
+    label: "TikTok",
+    note: "بكسل + Events API. الشراء اسمه CompletePayment هنا.",
     purpose: "marketing",
     serverSide: true,
     publicConfig: true,
@@ -81,8 +81,8 @@ export const PLATFORM_DEFS: Record<Platform, PlatformDef> = {
   },
   snapchat: {
     key: "snapchat",
-    label: "Snapchat (Pixel + Conversions API)",
-    note: "حصّة سناب في السوق السعودي تبرّر وجوده من اليوم الأول.",
+    label: "Snapchat",
+    note: "بكسل + Conversions API. حصّته في السوق السعودي تبرّره.",
     purpose: "marketing",
     serverSide: true,
     publicConfig: true,
@@ -108,7 +108,7 @@ export const PLATFORM_DEFS: Record<Platform, PlatformDef> = {
   },
   google: {
     key: "google",
-    label: "Google Search Console",
+    label: "Search Console",
     note: "تحقّق ملكية فقط: يُحقن الرمز في وسم <meta> على واجهة المتجر.",
     purpose: "analytics",
     serverSide: false,
@@ -130,8 +130,8 @@ export const PLATFORM_DEFS: Record<Platform, PlatformDef> = {
   },
   merchant: {
     key: "merchant",
-    label: "Google Merchant Center",
-    note: "دفع الكتالوج بالـ Content API: رفع أولي، مزامنة لحظية عند كل تغيير، ومطابقة ليلية. لا تربط خلاصة مجدولة على نفس المنتجات حتى لا تتنازع مع الـ API.",
+    label: "Merchant Center",
+    note: "دفع الكتالوج بالـ Content API. لا تربط خلاصة مجدولة عليه: تتنازع مع الـ API.",
     purpose: "analytics",
     serverSide: false,
     config: [
