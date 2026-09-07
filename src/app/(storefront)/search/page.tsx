@@ -3,6 +3,7 @@ import { getStorefrontStore } from "@/core/tenancy/server";
 import { productRepository } from "@/modules/catalog";
 import { ProductGrid } from "@/components/storefront/product-grid";
 import { EmptyState } from "@/components/shared/empty-state";
+import { TrackOnView } from "@/components/tracking/track-on-view";
 
 export const metadata: Metadata = { title: "البحث", robots: { index: false } };
 
@@ -15,6 +16,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
   return (
     <div>
+      {query.length > 0 && <TrackOnView key={query} event="search" data={{ searchTerm: query }} />}
       <form action="/search" className="relative mb-6">
         <input
           name="q"

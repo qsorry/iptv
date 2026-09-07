@@ -6,6 +6,7 @@ import { publishEvent } from "@/core/events";
 import { toMinor, toDecimal, multiply, sum, percentOf } from "@/core/money";
 import { reserveStock } from "@/modules/inventory";
 import { applyCoupon, recordRedemption } from "@/modules/promotions";
+import { orderAttributionFor } from "@/modules/attribution";
 import { orderRepository } from "../infrastructure/order.repository";
 
 export interface CreateOrderInput {
@@ -24,6 +25,8 @@ export interface CreateOrderInput {
   notes?: string;
   /** رمز كوبون اختياري يُطبَّق على المجموع الفرعي. */
   couponCode?: string;
+  /** معرّف الزائر من الكوكي: تُنسخ منه قيم الإسناد إلى صف الطلب. */
+  visitorKey?: string | null;
 }
 
 const DEFAULT_VAT_PERCENT = 15;
@@ -99,8 +102,12 @@ export async function createOrder(input: CreateOrderInput) {
     });
     if (!warehouse) throw new ValidationError("لا يوجد مستودع افتراضي للمتجر");
 
+    // الإسناد يُنسخ لا يُربط: حذف الزائر أو تغيّر جلسته لا يغيّر تاريخ الطلب.
+    const attribution = input.visitorKey ? await orderAttributionFor(tx, input.storeId, input.visitorKey) : null;
+
     const order = await orderRepository.insert(
       {
+        ...(attribution ?? {}),
         storeId: input.storeId,
         customerId,
         orderNumber: await orderRepository.nextOrderNumber(input.storeId, tx),

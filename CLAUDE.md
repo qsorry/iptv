@@ -36,6 +36,7 @@
 npm run lint
 npm run typecheck
 npm run test:theme   # نظام الثيمات بلا قاعدة بيانات
+npm run test:tracking # محرك التتبّع والإسناد بلا قاعدة بيانات
 npm run test:smoke   # يحتاج قاعدة بيانات فارغة عبر DATABASE_URL (طبّق scripts/migrate.mjs أولاً)؛ يشغّل اختبار الثيمات ثم تدفق الطلب
 ```
 للبناء الكامل: `next build` مع متغيرات وهمية (`DATABASE_URL`, `BETTER_AUTH_SECRET`).
@@ -61,6 +62,14 @@ npm run test:smoke   # يحتاج قاعدة بيانات فارغة عبر DATA
 - الجداول توضع داخل حاوية `overflow-x-auto`، وعلى الجوال تُعرض كبطاقات (انظر `admin/products/page.tsx`).
 - احترم مساحات الأمان: `var(--safe-top)` و`var(--safe-bottom)` في الأشرطة العلوية/السفلية.
 - الوضع الداكن يعمل تلقائياً عبر الرموز؛ لا تكتب ألواناً ثابتة (hex) في المكوّنات.
+
+## التتبّع والتكاملات
+- محرك أحداث مركزي واحد: `src/modules/tracking` (اقرأ `docs/TRACKING.md` قبل أي تعديل).
+- كل حدث له `event_id` واحد للمتصفح وللسيرفر؛ الشراء له `dedupe_key = purchase:<order_id>`.
+- الإرسال دائماً عبر الطابور (`tracking_events`) وعامل `/api/internal/process-tracking`، لا داخل مسار الطلب.
+- الموافقة تُفحص في المحرك قبل كل إرسال؛ لا بكسل قبل موافقة صريحة (PDPL).
+- منصة جديدة = ملف في `adapters/` وسطر في `domain/platforms.ts`. لا كود متناثر في الصفحات.
+- الإسناد (`src/modules/attribution`) يُلتقط من أول زيارة ويُنسخ إلى أعمدة `orders` — لا يمكن استرجاعه لاحقاً.
 
 ## الجاهزية لتطبيق جوال مستقبلي (API-first)
 - منطق الأعمال كله في `src/modules/*` مستقل عن الواجهة، ويُستدعى من الصفحات ومن `src/app/api/v1/*`.
