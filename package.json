@@ -11,10 +11,11 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "test:smoke": "tsx scripts/dev/test-theme.ts && tsx scripts/dev/test-tracking.ts && tsx scripts/dev/test-feeds.ts && tsx scripts/dev/smoke-order-flow.ts && tsx scripts/dev/smoke-subscriptions.ts",
+    "test:smoke": "tsx scripts/dev/test-theme.ts && tsx scripts/dev/test-tracking.ts && tsx scripts/dev/test-feeds.ts && tsx scripts/dev/test-landing.ts && tsx scripts/dev/smoke-order-flow.ts && tsx scripts/dev/smoke-subscriptions.ts",
     "test:theme": "tsx scripts/dev/test-theme.ts",
     "test:tracking": "tsx scripts/dev/test-tracking.ts",
-    "test:feeds": "tsx scripts/dev/test-feeds.ts"
+    "test:feeds": "tsx scripts/dev/test-feeds.ts",
+    "test:landing": "tsx scripts/dev/test-landing.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",

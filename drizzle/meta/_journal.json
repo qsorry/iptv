@@ -99,6 +99,13 @@
       "when": 1788801454990,
       "tag": "0013_abandoned_tusk",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1788810434966,
+      "tag": "0014_blue_wiccan",
+      "breakpoints": true
     }
   ]
 }

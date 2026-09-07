@@ -1,8 +1,15 @@
-import { pgTable, text, timestamp, pgEnum, uuid, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, jsonb, pgEnum, uuid, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { id, timestamps } from "./_shared";
 import { stores } from "./stores";
 
 export const contentStatus = pgEnum("content_status", ["draft", "published"]);
+
+/**
+ * قالب الصفحة. صفحة الهبوط التجارية ليست مقالاً: بنيتها أقسام معروفة
+ * (بطل، باقات، أجهزة، لماذا نحن، أسئلة) تُرسم وتُترجم إلى بيانات مهيكلة،
+ * لا نصّاً حرّاً.
+ */
+export const pageTemplate = pgEnum("page_template", ["article", "landing"]);
 
 /** صفحات ثابتة لكل متجر (من نحن، الشروط، سياسة الاسترجاع). */
 export const pages = pgTable(
@@ -14,6 +21,9 @@ export const pages = pgTable(
     slug: text("slug").notNull(),
     body: text("body"),
     seoDescription: text("seo_description"),
+    template: pageTemplate("template").default("article").notNull(),
+    /** أقسام صفحة الهبوط بقائمة بيضاء (انظر modules/content/domain/landing.ts). */
+    landing: jsonb("landing").$type<Record<string, unknown>>(),
     status: contentStatus("status").default("draft").notNull(),
     showInFooter: text("show_in_footer"),
     publishedAt: timestamp("published_at", { withTimezone: true }),

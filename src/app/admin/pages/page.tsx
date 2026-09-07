@@ -24,6 +24,7 @@ export default async function PagesList() {
             <li key={p.id} className="flex items-center justify-between p-3">
               <Link href={`/admin/pages/${p.id}`} className="font-medium hover:underline">{p.title}</Link>
               <div className="flex items-center gap-3">
+                {p.template === "landing" && <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] text-ink-secondary">صفحة هبوط</span>}
                 <span className="text-xs text-[var(--muted)]">{p.status === "published" ? "منشور" : "مسودة"}</span>
                 <form action={del}><input type="hidden" name="id" value={p.id} /><button className="text-xs text-red-600 hover:underline">حذف</button></form>
               </div>
