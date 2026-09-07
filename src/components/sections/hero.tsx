@@ -61,11 +61,11 @@ export function Hero({ title, subtitle, cta, image, variant = "split" }: HeroPro
     return <section className={cn(surface, "px-5 py-8 sm:px-10 sm:py-12 lg:px-14")}>{text}</section>;
   }
   return (
-    <section className={cn(surface, "grid grid-cols-[minmax(0,1fr)_38%] sm:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]")}>
-      <div className="flex items-center px-5 py-6 sm:px-10 sm:py-12 lg:px-14 lg:py-16">{text}</div>
-      <div className="relative min-h-40 sm:min-h-72 lg:min-h-96">
+    <section className={cn(surface, "grid grid-cols-[minmax(0,1fr)_minmax(0,40%)] items-center sm:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]")}>
+      <div className="min-w-0 py-5 ps-5 pe-3 sm:py-10 sm:ps-10 sm:pe-6 lg:py-14 lg:ps-14 lg:pe-8">{text}</div>
+      <div className="flex min-w-0 items-center justify-center p-3 sm:p-6 lg:p-8">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={image} alt="" loading="eager" fetchPriority="high" className="absolute inset-0 h-full w-full object-cover" />
+        <img src={image} alt="" loading="eager" fetchPriority="high" className="max-h-40 w-full rounded-card object-contain sm:max-h-72 lg:max-h-80" />
       </div>
     </section>
   );
