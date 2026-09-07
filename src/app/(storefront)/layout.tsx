@@ -6,7 +6,7 @@ import { readCartId } from "@/core/tenancy/cart-cookie";
 import { getCartView } from "@/modules/carts";
 import { listPublicCategories } from "@/modules/catalog";
 import { listFooterPages } from "@/modules/content";
-import { readThemeConfig, storeThemeCss, googleFontHref, readFooterSettings, DEFAULT_THEME, THEME_VERSION } from "@/modules/stores";
+import { readThemeConfig, storeThemeCss, googleFontHref, fontPreloads, readFooterSettings, DEFAULT_THEME, THEME_VERSION } from "@/modules/stores";
 import { StoreFooter } from "@/components/storefront/store-footer";
 import { Header } from "@/components/layout/header";
 import { MobileNavigation } from "@/components/layout/mobile-navigation";
@@ -48,6 +48,7 @@ export default async function StorefrontLayout({ children }: { children: React.R
   const themeCfg = readThemeConfig(s, store?.brandColor);
   const themeKey = themeCfg.theme ?? DEFAULT_THEME;
   const fontHref = googleFontHref(themeCfg.font, themeKey);
+  const preloads = fontPreloads(themeCfg.font, themeKey);
   // وضع الزائر المحفوظ في الكوكي يُرسَم من الخادم لتفادي وميض الثيم؛ السكربت أدناه يراعي localStorage أيضاً.
   const cookieMode = (await cookies()).get(THEME_MODE_KEY)?.value;
   const mode: ThemeMode = isThemeMode(cookieMode) ? cookieMode : "system";
@@ -66,6 +67,9 @@ export default async function StorefrontLayout({ children }: { children: React.R
     >
       <style dangerouslySetInnerHTML={{ __html: storeThemeCss(`#${THEME_ROOT_ID}`, themeCfg) }} />
       <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      {preloads.map((href) => (
+        <link key={href} rel="preload" as="font" type="font/woff2" href={href} crossOrigin="anonymous" />
+      ))}
       {fontHref && (
         <>
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

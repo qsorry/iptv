@@ -22,6 +22,10 @@
 - Purpose: شارة نصية قصيرة.
 - Variants: `default | success | warning | error`.
 
+## Alert
+- Purpose: رسالة حالة مضمّنة.
+- Variants: `info | success | warning | error`.
+
 ## Skeleton
 - Purpose: حجز مساحة أثناء التحميل (منع CLS).
 

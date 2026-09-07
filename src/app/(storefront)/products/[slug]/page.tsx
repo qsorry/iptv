@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getStorefrontStore } from "@/core/tenancy/server";
-import { productRepository } from "@/modules/catalog";
+import { productRepository, categoryById } from "@/modules/catalog";
+import { inventoryRepository } from "@/modules/inventory";
 import { Card } from "@/components/ui/card";
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Breadcrumbs, type Crumb } from "@/components/commerce/breadcrumbs";
+import { RatingStars } from "@/components/commerce/rating-stars";
 import { productReviews, submitReview } from "@/modules/reviews";
 import { AppError } from "@/core/errors";
 import { addToCart } from "@/modules/carts";
@@ -23,7 +27,8 @@ async function load(slug: string) {
   const full = await productRepository.findByIdWithVariants(store.id, product.id);
   const media = await productRepository.listMedia(product.id);
   const related = await productRepository.listRelated(store.id, product.id, product.categoryId, 4);
-  return { store, product: full!, media, related };
+  const category = product.categoryId ? await categoryById(store.id, product.categoryId) : null;
+  return { store, product: full!, media, related, category };
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -54,17 +59,6 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-/** أنجم عرض فقط. */
-function Stars({ value, className = "" }: { value: number; className?: string }) {
-  const full = Math.round(value);
-  return (
-    <span className={`text-yellow-400 ${className}`} dir="ltr" aria-label={`${value} من 5`}>
-      {"★".repeat(full)}
-      <span className="text-[var(--border)]">{"★".repeat(5 - full)}</span>
-    </span>
-  );
-}
-
 const trustFor = (digital: boolean) => [
   digital
     ? { icon: "M13 2 3 14h7l-1 8 10-12h-7l1-8Z", title: "تسليم فوري", sub: "الكود يصلك مباشرة بعد الدفع" }
@@ -84,8 +78,16 @@ export default async function ProductPage({
   const sp = await searchParams;
   const data = await load(slug);
   if (!data) notFound();
-  const { store, product, media, related } = data;
+  const { store, product, media, related, category } = data;
   const variant = product.variants.find((v) => v.isDefault) ?? product.variants[0];
+  // التوفر الحقيقي: الرقمي/الخدمي متاح دائماً؛ المادي حسب المخزون (null = لا يتتبّع المخزون).
+  const sellable = variant ? await inventoryRepository.sellableForVariant(variant.id) : null;
+  const inStock = product.productType !== "physical" || sellable === null || sellable > 0;
+  const crumbs: Crumb[] = [
+    { name: "الرئيسية", href: "/" },
+    ...(category ? [{ name: category.name, href: `/categories/${encodeURIComponent(category.slug)}` }] : []),
+    { name: product.name },
+  ];
   const images = media.filter((m) => m.type === "image").map((m) => ({ url: m.url, altText: m.altText }));
   const { rows: reviewRows, count: reviewCount, average, breakdown } = await productReviews(product.id);
   const isDigital = product.productType === "digital";
@@ -140,7 +142,7 @@ export default async function ProductPage({
       "@type": "Offer",
       price: variant?.price,
       priceCurrency: store.currencyCode,
-      availability: "https://schema.org/InStock",
+      availability: inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
       itemCondition: "https://schema.org/NewCondition",
     },
     ...(reviewCount > 0
@@ -155,35 +157,15 @@ export default async function ProductPage({
         }
       : {}),
   };
-  const breadcrumbLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "الرئيسية", item: "/" },
-      { "@type": "ListItem", position: 2, name: product.name },
-    ],
-  };
 
   return (
     <div className="mx-auto max-w-5xl pb-24 lg:pb-0">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
 
-      {sp.reviewed && (
-        <p className="mb-4 rounded-[var(--radius)] border border-green-200 bg-green-50 p-3 text-sm text-green-700">
-          شكراً لك! تم استلام تقييمك وسيظهر بعد مراجعته من المتجر.
-        </p>
-      )}
-      {sp.review_error && (
-        <p className="mb-4 rounded-[var(--radius)] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{sp.review_error}</p>
-      )}
+      {sp.reviewed && <Alert variant="success" className="mb-4">شكراً لك! تم استلام تقييمك وسيظهر بعد مراجعته من المتجر.</Alert>}
+      {sp.review_error && <Alert variant="error" className="mb-4">{sp.review_error}</Alert>}
 
-      {/* مسار التنقّل */}
-      <nav className="mb-4 flex flex-wrap items-center gap-1.5 text-xs text-[var(--muted)]">
-        <Link href="/" className="hover:text-[var(--fg)]">الرئيسية</Link>
-        <span>/</span>
-        <span className="text-[var(--fg)]">{product.name}</span>
-      </nav>
+      <Breadcrumbs items={crumbs} />
 
       <div className="grid gap-8 lg:grid-cols-2">
         <ProductGallery images={images} alt={product.name} />
@@ -191,15 +173,17 @@ export default async function ProductPage({
         <div>
           <h1 className="text-2xl font-bold sm:text-3xl">{product.name}</h1>
 
-          {/* ملخص التقييم */}
-          {reviewCount > 0 && (
-            <a href="#reviews" className="mt-2 flex items-center gap-2 text-sm">
-              <Stars value={average} />
-              <span className="text-[var(--muted)]" dir="ltr">{average} ({reviewCount} تقييم)</span>
-            </a>
-          )}
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+            {reviewCount > 0 && (
+              <a href="#reviews" className="flex items-center gap-2">
+                <RatingStars value={average} />
+                <span className="text-ink-secondary" dir="ltr">{average} ({reviewCount} تقييم)</span>
+              </a>
+            )}
+            {inStock ? <Badge variant="success">متوفر</Badge> : <Badge variant="error">غير متوفر حالياً</Badge>}
+          </div>
 
-          {product.shortDescription && <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">{product.shortDescription}</p>}
+          {product.shortDescription && <p className="mt-3 text-sm leading-relaxed text-ink-secondary">{product.shortDescription}</p>}
 
           <div className="mt-6">
             <BuyBox
@@ -213,13 +197,13 @@ export default async function ProductPage({
           {/* شارات الثقة */}
           <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
             {trustFor(isDigital).map((t) => (
-              <div key={t.title} className="flex items-start gap-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-3">
-                <svg viewBox="0 0 24 24" className="mt-0.5 h-5 w-5 shrink-0 text-[var(--brand)]" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <div key={t.title} className="flex items-start gap-2 rounded-card border border-[var(--card-border)] bg-[var(--card-bg)] p-3">
+                <svg viewBox="0 0 24 24" className="mt-0.5 h-5 w-5 shrink-0 text-brand" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d={t.icon} />
                 </svg>
                 <div>
                   <div className="text-xs font-semibold">{t.title}</div>
-                  <div className="text-[11px] leading-tight text-[var(--muted)]">{t.sub}</div>
+                  <div className="text-[11px] leading-tight text-ink-secondary">{t.sub}</div>
                 </div>
               </div>
             ))}
@@ -242,20 +226,20 @@ export default async function ProductPage({
               <div className="space-y-4">
                 <Card className="text-center">
                   <div className="text-4xl font-bold" dir="ltr">{average || "—"}</div>
-                  <Stars value={average} className="mt-1 text-lg" />
-                  <div className="mt-1 text-xs text-[var(--muted)]">{reviewCount} تقييم</div>
+                  <RatingStars value={average} className="mt-1 text-lg" />
+                  <div className="mt-1 text-xs text-ink-secondary">{reviewCount} تقييم</div>
                   <div className="mt-4 space-y-1.5">
                     {[5, 4, 3, 2, 1].map((n) => {
                       const c = breakdown[n as 1 | 2 | 3 | 4 | 5];
                       const pct = reviewCount ? Math.round((c / reviewCount) * 100) : 0;
                       return (
                         <div key={n} className="flex items-center gap-2 text-xs">
-                          <span className="w-3 text-[var(--muted)]" dir="ltr">{n}</span>
-                          <span className="text-yellow-400">★</span>
-                          <span className="h-2 flex-1 overflow-hidden rounded-full bg-black/5">
-                            <span className="block h-full rounded-full bg-yellow-400" style={{ width: `${pct}%` }} />
+                          <span className="w-3 text-ink-secondary" dir="ltr">{n}</span>
+                          <span className="text-[var(--rating-color)]" aria-hidden="true">★</span>
+                          <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface-muted">
+                            <span className="block h-full rounded-full bg-[var(--rating-color)]" style={{ width: `${pct}%` }} />
                           </span>
-                          <span className="w-6 text-left text-[var(--muted)]" dir="ltr">{c}</span>
+                          <span className="w-6 text-left text-ink-secondary" dir="ltr">{c}</span>
                         </div>
                       );
                     })}
@@ -267,24 +251,19 @@ export default async function ProductPage({
               {/* قائمة التقييمات */}
               <div className="space-y-3">
                 {reviewRows.length === 0 ? (
-                  <p className="text-sm text-[var(--muted)]">لا توجد تقييمات بعد. كن أول من يقيّم هذا المنتج.</p>
+                  <p className="text-sm text-ink-secondary">لا توجد تقييمات بعد. كن أول من يقيّم هذا المنتج.</p>
                 ) : (
                   reviewRows.map((r) => (
                     <Card key={r.id} className="space-y-1.5">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">{r.authorName ?? "زائر"}</span>
-                          {r.verified && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">
-                              <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4 10-10" /></svg>
-                              شراء موثّق
-                            </span>
-                          )}
+                          {r.verified && <Badge variant="success">شراء موثّق</Badge>}
                         </div>
-                        <Stars value={r.rating} className="text-sm" />
+                        <RatingStars value={r.rating} className="text-sm" />
                       </div>
                       {r.title && <div className="text-sm font-medium">{r.title}</div>}
-                      {r.body && <p className="text-sm leading-relaxed text-[var(--muted)]">{r.body}</p>}
+                      {r.body && <p className="text-sm leading-relaxed text-ink-secondary">{r.body}</p>}
                     </Card>
                   ))
                 )}

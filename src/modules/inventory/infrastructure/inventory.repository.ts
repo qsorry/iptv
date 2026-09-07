@@ -29,6 +29,21 @@ export const inventoryRepository = {
     return row;
   },
 
+  /**
+   * القابل للبيع لخيار عبر كل المستودعات (available - reserved)، أو null إن لم يكن له مستوى مخزون
+   * (منتج لا يتتبّع المخزون). تُستخدم لعرض التوفر في واجهة المتجر وJSON-LD.
+   */
+  async sellableForVariant(variantId: string, executor: DbExecutor = db): Promise<number | null> {
+    const [row] = await executor
+      .select({
+        levels: sql<number>`count(*)::int`,
+        sellable: sql<number>`coalesce(sum(${inventoryLevels.availableQuantity} - ${inventoryLevels.reservedQuantity}), 0)::int`,
+      })
+      .from(inventoryLevels)
+      .where(eq(inventoryLevels.variantId, variantId));
+    return row && row.levels > 0 ? row.sellable : null;
+  },
+
   async recordMovement(values: typeof inventoryMovements.$inferInsert, executor: DbExecutor = db) {
     const [row] = await executor.insert(inventoryMovements).values(values).returning();
     return row;

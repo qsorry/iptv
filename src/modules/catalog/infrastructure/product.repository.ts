@@ -28,6 +28,21 @@ export const productRepository = {
     return rows;
   },
 
+  /** منتجات تصنيف منشورة، مرقّمة، بنفس أعمدة البطاقة العامة. */
+  async listPublicByCategory(storeId: string, categoryId: string, pagination: Pagination, executor: DbExecutor = db) {
+    const where = and(eq(products.storeId, storeId), eq(products.categoryId, categoryId), eq(products.status, "active"), isNull(products.deletedAt));
+    const [{ total }] = await executor.select({ total: sql<number>`count(*)::int` }).from(products).where(where);
+    const rows = await executor
+      .select(publicCardColumns)
+      .from(products)
+      .innerJoin(productVariants, and(eq(productVariants.productId, products.id), eq(productVariants.isDefault, true)))
+      .where(where)
+      .orderBy(desc(products.publishedAt))
+      .limit(pagination.perPage)
+      .offset(offsetOf(pagination));
+    return paginate(rows, total, pagination);
+  },
+
   /** منتجات ذات صلة: من نفس التصنيف إن وُجد، وإلا الأحدث. تستثني المنتج الحالي. */
   async listRelated(storeId: string, productId: string, categoryId: string | null, limit = 4, executor: DbExecutor = db) {
     const base = and(

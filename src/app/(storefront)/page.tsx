@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { preload } from "react-dom";
 import { getStorefrontStore } from "@/core/tenancy/server";
 import { productRepository, listPublicCategories } from "@/modules/catalog";
 import { storeTestimonials } from "@/modules/reviews";
@@ -37,6 +38,9 @@ export default async function StorefrontHome() {
     db.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, store.id) }),
   ]);
   const layout = resolveHomeLayout(settingsRow?.settings as Record<string, unknown> | undefined);
+  // صورة البطل هي عنصر LCP عادةً: تحميل مسبق بأولوية عالية بدل انتظار الرسم.
+  const lcpImage = products.find((p) => p.image)?.image;
+  if (lcpImage) preload(lcpImage, { as: "image", fetchPriority: "high" });
 
   const data: HomeData = {
     store: { name: store.name, description: store.description, logoUrl: store.logoUrl },

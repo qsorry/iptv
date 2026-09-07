@@ -12,6 +12,7 @@ export const VARIANTS = {
   buttonSize: ["sm", "md", "lg"],
   card: ["default", "elevated", "flat"],
   badge: ["default", "success", "warning", "error"],
+  alert: ["info", "success", "warning", "error"],
   productCard: ["default", "featured", "compact", "horizontal"],
   categoryCard: ["default", "compact"],
   hero: ["centered", "split", "banner"],
@@ -22,6 +23,7 @@ export type ButtonVariant = (typeof VARIANTS.button)[number];
 export type ButtonSize = (typeof VARIANTS.buttonSize)[number];
 export type CardVariant = (typeof VARIANTS.card)[number];
 export type BadgeVariant = (typeof VARIANTS.badge)[number];
+export type AlertVariant = (typeof VARIANTS.alert)[number];
 export type ProductCardVariant = (typeof VARIANTS.productCard)[number];
 export type CategoryCardVariant = (typeof VARIANTS.categoryCard)[number];
 export type HeroVariant = (typeof VARIANTS.hero)[number];

@@ -35,7 +35,8 @@
 ```
 npm run lint
 npm run typecheck
-npm run test:smoke   # يحتاج قاعدة بيانات فارغة عبر DATABASE_URL؛ يشغّل الهجرة ثم تدفق الطلب
+npm run test:theme   # نظام الثيمات بلا قاعدة بيانات
+npm run test:smoke   # يحتاج قاعدة بيانات فارغة عبر DATABASE_URL (طبّق scripts/migrate.mjs أولاً)؛ يشغّل اختبار الثيمات ثم تدفق الطلب
 ```
 للبناء الكامل: `next build` مع متغيرات وهمية (`DATABASE_URL`, `BETTER_AUTH_SECRET`).
 

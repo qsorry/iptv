@@ -1,6 +1,8 @@
-import { and, eq, isNull, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
-import { categories, products, productVariants } from "@/infrastructure/database/schema";
+import type { Pagination } from "@/core/pagination";
+import { productRepository } from "../infrastructure/product.repository";
+import { categories } from "@/infrastructure/database/schema";
 import type { StoreContext } from "@/core/tenancy";
 import { requireRole } from "@/core/tenancy";
 import { ConflictError, ValidationError } from "@/core/errors";
@@ -30,14 +32,14 @@ export const listPublicCategories = (storeId: string) =>
   db.select({ id: categories.id, name: categories.name, slug: categories.slug, description: categories.description, imageUrl: categories.imageUrl }).from(categories)
     .where(and(eq(categories.storeId, storeId), eq(categories.status, "active"))).orderBy(categories.sortOrder);
 
-/** منتجات تصنيف للعرض العام. */
-export async function categoryProducts(storeId: string, slug: string) {
+/** تصنيف واحد بالمعرّف (للـ breadcrumbs في صفحة المنتج). */
+export const categoryById = (storeId: string, id: string) =>
+  db.query.categories.findFirst({ where: and(eq(categories.storeId, storeId), eq(categories.id, id)), columns: { id: true, name: true, slug: true } });
+
+/** منتجات تصنيف للعرض العام، مرقّمة، بأعمدة بطاقة المنتج (صورة، خصم، تقييم). */
+export async function categoryProducts(storeId: string, slug: string, pagination: Pagination = { page: 1, perPage: 24 }) {
   const category = await db.query.categories.findFirst({ where: and(eq(categories.storeId, storeId), eq(categories.slug, slug)) });
   if (!category) return null;
-  const rows = await db
-    .select({ id: products.id, name: products.name, slug: products.slug, shortDescription: products.shortDescription, price: productVariants.price })
-    .from(products)
-    .innerJoin(productVariants, and(eq(productVariants.productId, products.id), eq(productVariants.isDefault, true)))
-    .where(and(eq(products.storeId, storeId), eq(products.categoryId, category.id), eq(products.status, "active"), isNull(products.deletedAt)));
-  return { category, products: rows };
+  const result = await productRepository.listPublicByCategory(storeId, category.id, pagination);
+  return { category, products: result.data, page: result.page, totalPages: result.totalPages, total: result.total };
 }

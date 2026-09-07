@@ -11,7 +11,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "test:smoke": "tsx scripts/dev/smoke-order-flow.ts && tsx scripts/dev/smoke-subscriptions.ts"
+    "test:smoke": "tsx scripts/dev/test-theme.ts && tsx scripts/dev/smoke-order-flow.ts && tsx scripts/dev/smoke-subscriptions.ts",
+    "test:theme": "tsx scripts/dev/test-theme.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",
