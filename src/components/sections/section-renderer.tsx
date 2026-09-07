@@ -31,9 +31,8 @@ export function SectionRenderer({ section, data }: { section: HomeSection; data:
           variant={section.variant}
           title={data.store.name}
           subtitle={data.store.description}
-          highlights={data.categories.map((c) => c.name)}
           cta={data.products.length > 0 ? { label: "تسوّق الآن", href: "#products" } : undefined}
-          images={data.products.map((p) => p.image).filter((s): s is string => Boolean(s))}
+          image={data.products.find((p) => Boolean(p.image))?.image ?? null}
         />
       );
     case "benefits":
