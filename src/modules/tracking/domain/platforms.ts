@@ -12,6 +12,14 @@ export interface PlatformField {
   multiline?: boolean;
 }
 
+/** رابط عام للمتجر يُعرض داخل بطاقة المنصة جاهزاً للنسخ. */
+export interface PlatformLink {
+  path: string;
+  label: string;
+  /** أين يُلصق بالضبط في لوحة المنصة. */
+  hint: string;
+}
+
 export interface PlatformDef {
   key: Platform;
   label: string;
@@ -24,6 +32,7 @@ export interface PlatformDef {
   publicConfig?: boolean;
   config: PlatformField[];
   secrets: PlatformField[];
+  links?: PlatformLink[];
 }
 
 export const PLATFORM_DEFS: Record<Platform, PlatformDef> = {
@@ -45,6 +54,13 @@ export const PLATFORM_DEFS: Record<Platform, PlatformDef> = {
     publicConfig: true,
     config: [{ name: "pixelId", label: "Pixel ID", placeholder: "1234567890" }],
     secrets: [{ name: "accessToken", label: "Access Token" }],
+    links: [
+      {
+        path: "/feed/products.xml",
+        label: "رابط خلاصة المنتجات",
+        hint: "Commerce Manager ← الكتالوجات ← مصادر البيانات ← إضافة عناصر ← خلاصة مجدولة",
+      },
+    ],
   },
   tiktok: {
     key: "tiktok",
@@ -55,6 +71,13 @@ export const PLATFORM_DEFS: Record<Platform, PlatformDef> = {
     publicConfig: true,
     config: [{ name: "pixelCode", label: "Pixel Code" }],
     secrets: [{ name: "accessToken", label: "Access Token" }],
+    links: [
+      {
+        path: "/feed/products.xml",
+        label: "رابط خلاصة المنتجات",
+        hint: "TikTok Ads Manager ← الأصول ← الكتالوجات ← إضافة منتجات ← خلاصة مجدولة",
+      },
+    ],
   },
   snapchat: {
     key: "snapchat",
@@ -65,6 +88,13 @@ export const PLATFORM_DEFS: Record<Platform, PlatformDef> = {
     publicConfig: true,
     config: [{ name: "pixelId", label: "Pixel ID" }],
     secrets: [{ name: "accessToken", label: "Access Token" }],
+    links: [
+      {
+        path: "/feed/products.xml",
+        label: "رابط خلاصة المنتجات",
+        hint: "Snapchat Ads ← الأصول ← الكتالوجات ← إضافة كتالوج ← خلاصة",
+      },
+    ],
   },
   clarity: {
     key: "clarity",
@@ -85,6 +115,18 @@ export const PLATFORM_DEFS: Record<Platform, PlatformDef> = {
     publicConfig: true,
     config: [{ name: "siteVerification", label: "رمز تحقق Search Console", placeholder: "google-site-verification" }],
     secrets: [],
+    links: [
+      {
+        path: "/sitemap.xml",
+        label: "خريطة الموقع",
+        hint: "Search Console ← Sitemaps ← أدخل sitemap.xml ثم إرسال. تتحدّث تلقائياً مع كل منتج.",
+      },
+      {
+        path: "/robots.txt",
+        label: "robots.txt",
+        hint: "يشير إلى خريطة الموقع تلقائياً — للاطلاع فقط، لا يحتاج ضبطاً.",
+      },
+    ],
   },
   merchant: {
     key: "merchant",
