@@ -33,8 +33,12 @@ export interface ResultMap {
 export interface PackagesSpec extends EndpointSpec {
   /** مسار المصفوفة في الاستجابة (مثال: data). فارغ = الجذر. */
   listPath?: string;
+  /** حقل المعرّف (يقبل بدائل مفصولة بـ |). */
   idField?: string;
+  /** حقل الاسم (يقبل بدائل مفصولة بـ |). */
   nameField?: string;
+  /** قالب اسم العرض من حقول الصف، مثال: "{{name}} ({{max_connections}} conn)". */
+  nameTemplate?: string;
 }
 
 /**

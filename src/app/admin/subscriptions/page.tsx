@@ -21,7 +21,7 @@ import {
   subscriptionRepository,
   providerConfigSchema,
 } from "@/modules/subscriptions";
-import { PRESETS, type PresetId } from "@/infrastructure/integrations/subscriptions";
+import { PRESETS, MAPPING_PARAM_HINTS, type PresetId } from "@/infrastructure/integrations/subscriptions";
 import { PageHeader } from "@/components/admin/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -100,6 +100,8 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
       }),
   );
   const hasAnyPackages = [...packagesByProvider.values()].some((v) => v.packages.length > 0);
+  // إن كانت كل اللوحات تحدد المدة/الاتصالات داخل الباقة نفسها فلا داعي لحقلي الأشهر والأجهزة.
+  const needsParams = providers.some((p) => p.isActive && (MAPPING_PARAM_HINTS[(p.preset in MAPPING_PARAM_HINTS ? p.preset : "generic") as PresetId].length > 0));
   const unmappedVariants = variants.filter((v) => !mappedVariantIds.has(v.id));
 
   // ---------- server actions ----------
@@ -385,11 +387,15 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
                 ? "الباقات مسحوبة من لوحتك، والاقتراح الأقرب مُحدَّد مسبقاً حسب عنوان المنتج. راجع ثم اضغط «ربط»."
                 : "تعذّر جلب الباقات من اللوحة؛ أدخل رقم الباقة يدوياً."}
             </p>
-            {[...packagesByProvider.entries()].filter(([, v]) => v.error).map(([id, v]) => (
-              <p key={id} className="mt-1 text-xs text-red-600" dir="auto">
-                تعذّر جلب باقات «{providers.find((p) => p.id === id)?.name}»: {v.error}
-              </p>
-            ))}
+            {providers.map((p) => {
+              const st = packagesByProvider.get(p.id);
+              const msg = !p.isActive ? "اللوحة موقوفة" : !st ? null : st.error ? st.error : st.packages.length === 0 ? "اللوحة أرجعت قائمة باقات فارغة" : null;
+              return msg ? (
+                <p key={p.id} className="mt-1 break-all text-xs text-red-600" dir="auto">
+                  «{p.name}»: {msg}
+                </p>
+              ) : null;
+            })}
             <Card className="mt-3 divide-y divide-[var(--border)] p-0 sm:p-0">
               {unmappedVariants.map((v) => {
                 const title = `${v.productName} ${v.name && v.name !== v.productName ? v.name : ""}`;
@@ -430,14 +436,20 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
                         </label>
                       </>
                     )}
-                    <label className="block">
-                      <span className="text-xs text-[var(--muted)]">أشهر</span>
-                      <Input name="months" type="number" min="1" dir="ltr" defaultValue={sug.months ?? ""} placeholder="12" className="mt-1 sm:w-20" />
-                    </label>
-                    <label className="block">
-                      <span className="text-xs text-[var(--muted)]">أجهزة</span>
-                      <Input name="connections" type="number" min="1" dir="ltr" defaultValue={sug.connections ?? ""} placeholder="1" className="mt-1 sm:w-20" />
-                    </label>
+                    {needsParams ? (
+                      <>
+                        <label className="block">
+                          <span className="text-xs text-[var(--muted)]">أشهر</span>
+                          <Input name="months" type="number" min="1" dir="ltr" defaultValue={sug.months ?? ""} placeholder="12" className="mt-1 sm:w-20" />
+                        </label>
+                        <label className="block">
+                          <span className="text-xs text-[var(--muted)]">أجهزة</span>
+                          <Input name="connections" type="number" min="1" dir="ltr" defaultValue={sug.connections ?? ""} placeholder="1" className="mt-1 sm:w-20" />
+                        </label>
+                      </>
+                    ) : (
+                      <div className="hidden sm:col-span-2 sm:block" />
+                    )}
                     <Button type="submit" size="sm">ربط</Button>
                   </form>
                 );

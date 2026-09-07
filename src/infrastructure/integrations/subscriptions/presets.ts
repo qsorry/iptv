@@ -59,7 +59,14 @@ export const PRESETS: Record<PresetId, Preset> = {
     config: {
       auth: { type: "bearer" },
       test: { method: "GET", path: "me" },
-      packages: { method: "GET", path: "packages", listPath: "rows|packages|data|items", idField: "id", nameField: "name" },
+      packages: {
+        method: "GET",
+        path: "packages",
+        listPath: "rows|packages|data|items",
+        idField: "id",
+        nameField: "name|title|label|package_name",
+        nameTemplate: "{{name}}{{title}}{{label}} {{official_duration}} {{official_duration_in}} · {{max_connections}} conn · {{credits}} credits",
+      },
       // وفق توثيق Falcon: POST /lines {"package_id", "external_id"}؛ external_id يمنع التكرار عند إعادة المحاولة.
       create: {
         method: "POST",

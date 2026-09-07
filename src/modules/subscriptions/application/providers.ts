@@ -12,14 +12,27 @@ import { createProviderSchema, updateProviderSchema, providerConfigSchema, type 
 type ProviderRow = typeof subscriptionProviders.$inferSelect;
 
 /** يبني عميل HTTP من صف المزوّد (يفك تشفير المفتاح). للاستخدام الداخلي في الخادم فقط. */
+/**
+ * القالب الفعلي للمزوّد: القوالب الجاهزة (shebik/falcon) تُقرأ دائماً من الكود لتصل تصحيحاتها
+ * تلقائياً، إلا إذا عدّلها التاجر يدوياً (config.customized = true).
+ */
+export function effectiveConfig(row: ProviderRow): ProviderConfig {
+  const preset = PRESETS[row.preset as keyof typeof PRESETS];
+  const customized = Boolean((row.config as { customized?: boolean }).customized);
+  if (preset && row.preset !== "generic" && !customized) return preset.config;
+  const { customized: _c, ...rest } = row.config as Record<string, unknown> & { customized?: boolean };
+  void _c;
+  return providerConfigSchema.parse(rest) as ProviderConfig;
+}
+
 export function buildClient(row: ProviderRow) {
-  const config = providerConfigSchema.parse(row.config) as ProviderConfig;
-  return new HttpSubscriptionProvider(row.baseUrl, decryptSecret(row.apiKeyEncrypted), config);
+  return new HttpSubscriptionProvider(row.baseUrl, decryptSecret(row.apiKeyEncrypted), effectiveConfig(row));
 }
 
 /** يُخفي المفتاح للعرض. */
 export function presentProvider(row: ProviderRow) {
   const { apiKeyEncrypted, ...rest } = row;
+  rest.config = effectiveConfig(row) as unknown as Record<string, unknown>;
   let apiKeyMasked = "••••";
   try {
     apiKeyMasked = maskSecret(decryptSecret(apiKeyEncrypted));
@@ -109,7 +122,7 @@ export async function updateProvider(ctx: StoreContext, id: string, raw: UpdateP
       preset: input.preset ?? existing.preset,
       baseUrl: input.baseUrl ?? existing.baseUrl,
       apiKeyEncrypted: input.apiKey ? encryptSecret(input.apiKey) : existing.apiKeyEncrypted,
-      config: input.config ? (input.config as unknown as Record<string, unknown>) : existing.config,
+      config: input.config ? ({ ...(input.config as unknown as Record<string, unknown>), customized: true }) : existing.config,
       isActive: input.isActive ?? existing.isActive,
       updatedAt: new Date(),
     })
