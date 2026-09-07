@@ -11,11 +11,17 @@ body{background:#000;font-family:"Plex","PlexL",sans-serif;color:#fff}
 .board{position:relative;overflow:hidden;background:#0A1130}
 .wide{width:1600px;height:600px}
 .square{width:1000px;height:1000px}
+.mobile{width:1200px;height:800px}
 /* الخلفية: تدرّج نيلي → بنفسجي مع توهج خلف المنتج وشعاع ضوئي */
 .bg{position:absolute;inset:0;background:
   radial-gradient(60% 90% at 24% 60%, rgba(124,92,255,.55) 0%, rgba(124,92,255,0) 60%),
   radial-gradient(35% 55% at 8% 100%, rgba(59,130,246,.45) 0%, rgba(59,130,246,0) 70%),
   radial-gradient(40% 60% at 92% 10%, rgba(245,158,11,.16) 0%, rgba(245,158,11,0) 70%),
+  linear-gradient(112deg,#0A1130 0%,#111A4A 42%,#1E1E6E 72%,#2A2296 100%)}
+.mobile .bg{background:
+  radial-gradient(55% 80% at 22% 62%, rgba(124,92,255,.55) 0%, rgba(124,92,255,0) 60%),
+  radial-gradient(35% 45% at 5% 100%, rgba(59,130,246,.45) 0%, rgba(59,130,246,0) 70%),
+  radial-gradient(40% 50% at 95% 5%, rgba(245,158,11,.16) 0%, rgba(245,158,11,0) 70%),
   linear-gradient(112deg,#0A1130 0%,#111A4A 42%,#1E1E6E 72%,#2A2296 100%)}
 .square .bg{background:
   radial-gradient(70% 45% at 50% 78%, rgba(124,92,255,.55) 0%, rgba(124,92,255,0) 65%),
@@ -26,31 +32,39 @@ body{background:#000;font-family:"Plex","PlexL",sans-serif;color:#fff}
 .grain{position:absolute;inset:0;opacity:.35;mix-blend-mode:soft-light}
 .ring{position:absolute;border-radius:50%;border:1.5px solid rgba(255,255,255,.12)}
 .wide .ring{width:760px;height:760px;left:-20px;top:-80px}
+.mobile .ring{width:820px;height:820px;left:-120px;top:-60px}
 .square .ring{width:1100px;height:1100px;left:-50px;top:640px}
 /* المنتج */
 .stage{position:absolute;perspective:1600px}
 .wide .stage{left:120px;top:70px;width:520px;height:530px}
+.mobile .stage{left:40px;top:90px;width:440px;height:620px}
 .square .stage{left:50%;top:560px;width:520px;height:440px;transform:translateX(-50%)}
 .card{position:absolute;width:300px;filter:drop-shadow(0 40px 60px rgba(0,0,0,.55)) drop-shadow(0 0 40px rgba(124,92,255,.35))}
 .wide .card{left:110px;top:0;transform:rotateY(-14deg) rotateX(4deg) rotate(-3deg)}
+.mobile .card{left:110px;top:0;transform:rotateY(-14deg) rotateX(4deg) rotate(-3deg);width:300px}
 .square .card{left:130px;top:0;transform:rotateY(-10deg) rotateX(3deg) rotate(-2deg);width:260px}
 .card img{display:block;width:100%;border-radius:26px}
 .reflect{position:absolute;left:0;top:100%;width:100%;transform:scaleY(-1);opacity:.28;-webkit-mask-image:linear-gradient(to top,rgba(0,0,0,.6),transparent 55%);mask-image:linear-gradient(to top,rgba(0,0,0,.6),transparent 55%)}
 .floor{position:absolute;left:50%;transform:translateX(-50%);width:560px;height:90px;border-radius:50%;background:radial-gradient(closest-side,rgba(124,92,255,.5),rgba(124,92,255,0))}
-.wide .floor{top:470px}.square .floor{top:370px}
+.wide .floor{top:470px}.mobile .floor{top:470px}
+.square .floor{top:370px}
 .icon{position:absolute;width:118px;height:118px;border-radius:30px;box-shadow:0 20px 40px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.15) inset;filter:drop-shadow(0 0 24px rgba(124,92,255,.6))}
 .wide .icon{left:-40px;top:300px;transform:rotate(-8deg)}
+.mobile .icon{left:-10px;top:330px;width:110px;height:110px;border-radius:28px;transform:rotate(-8deg)}
 .square .icon{left:30px;top:200px;width:96px;height:96px;border-radius:24px;transform:rotate(-8deg)}
 /* النص */
 .copy{position:absolute;display:flex;flex-direction:column;align-items:flex-start}
 .wide .copy{right:110px;top:0;height:600px;justify-content:center;width:760px;gap:22px}
+.mobile .copy{right:70px;top:0;height:800px;width:640px;justify-content:center;gap:18px}
 .square .copy{right:70px;left:70px;top:64px;gap:16px;align-items:center;text-align:center}
 .eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:18px;font-weight:600;letter-spacing:.02em;color:#C7B9FF;text-transform:uppercase}
 .eyebrow::before{content:"";width:28px;height:2px;background:#F59E0B;border-radius:2px}
 h1{font-family:"Tajawal","Plex",sans-serif;font-weight:800;font-size:76px;line-height:1.1;letter-spacing:-.01em;text-shadow:0 6px 30px rgba(0,0,0,.35)}
+.mobile h1{font-size:64px}
 .square h1{font-size:60px}
 h1 em{font-style:normal;color:#FFB020}
 p{font-size:24px;line-height:1.6;color:rgba(255,255,255,.82);max-width:640px}
+.mobile p{font-size:22px;max-width:560px}
 .square p{font-size:20px;max-width:640px}
 .pills{display:flex;gap:10px;flex-wrap:wrap}
 .pill{display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);font-size:17px;font-weight:500;backdrop-filter:blur(6px)}
