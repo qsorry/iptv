@@ -33,7 +33,7 @@ export interface HomeLayout {
 export const DEFAULT_HOME_LAYOUT: HomeLayout = {
   version: 1,
   sections: [
-    { id: "hero", type: "hero", variant: "split" },
+    { id: "hero", type: "hero", variant: "artwork" },
     { id: "benefits", type: "benefits" },
     { id: "categories", type: "categories", title: "تسوّق حسب الفئة" },
     { id: "featured", type: "featured-products", title: "الأكثر مبيعاً", limit: 4, badge: "الأكثر مبيعاً" },

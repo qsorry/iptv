@@ -36,6 +36,7 @@ export function SectionRenderer({ section, data }: { section: HomeSection; data:
           subtitle={data.store.description}
           cta={data.products.length > 0 ? { label: "تسوّق الآن", href: "#products" } : undefined}
           artwork={HERO_ARTWORK}
+          image={data.products.find((p) => Boolean(p.image))?.image ?? null}
         />
       );
     case "benefits":

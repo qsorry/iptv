@@ -99,6 +99,7 @@ ok("الخطوط المستضافة ذاتياً تُحمَّل مسبقاً و�
 
 ok("سجل الـ variants يرفض غير المسجّل", () => {
   assert.ok(isVariant("hero", "split"));
+  assert.ok(isVariant("hero", "artwork"));
   assert.ok(!isVariant("hero", "modern-v2"));
   assert.ok(!isVariant("button", "purple"));
 });

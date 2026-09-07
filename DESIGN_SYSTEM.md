@@ -67,7 +67,7 @@ COMPONENTS  Tailwind: bg-surface, text-ink, border-border, rounded-card, shadow-
 | Alert | `info` `success` `warning` `error` |
 | ProductCard | `default` `featured` `compact` `horizontal` |
 | CategoryCard | `default` `compact` |
-| Hero | `centered` `split` `banner` |
+| Hero | `artwork` `split` `centered` `banner` |
 | Header | `standard` `minimal` |
 
 ممنوع: `modern-v2`, `premium-new`, `special-card`, `gradient-style`, `custom-layout`, `purple`, `rounded`, `modern`.

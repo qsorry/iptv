@@ -2,7 +2,7 @@ export { createStore, createStoreSchema } from "./application/create-store";
 export { updateSubdomain, listDomains, addDomain, removeDomain } from "./application/domains";
 export { updateBranding, brandingSchema } from "./application/branding";
 export { resolveHomeLayout } from "./application/home-layout";
-export { updateAppearance, appearanceSchema, readAppearance, type AppearanceInput } from "./application/appearance";
+export { updateAppearance, appearanceSchema, readAppearance, readHeroVariant, type AppearanceInput } from "./application/appearance";
 export {
   THEMES,
   PRODUCT_LAYOUTS,
@@ -24,6 +24,8 @@ export {
   fontPreloads,
   effectiveFontFamily,
   THEME_VERSION,
+  HERO_STYLES,
+  DEFAULT_HERO_STYLE,
   type ThemePalette,
   type ThemeConfig,
 } from "./themes";
