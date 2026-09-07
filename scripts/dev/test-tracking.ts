@@ -13,6 +13,7 @@ import { tiktokAdapter } from "@/modules/tracking/adapters/tiktok";
 import { snapchatAdapter } from "@/modules/tracking/adapters/snapchat";
 import { encryptSecret, decryptSecret, maskSecret } from "@/modules/tracking/infrastructure/crypto";
 import { parseTouch, hasSource, deviceFromUserAgent } from "@/modules/attribution/domain/touch";
+import { relativeTime } from "@/lib/format-time";
 
 process.env.INTEGRATIONS_SECRET_KEY ??= "test-key-for-tracking-suite";
 
@@ -165,6 +166,19 @@ ok("الإسناد يلتقط utm والـ click ids ويهمل referrer الد�
   // زيارة مباشرة بلا مصدر لا تستحق الكتابة فوق آخر حملة.
   assert.ok(!hasSource(internal));
   assert.equal(deviceFromUserAgent("Mozilla/5.0 (iPad; CPU OS 17_0)"), "tablet");
+});
+
+ok("الوقت النسبي يقرأ بالعربية بدقة تكفي لوحة التحكم", () => {
+  const now = new Date("2026-09-07T12:00:00Z").getTime();
+  assert.equal(relativeTime(null), null);
+  assert.equal(relativeTime(new Date(now - 20_000), now), "قبل ثوانٍ");
+  assert.equal(relativeTime(new Date(now - 12 * 60_000), now), "منذ 12 دقيقة");
+  assert.equal(relativeTime(new Date(now - 3 * 3_600_000), now), "منذ 3 ساعة");
+  assert.equal(relativeTime(new Date(now - 5 * 86_400_000), now), "منذ 5 يوم");
+  // أقدم من شهر: تاريخ صريح بدل «منذ ٤٠ يوماً».
+  assert.equal(relativeTime(new Date("2026-01-02T00:00:00Z"), now), "2026-01-02");
+  // ساعة الخادم قد تسبق: لا نعرض وقتاً سالباً.
+  assert.equal(relativeTime(new Date(now + 5_000), now), "الآن");
 });
 
 console.log(`\nكل اختبارات التتبّع نجحت (${passed}).`);

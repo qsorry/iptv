@@ -106,10 +106,22 @@ const MARKS: Record<Platform, () => React.ReactElement> = {
   merchant: MerchantCenter,
 };
 
-export function PlatformIcon({ platform, className = "h-11 w-11" }: { platform: Platform; className?: string }) {
+/**
+ * التكامل غير المتصل يُخفَّف شعاره (رمادي وشفافية) بدل إخفاء لونه:
+ * التعرّف البصري يبقى، والصف يقول «غير مفعّل» بلا كلمة.
+ */
+export function PlatformIcon({
+  platform,
+  className = "h-11 w-11",
+  dimmed = false,
+}: {
+  platform: Platform;
+  className?: string;
+  dimmed?: boolean;
+}) {
   const Mark = MARKS[platform];
   return (
-    <span className={`${TILE} ${className}`}>
+    <span className={`${TILE} ${className} ${dimmed ? "opacity-55 grayscale" : ""}`}>
       <Mark />
     </span>
   );
