@@ -1,6 +1,7 @@
 export { createStore, createStoreSchema } from "./application/create-store";
 export { updateSubdomain, listDomains, addDomain, removeDomain } from "./application/domains";
 export { updateBranding, brandingSchema } from "./application/branding";
+export { resolveHomeLayout } from "./application/home-layout";
 export {
   THEMES,
   PRODUCT_LAYOUTS,
@@ -15,6 +16,11 @@ export {
   isDarkTheme,
   counterpartTheme,
   themeModeVars,
+  readThemeConfig,
+  storeThemeOverrides,
+  storeTheme,
+  storeThemeCss,
+  THEME_VERSION,
   type ThemePalette,
   type ThemeConfig,
 } from "./themes";

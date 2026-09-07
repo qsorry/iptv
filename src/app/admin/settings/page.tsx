@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getAdminContext } from "@/core/tenancy/server";
-import { updateSubdomain, listDomains, addDomain, removeDomain, updateBranding, updateFooterSettings, readFooterSettings, PAYMENT_METHODS, THEMES, PRODUCT_LAYOUTS, FONTS, ROUNDNESS, DEFAULT_THEME, DEFAULT_LAYOUT, DEFAULT_FONT, type PaymentMethodId } from "@/modules/stores";
+import { updateSubdomain, listDomains, addDomain, removeDomain, updateBranding, updateFooterSettings, readFooterSettings, PAYMENT_METHODS, THEMES, PRODUCT_LAYOUTS, FONTS, ROUNDNESS, DEFAULT_THEME, DEFAULT_LAYOUT, DEFAULT_FONT, THEME_VERSION, type PaymentMethodId } from "@/modules/stores";
 import { stores } from "@/infrastructure/database/schema";
 import { db } from "@/infrastructure/database/client";
 import { storeSettings } from "@/infrastructure/database/schema";
@@ -31,6 +31,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const curLayout = (curSettings.layout as string | undefined) ?? (curSettings.productLayout as string | undefined) ?? DEFAULT_LAYOUT;
   const curFont = (curSettings.font as string | undefined) ?? DEFAULT_FONT;
   const curRoundness = (curSettings.roundness as string | undefined) ?? "";
+  const curBrandFromTheme = curSettings.brandFromTheme === true;
+  const curOverrides = (curSettings.themeOverrides as Record<string, string> | undefined) ?? {};
+  const curAccent = curOverrides["--color-brand-accent"] ?? "";
   const footer = readFooterSettings(curSettings);
   const { error, ok } = await searchParams;
   const scheme = PLATFORM_DOMAIN.includes("localhost") ? "http" : "https";
@@ -125,8 +128,16 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     const productLayout = String(formData.get("productLayout") || DEFAULT_LAYOUT);
     const font = String(formData.get("font") || DEFAULT_FONT);
     const roundness = String(formData.get("roundness") || "");
+    const brandFromTheme = formData.get("brandFromTheme") === "on";
+    const accent = String(formData.get("accentColor") || "").trim();
     const row = await db.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, c.storeId) });
-    const merged = { ...((row?.settings as Record<string, unknown>) ?? {}), theme, productLayout, font, roundness };
+    const prev = (row?.settings as Record<string, unknown>) ?? {};
+    const prevOverrides = (prev.themeOverrides as Record<string, string> | undefined) ?? {};
+    // التجاوزات تُخزَّن كـ JSON بمفاتيح الرموز (قائمة بيضاء تُتحقَّق عند القراءة). "" = إزالة التجاوز.
+    const themeOverrides: Record<string, string> = { ...prevOverrides };
+    if (/^#[0-9a-fA-F]{6}$/.test(accent) && formData.get("useAccent") === "on") themeOverrides["--color-brand-accent"] = accent;
+    else delete themeOverrides["--color-brand-accent"];
+    const merged = { ...prev, theme, productLayout, font, roundness, brandFromTheme, themeOverrides, themeVersion: THEME_VERSION };
     await db.update(storeSettings).set({ settings: merged, updatedAt: new Date() }).where(eq(storeSettings.storeId, c.storeId));
     revalidatePath("/admin/settings");
     redirect("/admin/settings?ok=1");
@@ -167,21 +178,38 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               {Object.entries(THEMES).map(([key, t]) => (
                 <label key={key} className="cursor-pointer">
                   <input type="radio" name="theme" value={key} defaultChecked={curTheme === key} className="peer sr-only" />
-                  <div className="rounded-[var(--radius)] border-2 border-[var(--border)] p-2 peer-checked:border-[var(--brand)]">
-                    <div className="mb-2 flex gap-1">
-                      <span className="h-5 w-5 rounded-full border" style={{ background: t.palette.bg }} />
-                      <span className="h-5 w-5 rounded-full border" style={{ background: t.palette.surface }} />
-                      <span className="h-5 w-5 rounded-full border" style={{ background: t.palette.fg }} />
+                  <div className="h-full rounded-card border-2 border-border p-2 peer-checked:border-brand">
+                    <div className="mb-2 flex h-10 items-end gap-1 rounded-md border border-border p-1.5" style={{ background: t.palette.bg }}>
+                      <span className="h-5 flex-1 rounded-sm" style={{ background: t.palette.primary }} />
+                      <span className="h-4 w-4 rounded-sm" style={{ background: t.palette.secondary }} />
+                      <span className="h-4 w-4 rounded-sm" style={{ background: t.palette.accent }} />
+                      <span className="h-4 w-4 rounded-sm border" style={{ background: t.palette.surface, borderColor: t.palette.fg }} />
                     </div>
-                    <span className="text-xs">{t.name}</span>
+                    <span className="block text-xs font-medium">{t.name}</span>
+                    <span className="block text-[11px] text-muted">{t.description}</span>
                   </div>
                 </label>
               ))}
             </div>
           </div>
+          <div className="space-y-3 rounded-card border border-border p-3">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="brandFromTheme" defaultChecked={curBrandFromTheme} className="h-4 w-4" />
+              استخدم ألوان الثيم كما هي (تجاهل لون العلامة من هوية المتجر)
+            </label>
+            <label className="flex flex-wrap items-center gap-2 text-sm">
+              <input type="checkbox" name="useAccent" defaultChecked={Boolean(curAccent)} className="h-4 w-4" />
+              لون تمييز مخصص (accent)
+              <input type="color" name="accentColor" defaultValue={curAccent || "#F59E0B"} className="h-9 w-12 rounded border border-border" />
+            </label>
+          </div>
           <div>
             <label className="mb-2 block text-sm">الخط</label>
             <div className="flex flex-wrap gap-2">
+              <label className="cursor-pointer">
+                <input type="radio" name="font" value="" defaultChecked={!curFont} className="peer sr-only" />
+                <span className="inline-block rounded-[var(--radius)] border border-[var(--border)] px-3 py-1.5 text-sm peer-checked:border-[var(--brand)] peer-checked:text-[var(--brand)]">حسب الثيم</span>
+              </label>
               {Object.entries(FONTS).map(([key, f]) => (
                 <label key={key} className="cursor-pointer">
                   <input type="radio" name="font" value={key} defaultChecked={curFont === key} className="peer sr-only" />

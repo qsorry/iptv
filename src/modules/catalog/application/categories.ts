@@ -27,8 +27,8 @@ export async function deleteCategory(ctx: StoreContext, categoryId: string) {
 
 /** تصنيفات المتجر الظاهرة على الواجهة (لها منتجات منشورة أو كلها). */
 export const listPublicCategories = (storeId: string) =>
-  db.select({ id: categories.id, name: categories.name, slug: categories.slug }).from(categories)
-    .where(and(eq(categories.storeId, storeId), eq(categories.status, "active")));
+  db.select({ id: categories.id, name: categories.name, slug: categories.slug, description: categories.description, imageUrl: categories.imageUrl }).from(categories)
+    .where(and(eq(categories.storeId, storeId), eq(categories.status, "active"))).orderBy(categories.sortOrder);
 
 /** منتجات تصنيف للعرض العام. */
 export async function categoryProducts(storeId: string, slug: string) {
