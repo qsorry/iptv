@@ -27,7 +27,7 @@ export const listPosts = (storeId: string) => db.select().from(posts).where(eq(p
 export const getPostById = (storeId: string, id: string) => db.query.posts.findFirst({ where: and(eq(posts.storeId, storeId), eq(posts.id, id)) });
 export const getPublicPost = (storeId: string, slug: string) => db.query.posts.findFirst({ where: and(eq(posts.storeId, storeId), eq(posts.slug, slug), eq(posts.status, "published")) });
 export const listPublishedPosts = (storeId: string) =>
-  db.select({ title: posts.title, slug: posts.slug, excerpt: posts.excerpt, coverImage: posts.coverImage, publishedAt: posts.publishedAt })
+  db.select({ title: posts.title, slug: posts.slug, excerpt: posts.excerpt, coverImage: posts.coverImage, publishedAt: posts.publishedAt, updatedAt: posts.updatedAt })
     .from(posts).where(and(eq(posts.storeId, storeId), eq(posts.status, "published"))).orderBy(desc(posts.publishedAt));
 
 export async function deletePost(ctx: StoreContext, id: string) {

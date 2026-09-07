@@ -31,6 +31,15 @@ export const productRepository = {
     return rows;
   },
 
+  /** مسارات المنتجات المنشورة مع آخر تعديل — لـ sitemap و lastmod. */
+  async listSitemapEntries(storeId: string, executor: DbExecutor = db) {
+    return executor
+      .select({ slug: products.slug, updatedAt: products.updatedAt })
+      .from(products)
+      .where(and(eq(products.storeId, storeId), eq(products.status, "active"), isNull(products.deletedAt)))
+      .orderBy(desc(products.updatedAt));
+  },
+
   /** منتجات تصنيف منشورة، مرقّمة، بنفس أعمدة البطاقة العامة. */
   async listPublicByCategory(storeId: string, categoryId: string, pagination: Pagination, executor: DbExecutor = db) {
     const where = and(eq(products.storeId, storeId), eq(products.categoryId, categoryId), eq(products.status, "active"), isNull(products.deletedAt));
