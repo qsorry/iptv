@@ -54,32 +54,29 @@ export const PRESETS: Record<PresetId, Preset> = {
   falcon: {
     id: "falcon",
     name: "Falcon Panel",
-    description: "لوحة dash.falcon-panel.com (api/v1). المفتاح يُرسل كـ Bearer token.",
+    description: "لوحة dash.falcon-panel.com (api/v1). المفتاح rk_live_… يُرسل كـ Bearer. الباقات تُسحب تلقائياً.",
     baseUrl: "https://dash.falcon-panel.com/api/v1",
     config: {
       auth: { type: "bearer" },
       test: { method: "GET", path: "me" },
-      packages: { method: "GET", path: "packages", listPath: "data", idField: "id", nameField: "name" },
+      packages: { method: "GET", path: "packages", listPath: "rows|packages|data|items", idField: "id", nameField: "name" },
+      // وفق توثيق Falcon: POST /lines {"package_id", "external_id"}؛ external_id يمنع التكرار عند إعادة المحاولة.
       create: {
         method: "POST",
         path: "lines",
-        body: {
-          package_id: "{{packageId}}",
-          months: "{{params.months}}",
-          max_connections: "{{params.connections}}",
-          note: "Order {{order.number}} #{{sequence}}",
-          reference: "{{reference}}",
-        },
+        body: { package_id: "{{packageId}}", external_id: "{{reference}}", note: "Order {{order.number}} #{{sequence}}" },
       },
       result: {
         okPath: "ok",
-        errorPath: "error",
-        username: "data.username",
-        password: "data.password",
-        host: "data.host",
-        expiresAt: "data.exp_date",
-        m3u: "data.m3u",
+        errorPath: "error|message",
+        username: "username|line.username|data.username",
+        password: "password|line.password|data.password",
+        host: "host|line.host|data.host",
+        expiresAt: "exp_date|line.exp_date|data.exp_date|expires_at|line.expires_at",
+        m3u: "m3u|line.m3u|data.m3u",
       },
+      // رابط M3U بصيغة Xtream كما تعرضه لوحة Falcon نفسها.
+      derive: { m3u: "{{host}}/get.php?username={{username}}&password={{password}}&type=m3u_plus&output=ts" },
       deliveryTemplate: DELIVERY,
     },
   },
@@ -108,9 +105,7 @@ export const MAPPING_PARAM_HINTS: Record<PresetId, { key: string; label: string;
     { key: "months", label: "المدة (أشهر)", placeholder: "12" },
     { key: "connections", label: "عدد الاتصالات", placeholder: "1" },
   ],
-  falcon: [
-    { key: "months", label: "المدة (أشهر)", placeholder: "12" },
-    { key: "connections", label: "عدد الاتصالات", placeholder: "1" },
-  ],
+  // Falcon: المدة وعدد الاتصالات محددان في الباقة نفسها.
+  falcon: [],
   generic: [{ key: "months", label: "المدة (أشهر)", placeholder: "12" }],
 };

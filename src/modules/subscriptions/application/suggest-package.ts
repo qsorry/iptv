@@ -22,12 +22,13 @@ export function extractMonths(text: string): number | null {
   const t = normalizeText(text);
   // ملاحظة: \b في JS لا يعمل مع الحروف العربية؛ نستخدم حدوداً يدوية.
   const E = "(?![\\p{L}\\d])";
-  const num = t.match(new RegExp(`(\\d+)\\s*(شهر|اشهر|شهور|month|months|mo|m)${E}`, "u"));
-  if (num) return Number(num[1]);
+  // "1years + 3 months" → 15؛ "سنة و3 أشهر" → 15.
   const year = t.match(new RegExp(`(\\d+)\\s*(سنه|سنوات|سنين|year|years|yr|y)${E}`, "u"));
-  if (year) return Number(year[1]) * 12;
+  const num = t.match(new RegExp(`(\\d+)\\s*(شهر|اشهر|شهور|month|months|mo|m)${E}`, "u"));
+  if (year || num) return (year ? Number(year[1]) * 12 : 0) + (num ? Number(num[1]) : 0);
   const has = (alts: string) => new RegExp(`(?<![\\p{L}\\d])(${alts})${E}`, "u").test(t);
-  if (has("سنه|سنوي|year|yearly|annual|1y|12m")) return 12;
+  if (has("سنتين|عامين|2y|24m")) return 24;
+  if (has("سنه|سنوي|عام|year|yearly|annual|1y|12m")) return 12;
   if (has("نصف سنه|6m")) return 6;
   if (has("شهرين")) return 2;
   if (has("شهر|شهري|month|monthly|1m")) return 1;
@@ -38,7 +39,7 @@ export function extractMonths(text: string): number | null {
 export function extractConnections(text: string): number | null {
   const t = normalizeText(text);
   const E = "(?![\\p{L}\\d])";
-  const m = t.match(new RegExp(`(\\d+)\\s*(جهاز|اجهزه|شاشه|شاشات|اتصال|اتصالات|device|devices|screen|screens|connection|connections|conn)${E}`, "u"));
+  const m = t.match(new RegExp(`(\\d+)\\s*(جهاز|اجهزه|شاشه|شاشات|اتصال|اتصالات|device|devices|screen|screens|connection|connections|conn|contact|contacts|user|users)${E}`, "u"));
   if (m) return Number(m[1]);
   if (new RegExp(`(?<![\\p{L}\\d])(جهازين|شاشتين|اتصالين)${E}`, "u").test(t)) return 2;
   return null;
