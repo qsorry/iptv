@@ -4,7 +4,7 @@
 
 | Section | Purpose | Variants | Required |
 |---|---|---|---|
-| Hero | بطل الصفحة، يحمل h1 الوحيد | `centered \| split \| banner` | `title` |
+| Hero | بطل الصفحة، لوحة إعلانية واحدة تحمل h1 الوحيد: عمل فني متكامل بالمنتج الفعلي (`artwork` عريض/مربع) والنص الحي فوقه | `centered \| split \| banner` | `title` |
 | Benefits | مزايا المتجر (4 عناصر) | — | — |
 | CategorySection | التصنيفات (شريط جوال / شبكة) | — | `categories` |
 | FeaturedProducts | منتجات بشبكة وعنوان | يمرّر variant بطاقة المنتج | `items`, `currency` |
