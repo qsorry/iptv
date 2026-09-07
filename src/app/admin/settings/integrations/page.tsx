@@ -20,28 +20,76 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { CopyField } from "@/components/admin/copy-field";
-import { PlatformIcon } from "@/components/admin/platform-icon";
+import { PlatformIcon, GoogleMark } from "@/components/admin/platform-icon";
 
 export const metadata = { title: "التكاملات والتتبّع" };
 
 const PATH = "/admin/settings/integrations";
 
+/** رموز المجموعات: بوق للإعلان، مخطط للتحليلات، وشعار جوجل. */
+const GROUP_ICONS = {
+  ads: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5 text-brand" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1Z" />
+      <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" />
+    </svg>
+  ),
+  analytics: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5 text-brand" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 20h16M7 20v-6M12 20V8M17 20v-9" />
+    </svg>
+  ),
+  google: <GoogleMark />,
+} as const;
+
 /** المنصات مجمّعة بحسب دورها؛ كل مجموعة قائمة مطوية لا صفحة طويلة. */
-const GROUPS: { title: string; note: string; platforms: Platform[] }[] = [
-  { title: "منصات الإعلان", note: "بكسل في المتصفح + إرسال سيرفري بنفس event_id لإزالة التكرار.", platforms: ["meta", "tiktok", "snapchat"] },
-  { title: "التحليلات", note: "قياس الأداء وسلوك الزوار. لا تحتاج موافقة تسويقية.", platforms: ["ga4", "clarity"] },
-  { title: "جوجل: البحث والتسوّق", note: "أرشفة الصفحات ودفع الكتالوج إلى إعلانات التسوّق.", platforms: ["google", "merchant"] },
+const GROUPS: { title: string; note: string; icon: keyof typeof GROUP_ICONS; platforms: Platform[] }[] = [
+  {
+    title: "منصات الإعلان",
+    note: "ربط متجرك بمنصات الإعلانات: بكسل في المتصفح وإرسال سيرفري بنفس event_id لإزالة التكرار.",
+    icon: "ads",
+    platforms: ["meta", "tiktok", "snapchat"],
+  },
+  {
+    title: "التحليلات",
+    note: "متابعة أداء متجرك وسلوك العملاء. لا تحتاج موافقة تسويقية.",
+    icon: "analytics",
+    platforms: ["ga4", "clarity"],
+  },
+  {
+    title: "جوجل: البحث والتسوّق",
+    note: "تحسين ظهور متجرك في نتائج البحث ودفع الكتالوج إلى إعلانات التسوّق.",
+    icon: "google",
+    platforms: ["google", "merchant"],
+  },
 ];
+
+/** سهم يشير إلى بداية السطر وهو مطوي، وينقلب لأسفل عند الفتح. */
+function Chevron() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 rotate-90 text-ink-secondary transition-transform group-open:rotate-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+/** إحصاءة واحدة في بطاقة نقاط الأحداث: نقطة ملوّنة + وصف + رقم. */
+function Stat({ label, value, tone }: { label: string; value: number; tone: "ok" | "busy" | "bad" }) {
+  const dot = tone === "ok" ? "bg-[var(--color-success)]" : tone === "busy" ? "bg-brand" : "bg-[var(--color-error)]";
+  return (
+    <div className="min-w-0 flex-1 px-2 text-center sm:px-4">
+      <div className="flex items-center justify-center gap-1.5 text-xs text-ink-secondary">
+        <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+        <span className="whitespace-nowrap">{label}</span>
+      </div>
+      <div className="mt-0.5 text-lg font-bold sm:text-xl" dir="ltr">{value}</div>
+    </div>
+  );
+}
 
 /** شارة محايدة: الحالة غير المفعّلة ليست تحذيراً، فلا تأخذ لون تنبيه. */
 function MutedChip({ children }: { children: React.ReactNode }) {
   return <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs text-ink-secondary">{children}</span>;
-}
-
-/** حالة مختصرة تظهر في رأس القائمة المطوية بلا فتحها. */
-function statusChip(enabled: boolean, hasData: boolean) {
-  if (enabled) return <Badge variant="success">مفعّل</Badge>;
-  return <MutedChip>{hasData ? "معطّل" : "غير مضبوط"}</MutedChip>;
 }
 
 const MINUTES = 60 * 1000;
@@ -111,33 +159,39 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
   // تبقى الأحداث في الطابور صامتة إلى الأبد بعد نسيان إعداد Cron.
   const stalled = health.oldestPendingAt && Date.now() - health.oldestPendingAt.getTime() > 10 * MINUTES;
 
-  const platformCard = (platform: Platform) => {
+  const platformRow = (platform: Platform) => {
     const def = PLATFORM_DEFS[platform];
     const current = byPlatform.get(platform);
     // قيمة فارغة محفوظة ليست ضبطاً.
     const hasData = Object.values(current?.config ?? {}).some((v) => v.trim().length > 0);
+    const enabled = current?.enabled ?? false;
+    const state = enabled
+      ? { pill: "مفعّل", sub: "متصل ويعمل بشكل طبيعي", dot: "bg-[var(--color-success)]", chip: "bg-[var(--success-container)] text-[var(--success-container-text)]" }
+      : { pill: hasData ? "معطّل" : "غير مربوط", sub: hasData ? "مضبوط لكنه متوقف" : "غير متصل حالياً", dot: "bg-[var(--text-disabled)]", chip: "bg-surface-muted text-ink-secondary" };
 
     return (
       <details key={platform} className="group border-b border-border last:border-b-0">
-        <summary className="flex cursor-pointer list-none items-center gap-3 py-3 [&::-webkit-details-marker]:hidden">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-button bg-surface-muted text-ink">
-            <PlatformIcon platform={platform} />
-          </span>
+        <summary className="flex cursor-pointer list-none items-center gap-3 py-3.5 [&::-webkit-details-marker]:hidden">
+          <PlatformIcon platform={platform} />
           <span className="min-w-0 flex-1">
-            <span className="block truncate font-medium">{def.label}</span>
-            <span className="line-clamp-2 text-xs text-ink-secondary">{def.note}</span>
+            <span className="block truncate font-semibold">{def.label}</span>
+            <span className="line-clamp-2 text-xs leading-5 text-ink-secondary">{def.note}</span>
           </span>
-          {statusChip(current?.enabled ?? false, hasData)}
-          <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-ink-secondary transition-transform group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="m6 9 6 6 6-6" />
-          </svg>
+          <span className="shrink-0 text-end">
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${state.chip}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${state.dot}`} />
+              {state.pill}
+            </span>
+            <span className="mt-1 hidden text-[11px] text-ink-secondary sm:block">{state.sub}</span>
+          </span>
+          <Chevron />
         </summary>
 
-        <div className="space-y-3 pb-4 ps-12">
+        <div className="space-y-3 pb-4 sm:ps-14">
           <form action={save} className="space-y-3">
             <input type="hidden" name="platform" value={platform} />
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="enabled" defaultChecked={current?.enabled} className="h-5 w-5" />
+              <input type="checkbox" name="enabled" defaultChecked={enabled} className="h-5 w-5" />
               تفعيل التكامل
             </label>
 
@@ -198,7 +252,7 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
                 {merchantState.disapproved > 0 ? <Badge variant="warning">مرفوض: {merchantState.disapproved}</Badge> : <MutedChip>مرفوض: 0</MutedChip>}
                 {merchantState.failed > 0 ? <Badge variant="error">فشل: {merchantState.failed}</Badge> : <MutedChip>فشل: 0</MutedChip>}
               </div>
-              <p className="text-xs text-ink-secondary">
+              <p className="text-xs leading-5 text-ink-secondary">
                 الرفع الأولي مرة واحدة، ثم كل تغيير على منتج أو مخزونه يُزامَن خلال دقيقة،
                 والمطابقة الليلية تعيد الرفع قبل انتهاء الصلاحية عند جوجل.
               </p>
@@ -238,7 +292,7 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
   };
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto max-w-3xl space-y-5">
       <PageHeader
         title="التكاملات والتتبّع"
         action={
@@ -258,32 +312,52 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
         </Alert>
       )}
 
-      <Card className="flex flex-wrap items-center gap-2">
-        <span className="me-auto text-sm font-medium">طابور الأحداث</span>
-        {health.pending > 0 ? <Badge>معلّق: {health.pending}</Badge> : <MutedChip>معلّق: 0</MutedChip>}
-        {health.sent > 0 ? <Badge variant="success">أُرسل: {health.sent}</Badge> : <MutedChip>أُرسل: 0</MutedChip>}
-        {health.partial > 0 ? <Badge variant="warning">جزئي: {health.partial}</Badge> : <MutedChip>جزئي: 0</MutedChip>}
-        {health.failed > 0 ? <Badge variant="error">فشل: {health.failed}</Badge> : <MutedChip>فشل: 0</MutedChip>}
+      {/* نبض الطابور: ما أُرسل، ما ينتظر، وما فشل. */}
+      <Card className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--brand-container)] text-[var(--brand-container-text)]">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M3 12h3.5l2-6 3.5 12 2.5-8 1.5 2H21" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <div className="font-semibold">نقاط الأحداث</div>
+            <div className="text-xs text-ink-secondary">أحداث التتبّع المرسلة إلى كل المنصات</div>
+          </div>
+        </div>
+        <div className="flex items-stretch divide-x divide-x-reverse divide-border border-t border-border pt-3 sm:ms-auto sm:border-0 sm:pt-0">
+          <Stat label="مكتملة" value={health.sent} tone="ok" />
+          <Stat label="قيد المعالجة" value={health.pending} tone="busy" />
+          <Stat label="فاشلة" value={health.failed + health.partial} tone="bad" />
+        </div>
       </Card>
 
       {GROUPS.map((group) => (
-        <Card key={group.title} className="py-1">
-          <div className="border-b border-border pb-2 pt-3">
-            <h2 className="text-sm font-semibold">{group.title}</h2>
-            <p className="text-xs text-ink-secondary">{group.note}</p>
+        <section key={group.title} className="space-y-2">
+          <div className="flex items-center gap-2">
+            {GROUP_ICONS[group.icon]}
+            <h2 className="font-semibold">{group.title}</h2>
           </div>
-          {group.platforms.map(platformCard)}
-        </Card>
+          <p className="text-xs leading-5 text-ink-secondary">{group.note}</p>
+          <Card className="py-0">{group.platforms.map(platformRow)}</Card>
+        </section>
       ))}
 
-      <Card className="py-1">
+      <Card className="py-0">
         <details className="group">
-          <summary className="flex cursor-pointer list-none items-center gap-3 py-3 [&::-webkit-details-marker]:hidden">
-            <span className="min-w-0 flex-1 text-sm font-medium">سجل الإرسال الفاشل</span>
+          <summary className="flex cursor-pointer list-none items-center gap-3 py-3.5 [&::-webkit-details-marker]:hidden">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-surface-muted text-ink-secondary">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M3 7.5h18v12H3z" />
+                <path d="m3 8 9 6.5L21 8" />
+              </svg>
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">سجل الإرسال الفاشل</span>
+              <span className="line-clamp-2 text-xs leading-5 text-ink-secondary">المحاولات التي لم تصل إلى المنصات، مع سببها وإعادة المحاولة يدوياً.</span>
+            </span>
             {failed.length > 0 ? <Badge variant="error">{failed.length}</Badge> : <MutedChip>0</MutedChip>}
-            <svg viewBox="0 0 24 24" className="h-4 w-4 text-ink-secondary transition-transform group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="m6 9 6 6 6-6" />
-            </svg>
+            <Chevron />
           </summary>
           <div className="pb-4">
             {failed.length === 0 ? (
