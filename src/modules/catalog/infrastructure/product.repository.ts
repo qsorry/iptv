@@ -34,7 +34,14 @@ export const productRepository = {
   /** مسارات المنتجات المنشورة مع آخر تعديل — لـ sitemap و lastmod. */
   async listSitemapEntries(storeId: string, executor: DbExecutor = db) {
     return executor
-      .select({ slug: products.slug, updatedAt: products.updatedAt })
+      .select({
+        slug: products.slug,
+        updatedAt: products.updatedAt,
+        name: products.name,
+        // اسم الجدول مكتوب صراحة: drizzle يُسقط المؤهِّل حين يكون في الاستعلام
+        // جدول واحد، فيصير `pm.product_id = "id"` ويطابق عمود الجدول الداخلي بصمت.
+        image: sql<string | null>`(select url from product_media pm where pm.product_id = products.id order by pm.is_primary desc, pm.position asc limit 1)`,
+      })
       .from(products)
       .where(and(eq(products.storeId, storeId), eq(products.status, "active"), isNull(products.deletedAt)))
       .orderBy(desc(products.updatedAt));
