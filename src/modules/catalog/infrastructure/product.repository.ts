@@ -1,4 +1,4 @@
-import { and, eq, ne, isNull, sql, desc } from "drizzle-orm";
+import { and, eq, ne, isNull, inArray, sql, desc } from "drizzle-orm";
 import { db, type DbExecutor } from "@/infrastructure/database/client";
 import { categories, products, productVariants, productMedia } from "@/infrastructure/database/schema";
 import { offsetOf, paginate, type Pagination } from "@/core/pagination";
@@ -29,6 +29,18 @@ export const productRepository = {
       .where(and(eq(products.storeId, storeId), eq(products.status, "active"), isNull(products.deletedAt)))
       .orderBy(desc(products.publishedAt));
     return rows;
+  },
+
+  /** منتجات محدّدة بمعرّفاتها بأعمدة البطاقة العامة، بترتيب المعرّفات المُمرَّرة. */
+  async listPublicByIds(storeId: string, ids: string[], executor: DbExecutor = db) {
+    if (ids.length === 0) return [];
+    const rows = await executor
+      .select(publicCardColumns)
+      .from(products)
+      .innerJoin(productVariants, and(eq(productVariants.productId, products.id), eq(productVariants.isDefault, true)))
+      .where(and(eq(products.storeId, storeId), inArray(products.id, ids), eq(products.status, "active"), isNull(products.deletedAt)));
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    return ids.map((id) => byId.get(id)).filter((r): r is (typeof rows)[number] => Boolean(r));
   },
 
   /** مسارات المنتجات المنشورة مع آخر تعديل — لـ sitemap و lastmod. */

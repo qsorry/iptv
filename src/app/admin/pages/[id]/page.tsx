@@ -18,7 +18,7 @@ export default async function EditPage({ params, searchParams }: { params: Promi
     "use server";
     const c = await getAdminContext();
     try {
-      await upsertPage(c, { id, title: String(formData.get("title")), body: String(formData.get("body") || ""), seoDescription: String(formData.get("seo") || ""), status: formData.get("publish") ? "published" : "draft" });
+      await upsertPage(c, { id, title: String(formData.get("title")), body: String(formData.get("body") || ""), seoDescription: String(formData.get("seo") || ""), status: formData.get("publish") ? "published" : "draft", template: formData.get("template") === "landing" ? "landing" : "article" });
     } catch (e) {
       redirect(`/admin/pages/${id}?error=${encodeURIComponent(e instanceof AppError ? e.message : "خطأ")}`);
     }
@@ -35,8 +35,25 @@ export default async function EditPage({ params, searchParams }: { params: Promi
             <textarea name="body" rows={10} defaultValue={page.body ?? ""} className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base" />
           </label>
           <label className="block text-sm">وصف SEO<Input name="seo" defaultValue={page.seoDescription ?? ""} className="mt-1" /></label>
+          <label className="block text-sm">
+            القالب
+            <select name="template" defaultValue={page.template} className="mt-1 w-full rounded-input border border-[var(--input-border)] bg-[var(--input-bg)] px-3 py-2.5 text-base">
+              <option value="article">مقال / صفحة محتوى</option>
+              <option value="landing">صفحة هبوط تجارية</option>
+            </select>
+            <span className="mt-1 block text-xs text-[var(--muted)]">
+              صفحة الهبوط بنية مهيكلة (بطل · باقات · أجهزة · أسئلة) تُترجم إلى بيانات Schema، لا نصّاً حرّاً.
+            </span>
+          </label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="publish" defaultChecked={page.status === "published"} className="h-4 w-4" />منشور</label>
-          <Button type="submit">حفظ</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit">حفظ</Button>
+            {page.template === "landing" && (
+              <Link href={`/admin/pages/${page.id}/landing`}>
+                <Button variant="secondary" type="button">تحرير أقسام صفحة الهبوط</Button>
+              </Link>
+            )}
+          </div>
         </Card>
       </form>
     </div>
