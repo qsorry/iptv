@@ -13,7 +13,7 @@ import { createProduct } from "@/modules/catalog";
 import { createOrder } from "@/modules/orders";
 import { settlePayment } from "@/modules/payments";
 import { setStorePlan, HIGHEST_PLAN } from "@/modules/billing";
-import { createProvider, upsertMapping, testProvider, provisionSubscriptionsForOrder, subscriptionRepository, listProviders } from "@/modules/subscriptions";
+import { createProvider, upsertMapping, testProvider, provisionSubscriptionsForOrder, subscriptionRepository, listProviders, listProviderPackages } from "@/modules/subscriptions";
 import { ForbiddenError } from "@/core/errors";
 
 const assert = (cond: unknown, msg: string) => {
@@ -37,6 +37,7 @@ function startFakePanel(apiKey: string) {
         return res.end(JSON.stringify({ ok: false, error: "invalid_api_key" }));
       }
       if (req.url?.startsWith("/api/v1/me")) return res.end(JSON.stringify({ ok: true, data: { credits: 10 } }));
+      if (req.url?.startsWith("/api/v1/packages")) return res.end(JSON.stringify({ ok: true, data: [{ id: 7, name: "3 Months" }, { id: 12, name: "12 Months" }] }));
       if (req.url?.startsWith("/api/v1/lines") && req.method === "POST") {
         const body = JSON.parse(raw) as Record<string, unknown>;
         counter++;
@@ -80,6 +81,8 @@ async function main() {
   const [listed] = await listProviders(ctx);
   assert(listed.id === provider.id, "قائمة المزوّدين");
 
+  const pkgs = await listProviderPackages(ctx, provider.id);
+  assert(pkgs.length === 2 && pkgs[1].id === "12" && pkgs[1].name === "12 Months", "سحب الباقات من لوحة المزوّد");
   const test = await testProvider(ctx, provider.id);
   assert(test.ok, `اختبار الاتصال عبر Bearer (${test.message})`);
 
