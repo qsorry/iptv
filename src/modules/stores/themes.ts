@@ -1,58 +1,51 @@
-/** ثيمات جاهزة: لوحات ألوان حديثة (فاتحة/داكنة). لون العلامة (accent) يأتي من هوية المتجر. */
+/**
+ * محوّل إعدادات المتجر إلى نظام الثيمات (src/design-system).
+ * الثيم نفسه (القيم) يعيش في design-system؛ هنا فقط قراءة إعدادات المتجر
+ * (ثيم، خط، استدارة، تجاوزات JSON) وتحويلها إلى CSS يُحقن خادمياً.
+ */
+import {
+  THEME_REGISTRY,
+  DEFAULT_THEME_KEY,
+  THEME_VERSION,
+  getTheme,
+  resolveTheme,
+  themeStyleCss,
+  parseThemeOverrides,
+  contrastOn,
+  type ThemeDefinition,
+  type ThemeOverrides,
+  type ResolvedTheme,
+} from "@/design-system";
+
+export { contrastOn, THEME_VERSION };
+
+/** معاينة مختصرة للثيم في لوحة التحكم. */
 export interface ThemePalette {
   bg: string;
   surface: string;
   fg: string;
-  muted: string;
-  border: string;
-  radius: string;
+  primary: string;
+  secondary: string;
+  accent: string;
   dark: boolean;
 }
 
-export const THEMES: Record<string, { name: string; palette: ThemePalette }> = {
-  modern: {
-    name: "حديث",
-    palette: { bg: "#f7f8fa", surface: "#ffffff", fg: "#0f172a", muted: "#64748b", border: "#e5e7eb", radius: "0.75rem", dark: false },
-  },
-  midnight: {
-    name: "ليلي فاخر",
-    palette: { bg: "#0b0f14", surface: "#141b24", fg: "#e6edf3", muted: "#8b98a5", border: "#232c38", radius: "0.75rem", dark: true },
-  },
-  sand: {
-    name: "رملي دافئ",
-    palette: { bg: "#faf7f2", surface: "#ffffff", fg: "#2b2420", muted: "#8a7d70", border: "#eadfd2", radius: "1rem", dark: false },
-  },
-  ocean: {
-    name: "محيطي",
-    palette: { bg: "#f0f9ff", surface: "#ffffff", fg: "#0c2a3e", muted: "#5b7c93", border: "#d6eaf5", radius: "0.75rem", dark: false },
-  },
-  minimal: {
-    name: "أبيض وأسود",
-    palette: { bg: "#ffffff", surface: "#ffffff", fg: "#111111", muted: "#777777", border: "#eaeaea", radius: "0.375rem", dark: false },
-  },
-  grape: {
-    name: "عنبي",
-    palette: { bg: "#faf5ff", surface: "#ffffff", fg: "#2a1b3d", muted: "#7c6a90", border: "#ece0f7", radius: "1rem", dark: false },
-  },
-  emerald: {
-    name: "زمردي",
-    palette: { bg: "#f0fdf6", surface: "#ffffff", fg: "#08312a", muted: "#5c8377", border: "#d2efe0", radius: "0.875rem", dark: false },
-  },
-  rose: {
-    name: "وردي أنيق",
-    palette: { bg: "#fff5f7", surface: "#ffffff", fg: "#3a1220", muted: "#9a6b78", border: "#f6dbe2", radius: "1rem", dark: false },
-  },
-  graphite: {
-    name: "رمادي فحمي",
-    palette: { bg: "#f4f5f7", surface: "#ffffff", fg: "#1b2027", muted: "#6b7480", border: "#e0e3e8", radius: "0.5rem", dark: false },
-  },
-  carbon: {
-    name: "كربوني داكن",
-    palette: { bg: "#111214", surface: "#1b1d21", fg: "#f2f3f5", muted: "#9a9ea6", border: "#2b2e34", radius: "0.5rem", dark: true },
-  },
-};
+/** الثيمات المتاحة للتاجر: الاسم + معاينة. القيم الكاملة في design-system/themes.ts. */
+export const THEMES: Record<string, { name: string; description: string; palette: ThemePalette }> = Object.fromEntries(
+  Object.values(THEME_REGISTRY).map((t: ThemeDefinition) => {
+    const p = t.prefersDark ? t.dark : t.light;
+    return [
+      t.key,
+      {
+        name: t.name,
+        description: t.description,
+        palette: { bg: p.canvas, surface: p.surface, fg: p.ink, primary: p.brandPrimary, secondary: p.brandSecondary, accent: p.brandAccent, dark: t.prefersDark },
+      },
+    ];
+  }),
+);
 
-export const DEFAULT_THEME = "modern";
+export const DEFAULT_THEME = DEFAULT_THEME_KEY;
 
 export const PRODUCT_LAYOUTS: Record<string, string> = {
   grid: "شبكة",
@@ -61,7 +54,7 @@ export const PRODUCT_LAYOUTS: Record<string, string> = {
 };
 export const DEFAULT_LAYOUT = "grid";
 
-/** خطوط عربية من Google Fonts. المفتاح يُخزَّن في إعدادات المتجر. */
+/** خطوط عربية من Google Fonts. المفتاح يُخزَّن في إعدادات المتجر؛ "" = خط الثيم. */
 export const FONTS: Record<string, { name: string; stack: string; google?: string }> = {
   tajawal: { name: "تجوّل", stack: "'Tajawal', system-ui, sans-serif", google: "Tajawal:wght@400;500;700;800" },
   cairo: { name: "القاهرة", stack: "'Cairo', system-ui, sans-serif", google: "Cairo:wght@400;600;700;800" },
@@ -71,102 +64,92 @@ export const FONTS: Record<string, { name: string; stack: string; google?: strin
   notokufi: { name: "نوتو كوفي", stack: "'Noto Kufi Arabic', system-ui, sans-serif", google: "Noto+Kufi+Arabic:wght@400;500;700" },
   system: { name: "افتراضي النظام", stack: "system-ui, -apple-system, 'Segoe UI', sans-serif" },
 };
-export const DEFAULT_FONT = "tajawal";
+/** "" تعني خط الثيم المختار. */
+export const DEFAULT_FONT = "";
 
-/** استدارة الحواف (تتجاوز radius الثيم إن حُدِّدت). */
-export const ROUNDNESS: Record<string, { name: string; radius: string }> = {
-  sharp: { name: "حادّة", radius: "0.25rem" },
-  soft: { name: "ناعمة", radius: "0.75rem" },
-  round: { name: "دائرية", radius: "1.25rem" },
+/** استدارة الحواف (تتجاوز شكل الثيم إن حُدِّدت). القيم من مقياس foundation. */
+export const ROUNDNESS: Record<string, { name: string; radius: string; card: string; button: string }> = {
+  sharp: { name: "حادّة", radius: "6px", card: "var(--radius-sm)", button: "var(--radius-sm)" },
+  soft: { name: "ناعمة", radius: "12px", card: "var(--radius-md)", button: "var(--radius-md)" },
+  round: { name: "دائرية", radius: "24px", card: "var(--radius-xl)", button: "var(--radius-full)" },
 };
-
-/** رابط Google Fonts للخط المختار (أو undefined لخط النظام). */
-export function googleFontHref(fontKey: string | undefined): string | undefined {
-  const f = FONTS[fontKey ?? DEFAULT_FONT] ?? FONTS[DEFAULT_FONT];
-  if (!f.google) return undefined;
-  return `https://fonts.googleapis.com/css2?family=${f.google}&display=swap`;
-}
-
-/** لون نص مناسب فوق لون العلامة (أبيض أو أسود حسب السطوع). */
-export function contrastOn(hex: string): string {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return "#ffffff";
-  const n = parseInt(m[1], 16);
-  const r = (n >> 16) & 255,
-    g = (n >> 8) & 255,
-    b = n & 255;
-  // معادلة السطوع النسبي المبسّطة.
-  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return lum > 0.6 ? "#111111" : "#ffffff";
-}
 
 export interface ThemeConfig {
   theme?: string;
   font?: string;
   roundness?: string;
+  /** لون علامة المتجر (من جدول stores). يُطبَّق كتجاوز ما لم يُفعَّل brandFromTheme. */
+  brandColor?: string;
+  /** true = استخدم ألوان الثيم كما هي وتجاهل brandColor. */
+  brandFromTheme?: boolean;
+  /** تجاوزات JSON (قائمة بيضاء فقط). */
+  themeOverrides?: unknown;
 }
 
-/** هل الثيم المختار داكن؟ (لضبط color-scheme في واجهة المتجر). */
-export function isDarkTheme(themeKey: string | undefined): boolean {
-  return THEMES[themeKey ?? DEFAULT_THEME]?.palette.dark ?? false;
-}
-
-/** أزواج فاتح ↔ داكن لمبدّل الثيم عند الزائر. ما ليس له زوج صريح يُقابل بـ modern/midnight. */
-const THEME_COUNTERPARTS: Record<string, string> = {
-  modern: "midnight",
-  midnight: "modern",
-  graphite: "carbon",
-  carbon: "graphite",
-  minimal: "carbon",
-};
-
-/** الثيم المقابل في الوضع الآخر (فاتح لثيم داكن، وداكن لثيم فاتح). */
-export function counterpartTheme(themeKey: string | undefined): string {
-  const key = THEMES[themeKey ?? DEFAULT_THEME] ? (themeKey ?? DEFAULT_THEME) : DEFAULT_THEME;
-  return THEME_COUNTERPARTS[key] ?? (isDarkTheme(key) ? "modern" : "midnight");
-}
-
-/**
- * لوحتا الوضعين للزائر: `light` و`dark`. ثيم التاجر يحدد لوحة وضعه،
- * والثيم المقابل يحدد الوضع الآخر. الخط والاستدارة مشتركان.
- */
-export function themeModeVars(
-  config: string | ThemeConfig | undefined,
-  brandColor: string,
-): { light: Record<string, string>; dark: Record<string, string> } {
-  const cfg: ThemeConfig = typeof config === "string" ? { theme: config } : (config ?? {});
-  const own = THEMES[cfg.theme ?? DEFAULT_THEME] ? (cfg.theme ?? DEFAULT_THEME) : DEFAULT_THEME;
-  const other = counterpartTheme(own);
-  const ownVars = themeVars({ ...cfg, theme: own }, brandColor);
-  const otherVars = themeVars({ ...cfg, theme: other }, brandColor);
-  return isDarkTheme(own) ? { light: otherVars, dark: ownVars } : { light: ownVars, dark: otherVars };
-}
-
-/**
- * متغيرات CSS للثيم (Material 3): لون العلامة، أسطح متدرّجة اللون (surface containers)،
- * الخط، والاستدارة. أدوار الألوان تُشتق عبر color-mix لتناسق الوضعين الفاتح/الداكن.
- */
-export function themeVars(config: string | ThemeConfig | undefined, brandColor: string): Record<string, string> {
-  const cfg: ThemeConfig = typeof config === "string" ? { theme: config } : (config ?? {});
-  const t = THEMES[cfg.theme ?? DEFAULT_THEME]?.palette ?? THEMES[DEFAULT_THEME].palette;
-  const font = FONTS[cfg.font ?? DEFAULT_FONT] ?? FONTS[DEFAULT_FONT];
-  const radius = cfg.roundness && ROUNDNESS[cfg.roundness] ? ROUNDNESS[cfg.roundness].radius : t.radius;
+/** يقرأ إعدادات المظهر من JSON إعدادات المتجر. */
+export function readThemeConfig(settings: Record<string, unknown> | undefined, brandColor?: string): ThemeConfig {
+  const s = settings ?? {};
   return {
-    "--brand": brandColor,
-    "--brand-fg": contrastOn(brandColor),
-    "--bg": t.bg,
-    "--surface": t.surface,
-    // أسطح Material 3 المتدرّجة (elevation عبر اللون لا الظل فقط).
-    "--surface-1": `color-mix(in srgb, ${t.surface} 97%, ${t.fg})`,
-    "--surface-2": `color-mix(in srgb, ${t.surface} 94%, ${t.fg})`,
-    "--surface-3": `color-mix(in srgb, ${t.surface} 90%, ${t.fg})`,
-    // حاويات لونية بلون العلامة (tonal containers).
-    "--brand-container": `color-mix(in srgb, ${brandColor} 14%, ${t.surface})`,
-    "--brand-container-fg": `color-mix(in srgb, ${brandColor} 78%, ${t.fg})`,
-    "--fg": t.fg,
-    "--muted": t.muted,
-    "--border": t.border,
-    "--radius": radius,
-    "--font": font.stack,
+    theme: typeof s.theme === "string" ? s.theme : undefined,
+    font: typeof s.font === "string" ? s.font : undefined,
+    roundness: typeof s.roundness === "string" ? s.roundness : undefined,
+    brandColor,
+    brandFromTheme: s.brandFromTheme === true,
+    themeOverrides: s.themeOverrides,
   };
+}
+
+/** يجمع تجاوزات المتجر من الإعدادات القديمة (لون/خط/استدارة) ومن JSON الجديد. */
+export function storeThemeOverrides(cfg: ThemeConfig): ThemeOverrides {
+  const out: ThemeOverrides = {};
+  if (!cfg.brandFromTheme && cfg.brandColor && /^#[0-9a-fA-F]{6}$/.test(cfg.brandColor)) out["--color-brand-primary"] = cfg.brandColor;
+  const font = cfg.font ? FONTS[cfg.font] : undefined;
+  if (font) out["--font-family"] = font.stack;
+  const r = cfg.roundness ? ROUNDNESS[cfg.roundness] : undefined;
+  if (r) {
+    out["--card-radius"] = r.card;
+    out["--button-radius"] = r.button;
+  }
+  // تجاوزات JSON الصريحة تعلو على القديمة.
+  return { ...out, ...parseThemeOverrides(cfg.themeOverrides) };
+}
+
+/** الثيم المحلول لمتجر: القيم الفاتحة والداكنة بعد التجاوزات. */
+export function storeTheme(cfg: ThemeConfig): ResolvedTheme {
+  return resolveTheme(cfg.theme, storeThemeOverrides(cfg));
+}
+
+/** CSS الداخلي لجذر المتجر. */
+export function storeThemeCss(rootSelector: string, cfg: ThemeConfig): string {
+  return themeStyleCss(rootSelector, storeTheme(cfg));
+}
+
+/** رابط Google Fonts للخط الفعلي (خط المتجر أو خط الثيم)، أو undefined لخط النظام. */
+export function googleFontHref(fontKey: string | undefined, themeKey?: string): string | undefined {
+  const f = fontKey ? FONTS[fontKey] : undefined;
+  const google = f ? f.google : getTheme(themeKey).googleFont;
+  if (!google) return undefined;
+  return `https://fonts.googleapis.com/css2?family=${google}&display=swap`;
+}
+
+/** هل هوية الثيم داكنة أساساً؟ */
+export function isDarkTheme(themeKey: string | undefined): boolean {
+  return getTheme(themeKey).prefersDark;
+}
+
+/** الثيم المقابل في الوضع الآخر — مُبقى للتوافق؛ كل ثيم يحمل الآن وضعيه بنفسه. */
+export function counterpartTheme(themeKey: string | undefined): string {
+  return getTheme(themeKey).key;
+}
+
+/** لوحتا الوضعين للزائر (للتوافق مع الشيفرة القديمة). */
+export function themeModeVars(config: string | ThemeConfig | undefined, brandColor: string): { light: Record<string, string>; dark: Record<string, string> } {
+  const cfg: ThemeConfig = typeof config === "string" ? { theme: config } : (config ?? {});
+  const r = storeTheme({ ...cfg, brandColor: cfg.brandColor ?? brandColor });
+  return { light: r.light, dark: r.dark };
+}
+
+/** متغيرات الوضع الفاتح (للتوافق). */
+export function themeVars(config: string | ThemeConfig | undefined, brandColor: string): Record<string, string> {
+  return themeModeVars(config, brandColor).light;
 }

@@ -1,0 +1,115 @@
+/* =========================================================
+   Smart Souq — SEMANTIC TOKENS
+   الطبقة الوحيدة المسموح للمكوّنات باستهلاكها.
+   الرمز يصف المعنى (--card-bg) لا اللون (--color-white).
+
+   تُعلَن على `:root` و`[data-theme-scope]` معاً حتى تُعاد حسابها من
+   خانات اللوحة المحقونة عند جذر المتجر (انظر foundation.css).
+   ========================================================= */
+
+:root,
+[data-theme-scope] {
+  /* ---------- Surfaces ---------- */
+  --page-bg:         var(--color-canvas);
+  --surface-primary: var(--color-surface);
+  --surface-muted:   var(--color-surface-muted);
+  --surface-inverse: var(--color-surface-inverse);
+  /* أسطح متدرّجة الارتفاع (elevation عبر اللون). */
+  --surface-raised-1: color-mix(in srgb, var(--color-surface) 97%, var(--color-ink));
+  --surface-raised-2: color-mix(in srgb, var(--color-surface) 94%, var(--color-ink));
+  --surface-raised-3: color-mix(in srgb, var(--color-surface) 90%, var(--color-ink));
+
+  /* ---------- Text ---------- */
+  --text-primary:   var(--color-ink);
+  --text-secondary: var(--color-ink-muted);
+  --text-disabled:  var(--color-ink-disabled);
+  --text-inverse:   var(--color-ink-inverse);
+  --text-link:      var(--color-brand-primary);
+  --text-on-brand:  var(--color-on-brand);
+
+  /* ---------- Brand roles ---------- */
+  --brand-primary:        var(--color-brand-primary);
+  --brand-secondary:      var(--color-brand-secondary);
+  --brand-accent:         var(--color-brand-accent);
+  --brand-primary-hover:  color-mix(in srgb, var(--color-brand-primary) 88%, var(--color-ink));
+  /* حاويات لونية خفيفة بلون العلامة (tonal containers). */
+  --brand-container:      color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-surface));
+  --brand-container-text: color-mix(in srgb, var(--color-brand-primary) 80%, var(--color-ink));
+  --secondary-container:      color-mix(in srgb, var(--color-brand-secondary) 12%, var(--color-surface));
+  --secondary-container-text: color-mix(in srgb, var(--color-brand-secondary) 80%, var(--color-ink));
+  --accent-container:         color-mix(in srgb, var(--color-brand-accent) 14%, var(--color-surface));
+  --accent-container-text:    color-mix(in srgb, var(--color-brand-accent) 70%, var(--color-ink));
+  --success-container:        color-mix(in srgb, var(--color-success) 14%, var(--color-surface));
+  --success-container-text:   color-mix(in srgb, var(--color-success) 70%, var(--color-ink));
+
+  /* ---------- Borders ---------- */
+  --border-default: var(--color-line);
+  --border-strong:  var(--color-line-strong);
+  --border-focus:   var(--color-brand-primary);
+  --focus-ring:     0 0 0 3px color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
+
+  /* ---------- Button ---------- */
+  --button-primary-bg:     var(--color-brand-primary);
+  --button-primary-text:   var(--color-on-brand);
+  --button-secondary-bg:   var(--brand-container);
+  --button-secondary-text: var(--brand-container-text);
+  --button-outline-border: var(--color-line);
+  --button-outline-text:   var(--color-ink);
+  --button-ghost-text:     var(--color-brand-primary);
+  --button-radius:         var(--radius-full);
+
+  /* ---------- Card ---------- */
+  --card-bg:     var(--color-surface);
+  --card-border: var(--color-line);
+  --card-radius: var(--radius-lg);
+  --card-shadow: var(--shadow-sm);
+
+  /* ---------- Input ---------- */
+  --input-bg:           var(--color-surface);
+  --input-border:       var(--color-line);
+  --input-focus-border: var(--color-brand-primary);
+  --input-placeholder:  var(--color-ink-muted);
+  --input-radius:       var(--radius-md);
+
+  /* ---------- Header / Footer / Mobile nav ---------- */
+  --header-bg:        color-mix(in srgb, var(--color-surface) 88%, transparent);
+  --header-text:      var(--color-ink);
+  --header-border:    var(--color-line);
+  --footer-bg:        var(--surface-raised-1);
+  --footer-text:      var(--color-ink);
+  --mobilenav-bg:     var(--color-surface);
+  --mobilenav-active: var(--color-brand-primary);
+
+  /* ---------- Commerce ---------- */
+  --price-color:     var(--color-brand-primary);
+  --price-old-color: var(--color-ink-muted);
+  --discount-bg:     var(--color-error);
+  --discount-text:   var(--color-white);
+  --badge-bg:        var(--color-brand-accent);
+  --badge-text:      var(--color-gray-900);
+  --rating-color:    var(--color-brand-accent);
+
+  /* ---------- Feedback ---------- */
+  --success-bg: var(--color-success);
+  --warning-bg: var(--color-warning);
+  --error-bg:   var(--color-error);
+  --info-bg:    var(--color-info);
+
+  /* =========================================================
+     أسماء قديمة (Legacy aliases) — تُبقي الشيفرة الحالية تعمل
+     أثناء الترحيل. لا تُستخدم في مكوّنات جديدة.
+     ========================================================= */
+  --brand:              var(--color-brand-primary);
+  --brand-fg:           var(--color-on-brand);
+  --brand-container-fg: var(--brand-container-text);
+  --bg:                 var(--page-bg);
+  --surface:            var(--surface-primary);
+  --surface-1:          var(--surface-raised-1);
+  --surface-2:          var(--surface-raised-2);
+  --surface-3:          var(--surface-raised-3);
+  --fg:                 var(--text-primary);
+  --muted:              var(--text-secondary);
+  --border:             var(--border-default);
+  --radius:             var(--input-radius);
+  --font:               var(--font-family);
+}

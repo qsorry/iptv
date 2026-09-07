@@ -46,10 +46,15 @@ npm run test:smoke   # يحتاج قاعدة بيانات فارغة عبر DATA
 - الحالات تنتقل عبر `core/state-machines` فقط. الأحداث عبر outbox (`domain_events`).
 - لا تضع أسراراً في المستودع؛ كلها في متغيرات بيئة Coolify.
 
+## نظام التصميم والثيمات (إلزامي)
+- اقرأ `DESIGN_SYSTEM.md` و`AI_DESIGN_RULES.md` قبل أي واجهة. الرموز في `src/design-system/` (foundation → semantic → components).
+- الثيم = قيم رموز فقط في `src/design-system/themes.ts` (`THEME_REGISTRY`، المرجعي `smartsouq`). يُحقن خادمياً عند `#sf-root[data-theme-scope]`. تجاوزات المتجر JSON بقائمة بيضاء؛ لا CSS مخصص للمتجر.
+- الـ variants من `src/design-system/variants.ts` فقط. الرئيسية تُرسم من مصفوفة أقسام (`layouts.ts` + `SectionRenderer`).
+- المكوّنات: `ui/` (Button, Input, Badge, Card, Modal, Skeleton, Container)، `commerce/` (ProductCard, ProductGrid, CategoryCard, ProductPrice)، `layout/` (Header, MobileNavigation)، `sections/`.
+
 ## التصميم المتجاوب (Mobile-first) — إلزامي لكل واجهة جديدة
 - ابدأ بتصميم الجوال ثم أضف `sm: md: lg:` للأكبر. لا عرض ثابت بالبكسل.
-- استخدم الرموز التصميمية من `globals.css` عبر Tailwind: `bg-surface`, `text-muted`, `border-border`, `bg-brand`, `rounded`.
-- المكوّنات الجاهزة في `src/components/ui`: Button, Input, Container, Card. أعد استخدامها بدل كتابة عناصر خام.
+- استخدم الرموز الدلالية عبر Tailwind: `bg-page`, `bg-surface`, `text-ink`, `text-ink-secondary`, `border-border`, `bg-brand`, `rounded-card`, `rounded-button`, `shadow-card`.
 - عناصر الإدخال بحجم نص 16px على الأقل (مكوّن Input يضمنها) لمنع تكبير iOS.
 - أهداف اللمس ≥ 40px (مضمونة في globals.css عبر min-height).
 - الجداول توضع داخل حاوية `overflow-x-auto`، وعلى الجوال تُعرض كبطاقات (انظر `admin/products/page.tsx`).

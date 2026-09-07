@@ -1,13 +1,20 @@
 import { cn } from "@/lib/utils";
+import type { CardVariant } from "@/design-system/variants";
 
-/** بطاقة بأسلوب Material 3: سطح بحاوية لونية خفيفة، حواف مستديرة، وظل ناعم. */
-export function Card({ className, children }: { className?: string; children: React.ReactNode }) {
+type Props = React.HTMLAttributes<HTMLDivElement> & { variant?: CardVariant; children: React.ReactNode };
+
+/** حاوية محتوى بسطح وحدود واستدارة من رموز البطاقة. variants: default | elevated | flat. */
+export function Card({ className, variant = "default", children, ...props }: Props) {
   return (
     <div
       className={cn(
-        "rounded-[calc(var(--radius)+0.25rem)] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[0_1px_2px_rgba(0,0,0,0.05)] sm:p-5",
+        "rounded-card bg-[var(--card-bg)] p-4 sm:p-5",
+        variant === "default" && "border border-[var(--card-border)] shadow-card",
+        variant === "elevated" && "shadow-md",
+        variant === "flat" && "border border-[var(--card-border)]",
         className,
       )}
+      {...props}
     >
       {children}
     </div>

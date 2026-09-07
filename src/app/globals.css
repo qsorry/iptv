@@ -2,46 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-/* الرموز التصميمية (Design Tokens). عدّلها هنا لتتغير في كل المنصة. */
+/*
+ * الرموز التصميمية تعيش في src/design-system (foundation.css ثم semantic.css)
+ * وتُستورد قبل هذا الملف في layout.tsx. هنا فقط ما يخص المستند نفسه.
+ */
 :root {
-  --brand: #004d73;
-  --brand-fg: #ffffff;
-  --bg: #f7f8fa;
-  --surface: #ffffff;
-  --fg: #111827;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --radius: 0.625rem;
-
   /* مساحات الأمان لشاشات النوتش (iPhone وغيره). */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-/*
- * الوضع الداكن: تلقائياً حسب النظام، أو صراحةً عبر data-theme على <html>
- * (يضبطه مبدّل الثيم في واجهة المتجر ويحفظه في localStorage/كوكي).
- */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0b0f14;
-    --surface: #131a22;
-    --fg: #e5e7eb;
-    --muted: #9ca3af;
-    --border: #263041;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0b0f14;
-  --surface: #131a22;
-  --fg: #e5e7eb;
-  --muted: #9ca3af;
-  --border: #263041;
-  color-scheme: dark;
-}
-:root[data-theme="light"] {
-  color-scheme: light;
 }
 
 * {
@@ -56,6 +24,23 @@ html {
 
 body {
   direction: rtl;
+  font-family: var(--font-family);
+  background: var(--page-bg);
+  color: var(--text-primary);
+}
+
+/* حلقة تركيز مرئية موحّدة للوحة المفاتيح. */
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* إخفاء شريط التمرير في المتصفحات الأفقية (التصنيفات) مع بقاء التمرير. */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 /* أهداف اللمس: أي زر/رابط تفاعلي لا يقل عن 40px ارتفاعاً على اللمس. */
