@@ -126,7 +126,10 @@ export class HttpSubscriptionProvider {
     if (!spec) return { ok: false, message: "لا يوجد نداء اختبار مُعرَّف في القالب" };
     try {
       const call = await this.call(spec, {});
-      return this.isOk(call) ? { ok: true, message: `الاتصال ناجح (HTTP ${call.status})` } : { ok: false, message: this.readError(call) };
+      if (this.isOk(call)) return { ok: true, message: `الاتصال ناجح (HTTP ${call.status})` };
+      // المزوّد قبل المفتاح (لم يرد 401/403) لكن مسار الاختبار غير موجود: المفتاح صحيح والقالب يحتاج ضبط المسار.
+      if (call.status === 404) return { ok: true, message: "المفتاح مقبول، لكن مسار الاختبار في القالب غير موجود لدى المزوّد (404). راجع مسارات القالب قبل أول طلب." };
+      return { ok: false, message: this.readError(call) };
     } catch (e) {
       return { ok: false, message: this.redact(e instanceof Error ? e.message : String(e)) };
     }

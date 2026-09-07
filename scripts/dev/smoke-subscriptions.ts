@@ -21,7 +21,7 @@ const assert = (cond: unknown, msg: string) => {
   console.log(`✓ ${msg}`);
 };
 
-/** مزوّد وهمي بنمط Falcon: X-API-Key، POST /lines يرجّع بيانات الاشتراك. */
+/** مزوّد وهمي بنمط Falcon: Authorization: Bearer، POST /lines يرجّع بيانات الاشتراك. */
 function startFakePanel(apiKey: string) {
   const calls: { path: string; body: string; auth: string | undefined }[] = [];
   let counter = 0;
@@ -29,9 +29,10 @@ function startFakePanel(apiKey: string) {
     let raw = "";
     req.on("data", (c) => (raw += c));
     req.on("end", () => {
-      calls.push({ path: req.url ?? "", body: raw, auth: req.headers["x-api-key"] as string | undefined });
+      const auth = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "") || undefined;
+      calls.push({ path: req.url ?? "", body: raw, auth });
       res.setHeader("Content-Type", "application/json");
-      if (req.headers["x-api-key"] !== apiKey) {
+      if (auth !== apiKey) {
         res.statusCode = 401;
         return res.end(JSON.stringify({ ok: false, error: "invalid_api_key" }));
       }
@@ -80,7 +81,7 @@ async function main() {
   assert(listed.id === provider.id, "قائمة المزوّدين");
 
   const test = await testProvider(ctx, provider.id);
-  assert(test.ok, `اختبار الاتصال عبر X-API-Key (${test.message})`);
+  assert(test.ok, `اختبار الاتصال عبر Bearer (${test.message})`);
 
   const product = await createProduct(ctx, {
     name: "اشتراك IPTV سنة",
@@ -104,7 +105,7 @@ async function main() {
   const r1 = await provisionSubscriptionsForOrder(store.id, order.id);
   assert(r1.created === 2 && r1.succeeded === 2 && r1.failed === 0, `التزويد أنشأ اشتراكين عبر API (${JSON.stringify(r1)})`);
   const createCalls = panel.calls.filter((c) => c.path.endsWith("/lines"));
-  assert(createCalls.length === 2 && createCalls.every((c) => c.auth === API_KEY), "نداءان للمزوّد بالمفتاح الصحيح");
+  assert(createCalls.length === 2 && createCalls.every((c) => c.auth === API_KEY), "نداءان للمزوّد بالمفتاح الصحيح (Bearer)");
   const sent = JSON.parse(createCalls[0].body) as Record<string, unknown>;
   assert(sent.package_id === "pkg-12" && sent.months === 12 && String(sent.note).includes(order.orderNumber), `القالب مرّر الباقة والمعاملات ورقم الطلب (${JSON.stringify(sent)})`);
 

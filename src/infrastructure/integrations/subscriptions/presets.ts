@@ -54,10 +54,10 @@ export const PRESETS: Record<PresetId, Preset> = {
   falcon: {
     id: "falcon",
     name: "Falcon Panel",
-    description: "لوحة dash.falcon-panel.com (api/v1). المفتاح يُرسل في هيدر X-API-Key.",
+    description: "لوحة dash.falcon-panel.com (api/v1). المفتاح يُرسل كـ Bearer token.",
     baseUrl: "https://dash.falcon-panel.com/api/v1",
     config: {
-      auth: { type: "header", name: "X-API-Key" },
+      auth: { type: "bearer" },
       test: { method: "GET", path: "me" },
       packages: { method: "GET", path: "packages", listPath: "data", idField: "id", nameField: "name" },
       create: {
