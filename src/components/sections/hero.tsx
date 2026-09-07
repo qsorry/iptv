@@ -3,10 +3,10 @@ import { cn } from "@/lib/utils";
 import type { HeroVariant } from "@/design-system/variants";
 import { buttonClasses } from "@/components/ui/button";
 
-/** عمل فني للبطل: نسخة عريضة (8:3) لسطح المكتب ونسخة مربعة للجوال. */
+/** عمل فني للبطل: نسخة عريضة (8:3) لسطح المكتب ونسخة مستطيلة (3:2) للجوال. */
 export interface HeroArtwork {
   wide: string;
-  square: string;
+  mobile: string;
 }
 
 export interface HeroProps {
@@ -30,11 +30,11 @@ export function Hero({ title, subtitle, cta, artwork, image, variant = "artwork"
   const surface = "overflow-hidden rounded-card border border-[var(--card-border)] bg-[var(--card-bg)] shadow-card";
   const onArt = variant === "artwork" && Boolean(artwork);
   const text = (
-    <div className={cn("flex flex-col gap-4 sm:gap-5", variant === "centered" && "items-center text-center", onArt && "gap-2.5 items-center text-center sm:items-start sm:text-start")}>
+    <div className={cn("flex flex-col gap-4 sm:gap-5", variant === "centered" && "items-center text-center", onArt && "gap-2 items-start text-start sm:gap-5")}>
       <h1
         className={cn(
           "font-bold leading-tight",
-          onArt ? "text-brand-fg text-2xl sm:text-4xl lg:text-5xl" : "text-ink",
+          onArt ? "text-brand-fg text-xl sm:text-4xl lg:text-5xl" : "text-ink",
           variant === "banner" && "text-xl sm:text-3xl",
           variant === "centered" && "text-3xl sm:text-4xl lg:text-5xl",
           variant === "split" && "text-2xl sm:text-4xl lg:text-5xl",
@@ -51,7 +51,7 @@ export function Hero({ title, subtitle, cta, artwork, image, variant = "artwork"
             variant === "centered" && "text-base sm:text-lg",
             variant === "split" && "text-sm sm:text-lg",
             variant === "split" && "line-clamp-3 sm:line-clamp-none",
-            onArt && "line-clamp-3",
+            onArt && "line-clamp-2 sm:line-clamp-3",
           )}
         >
           {subtitle}
@@ -65,7 +65,7 @@ export function Hero({ title, subtitle, cta, artwork, image, variant = "artwork"
             size: variant === "banner" ? "md" : "lg",
             className: cn(
               "mt-1 w-fit gap-2",
-              onArt && "min-h-10 bg-surface px-5 text-sm text-ink shadow-lg hover:bg-surface hover:brightness-95 sm:min-h-12 sm:px-7 sm:text-base",
+              onArt && "min-h-9 bg-surface px-4 text-xs text-ink shadow-lg hover:bg-surface hover:brightness-95 sm:min-h-12 sm:px-7 sm:text-base",
               variant === "split" && "min-h-10 px-5 text-sm sm:min-h-12 sm:px-7 sm:text-base",
             ),
           })}
@@ -87,14 +87,14 @@ export function Hero({ title, subtitle, cta, artwork, image, variant = "artwork"
   }
   if (onArt && artwork) {
     return (
-      <section className={cn(surface, "relative aspect-square sm:aspect-[8/3]")}>
+      <section className={cn(surface, "relative aspect-[3/2] sm:aspect-[8/3]")}>
         <picture>
           <source media="(min-width: 640px)" srcSet={artwork.wide} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={artwork.square} alt="" loading="eager" fetchPriority="high" className="absolute inset-0 h-full w-full object-cover" />
+          <img src={artwork.mobile} alt="" loading="eager" fetchPriority="high" className="absolute inset-0 h-full w-full object-cover" />
         </picture>
-        {/* منطقة النص تطابق الفراغ المتروك في العمل الفني: أعلى المربع، وجهة البداية في العريض */}
-        <div className="absolute inset-x-0 top-0 flex h-[56%] items-start justify-center px-5 pt-5 sm:inset-y-0 sm:start-0 sm:h-auto sm:w-[52%] sm:items-center sm:justify-start sm:ps-12 sm:pe-6 sm:pt-0 lg:ps-16">
+        {/* منطقة النص تطابق الفراغ المتروك في العمل الفني على جهة البداية */}
+        <div className="absolute inset-y-0 start-0 flex w-[58%] items-center justify-start ps-5 pe-2 sm:w-[52%] sm:ps-12 sm:pe-6 lg:ps-16">
           {text}
         </div>
       </section>

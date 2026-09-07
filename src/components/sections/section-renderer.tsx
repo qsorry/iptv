@@ -20,7 +20,7 @@ export interface HomeData {
 const TINTS: PromoItem["tint"][] = ["secondary", "success"];
 
 /** العمل الفني للبطل (public/media/store)، مصدره docs/previews/hero-artboard.html. */
-const HERO_ARTWORK = { wide: "/media/store/hero-art-wide.jpg", square: "/media/store/hero-art-square.jpg" };
+const HERO_ARTWORK = { wide: "/media/store/hero-art-wide.jpg", mobile: "/media/store/hero-art-mobile.jpg" };
 
 /**
  * يحوّل عنصر مصفوفة التخطيط إلى قسم. النوع غير المعروف لا يرسم شيئاً.
