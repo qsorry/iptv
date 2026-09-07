@@ -53,6 +53,48 @@ function joinUrl(base: string, path: string): URL {
   return new URL(path.replace(/^\//, ""), b);
 }
 
+const num = (v: unknown): number | undefined => {
+  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+  return Number.isFinite(n) ? n : undefined;
+};
+
+/** يستخرج المدة وعدد الاتصالات والكريدت من صف باقة بأسماء الحقول الشائعة في لوحات IPTV. */
+export function extractPackageMeta(row: Record<string, unknown>): PackageInfo["meta"] {
+  const meta: PackageInfo["meta"] = {};
+  const dur = num(getPath(row, "official_duration|duration"));
+  const unit = String(getPath(row, "official_duration_in|duration_in|duration_unit") ?? "").toLowerCase();
+  if (dur != null && dur > 0) {
+    if (/year/.test(unit)) meta.months = dur * 12;
+    else if (/month/.test(unit)) meta.months = dur;
+    else if (/day/.test(unit)) meta.days = dur;
+    else if (/hour/.test(unit)) meta.days = Math.max(1, Math.round(dur / 24));
+  }
+  const months = num(getPath(row, "months|duration_months"));
+  if (meta.months == null && meta.days == null && months) meta.months = months;
+  const days = num(getPath(row, "days|duration_days"));
+  if (meta.months == null && meta.days == null && days) meta.days = days;
+  const cons = num(getPath(row, "max_connections|connections|max_cons|devices"));
+  if (cons != null) meta.connections = cons;
+  const credits = num(getPath(row, "credits|price|cost"));
+  if (credits != null) meta.credits = credits;
+  return meta;
+}
+
+/** اسم عربي موحّد للباقة: "15 شهر · جهازين". يرجع الاسم الأصلي إن لم تتوفر مدة. */
+export function packageLabel(pkg: Pick<PackageInfo, "name" | "meta">): string {
+  const parts: string[] = [];
+  const m = pkg.meta.months;
+  const d = pkg.meta.days;
+  if (m != null) parts.push(m === 1 ? "شهر واحد" : m === 2 ? "شهرين" : m >= 3 && m <= 10 ? `${m} أشهر` : `${m} شهر`);
+  else if (d != null) parts.push(d === 1 ? "يوم واحد" : d === 2 ? "يومين" : d >= 3 && d <= 10 ? `${d} أيام` : `${d} يوم`);
+  else parts.push("مدة غير محددة");
+  const c = pkg.meta.connections;
+  if (c != null) parts.push(c === 1 ? "جهاز واحد" : c === 2 ? "جهازين" : c >= 3 && c <= 10 ? `${c} أجهزة` : `${c} جهاز`);
+  // لا مدة ولا أجهزة: لا معلومات كافية، نعرض الاسم الأصلي.
+  if (parts.length === 1 && pkg.meta.connections == null) return pkg.name;
+  return parts.join(" · ");
+}
+
 export interface HttpCall {
   url: string;
   status: number;
@@ -179,7 +221,7 @@ export class HttpSubscriptionProvider {
         const cons = getPath(row, "max_connections|connections|max_cons");
         name = [dur != null ? `${dur} ${unit}` : "", cons != null ? `${cons} conn` : ""].filter(Boolean).join(" · ").trim();
       }
-      return { id, name: name || id, raw: r };
+      return { id, name: name || id, meta: extractPackageMeta(row), raw: r };
     });
   }
 
