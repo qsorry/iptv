@@ -19,6 +19,9 @@ export interface HomeData {
 
 const TINTS: PromoItem["tint"][] = ["secondary", "success"];
 
+/** العمل الفني للبطل (public/media/store)، مصدره docs/previews/hero-artboard.html. */
+const HERO_ARTWORK = { wide: "/media/store/hero-art-wide.jpg", square: "/media/store/hero-art-square.jpg" };
+
 /**
  * يحوّل عنصر مصفوفة التخطيط إلى قسم. النوع غير المعروف لا يرسم شيئاً.
  * الخريطة type → component ثابتة هنا؛ لا أقسام خارجها.
@@ -32,7 +35,7 @@ export function SectionRenderer({ section, data }: { section: HomeSection; data:
           title={data.store.name}
           subtitle={data.store.description}
           cta={data.products.length > 0 ? { label: "تسوّق الآن", href: "#products" } : undefined}
-          image={data.products.find((p) => Boolean(p.image))?.image ?? null}
+          artwork={HERO_ARTWORK}
         />
       );
     case "benefits":
