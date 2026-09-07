@@ -2,7 +2,15 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { getAdminContext } from "@/core/tenancy/server";
-import { createCategory, listCategoriesWithCounts, updateCategory, deleteCategory, UNCATEGORIZED } from "@/modules/catalog";
+import {
+  createCategory,
+  listCategoriesWithCounts,
+  updateCategory,
+  uploadCategoryImage,
+  removeCategoryImage,
+  deleteCategory,
+  UNCATEGORIZED,
+} from "@/modules/catalog";
 import { productRepository } from "@/modules/catalog";
 import { AppError } from "@/core/errors";
 import { PageHeader } from "@/components/admin/page-header";
@@ -52,6 +60,47 @@ export default async function CategoriesPage({ searchParams }: { searchParams: P
     revalidatePath("/admin/categories");
   }
 
+  /** رفع صورة التصنيف من الجهاز. */
+  async function setImage(formData: FormData) {
+    "use server";
+    const c = await getAdminContext();
+    const id = String(formData.get("id"));
+    const file = formData.get("file");
+    let msg: string;
+    try {
+      if (!(file instanceof File)) throw new AppError("اختر صورة أولاً", "EMPTY", 422);
+      await uploadCategoryImage(c, id, file);
+      msg = `ok=${encodeURIComponent("تم تحديث صورة التصنيف")}`;
+    } catch (e) {
+      msg = `error=${encodeURIComponent(e instanceof AppError ? e.message : "تعذّر رفع الصورة")}`;
+    }
+    revalidatePath("/admin/categories");
+    redirect(`/admin/categories?${msg}`);
+  }
+
+  /** أو ربط صورة بالرابط مباشرة. */
+  async function setImageUrl(formData: FormData) {
+    "use server";
+    const c = await getAdminContext();
+    const id = String(formData.get("id"));
+    let msg: string;
+    try {
+      await updateCategory(c, id, { imageUrl: String(formData.get("url") || "").trim() });
+      msg = `ok=${encodeURIComponent("تم تحديث صورة التصنيف")}`;
+    } catch (e) {
+      msg = `error=${encodeURIComponent(e instanceof AppError ? e.message : "تعذّر حفظ الرابط")}`;
+    }
+    revalidatePath("/admin/categories");
+    redirect(`/admin/categories?${msg}`);
+  }
+
+  async function clearImage(formData: FormData) {
+    "use server";
+    const c = await getAdminContext();
+    await removeCategoryImage(c, String(formData.get("id")));
+    revalidatePath("/admin/categories");
+  }
+
   async function del(formData: FormData) {
     "use server";
     const c = await getAdminContext();
@@ -70,7 +119,7 @@ export default async function CategoriesPage({ searchParams }: { searchParams: P
       <Card className="mb-4">
         <form action={add} className="flex flex-wrap items-center gap-2">
           <Input name="name" placeholder="اسم التصنيف" className="min-w-0 flex-1" />
-          <Button type="submit" size="sm">إضافة</Button>
+          <Button type="submit" size="sm" className="min-h-10">إضافة</Button>
         </form>
         <p className="mt-2 text-xs text-[var(--muted)]">
           اربط المنتجات بالتصنيف من صفحة المنتج، أو حدّد عدة منتجات دفعة واحدة من{" "}
@@ -83,13 +132,39 @@ export default async function CategoriesPage({ searchParams }: { searchParams: P
       ) : (
         <ul className="divide-y divide-[var(--border)] rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)]">
           {rows.map((c) => (
-            /* الجوال: اسم التصنيف بسطر كامل ثم الإجراءات تحته. الكمبيوتر: سطر واحد. */
-            <li key={c.id} className="p-3 sm:flex sm:items-center sm:gap-3">
-              <form action={rename} className="flex min-w-0 items-center gap-2 sm:flex-1">
-                <input type="hidden" name="id" value={c.id} />
-                <Input name="name" defaultValue={c.name} aria-label="اسم التصنيف" className="min-w-0 flex-1" />
-                <Button type="submit" size="sm" variant="secondary" className="shrink-0">حفظ</Button>
-              </form>
+            /* الجوال: الصورة والاسم بسطر ثم الإجراءات تحته. الكمبيوتر: سطر واحد. */
+            <li key={c.id} className="p-3 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+              <div className="flex min-w-0 items-center gap-2 sm:flex-1">
+                {/* الصورة: النقر عليها يفتح اختيار ملف، ويُرفع فور الاختيار */}
+                <form action={setImage} className="shrink-0">
+                  <input type="hidden" name="id" value={c.id} />
+                  <label
+                    className="relative grid h-12 w-12 cursor-pointer place-items-center overflow-hidden rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-black/5"
+                    title="تغيير صورة التصنيف"
+                  >
+                    {c.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={c.imageUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-lg leading-none text-[var(--muted)]">+</span>
+                    )}
+                    <input
+                      type="file"
+                      name="file"
+                      accept="image/*"
+                      className="absolute inset-0 cursor-pointer opacity-0"
+                      aria-label={`صورة ${c.name}`}
+                    />
+                  </label>
+                  <Button type="submit" size="sm" variant="secondary" className="mt-1 min-h-10 w-12 px-0 text-[11px]">رفع</Button>
+                </form>
+
+                <form action={rename} className="flex min-w-0 flex-1 items-center gap-2">
+                  <input type="hidden" name="id" value={c.id} />
+                  <Input name="name" defaultValue={c.name} aria-label="اسم التصنيف" className="min-w-0 flex-1" />
+                  <Button type="submit" size="sm" variant="secondary" className="min-h-10 shrink-0">حفظ</Button>
+                </form>
+              </div>
 
               <div className="mt-1 flex flex-wrap items-center gap-x-4 text-xs sm:mt-0 sm:shrink-0">
                 <Link href={`/admin/products?category=${c.id}`} className="touch-target inline-flex items-center whitespace-nowrap text-[var(--brand)] hover:underline">
@@ -102,11 +177,27 @@ export default async function CategoriesPage({ searchParams }: { searchParams: P
                     {c.status === "active" ? "ظاهر — إخفاء" : "مخفي — إظهار"}
                   </button>
                 </form>
+                {c.imageUrl && (
+                  <form action={clearImage}>
+                    <input type="hidden" name="id" value={c.id} />
+                    <button className="whitespace-nowrap text-[var(--muted)] hover:underline">إزالة الصورة</button>
+                  </form>
+                )}
                 <form action={del}>
                   <input type="hidden" name="id" value={c.id} />
                   <button className="text-red-600 hover:underline">حذف</button>
                 </form>
               </div>
+
+              {/* بديل الرفع: لصق رابط صورة جاهز (مطوي حتى لا يزحم الصف) */}
+              <details className="mt-1 w-full text-xs">
+                <summary className="cursor-pointer text-[var(--muted)]">أو الصق رابط صورة</summary>
+                <form action={setImageUrl} className="mt-2 flex items-center gap-2">
+                  <input type="hidden" name="id" value={c.id} />
+                  <Input name="url" placeholder="https://.../image.jpg" dir="ltr" className="min-w-0 flex-1" />
+                  <Button type="submit" size="sm" variant="secondary" className="min-h-10 shrink-0">حفظ</Button>
+                </form>
+              </details>
             </li>
           ))}
         </ul>
