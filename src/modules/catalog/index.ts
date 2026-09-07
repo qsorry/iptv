@@ -9,6 +9,8 @@ export {
   listCategories,
   listCategoriesWithCounts,
   updateCategory,
+  uploadCategoryImage,
+  removeCategoryImage,
   deleteCategory,
   setProductsCategory,
   listPublicCategories,

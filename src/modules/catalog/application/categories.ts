@@ -7,6 +7,7 @@ import type { StoreContext } from "@/core/tenancy";
 import { requireRole } from "@/core/tenancy";
 import { ConflictError, NotFoundError, ValidationError } from "@/core/errors";
 import { slugify } from "@/lib/slugify";
+import { storage } from "@/infrastructure/storage";
 
 /*
  * عمود العدّ مكتوب بـ `categories.id` نصاً لا بـ ${categories.id}:
@@ -43,6 +44,7 @@ export const listCategoriesWithCounts = (storeId: string) =>
       slug: categories.slug,
       status: categories.status,
       sortOrder: categories.sortOrder,
+      imageUrl: categories.imageUrl,
       productCount,
     })
     .from(categories)
@@ -53,6 +55,7 @@ export interface UpdateCategoryInput {
   name?: string;
   status?: "active" | "hidden";
   sortOrder?: number;
+  imageUrl?: string | null; // null = إزالة الصورة
 }
 
 /** تعديل تصنيف: الاسم (مع تحديث الـ slug) والظهور والترتيب. */
@@ -75,8 +78,42 @@ export async function updateCategory(ctx: StoreContext, categoryId: string, inpu
   }
   if (input.status !== undefined) patch.status = input.status;
   if (input.sortOrder !== undefined) patch.sortOrder = input.sortOrder;
+  if (input.imageUrl !== undefined) {
+    if (input.imageUrl !== null && !/^https?:\/\/.+/i.test(input.imageUrl)) throw new ValidationError("رابط صورة غير صالح");
+    patch.imageUrl = input.imageUrl;
+  }
 
   await db.update(categories).set(patch).where(eq(categories.id, categoryId));
+}
+
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+
+/**
+ * رفع صورة التصنيف إلى التخزين وربطها به. تحلّ محل الصورة السابقة إن وُجدت.
+ * الصورة تظهر في بطاقة القسم على واجهة المتجر.
+ */
+export async function uploadCategoryImage(ctx: StoreContext, categoryId: string, file: File) {
+  requireRole(ctx, "owner", "admin", "staff");
+  const category = await db.query.categories.findFirst({ where: and(eq(categories.storeId, ctx.storeId), eq(categories.id, categoryId)) });
+  if (!category) throw new NotFoundError("التصنيف", categoryId);
+
+  if (file.size === 0) throw new ValidationError("اختر صورة أولاً");
+  if (!ALLOWED_IMAGE_TYPES.has(file.type)) throw new ValidationError(`نوع ملف غير مدعوم: ${file.type || "غير معروف"}`);
+  if (file.size > MAX_IMAGE_BYTES) throw new ValidationError("حجم الصورة يتجاوز 4MB");
+
+  const ext = file.type.split("/")[1] ?? "jpg";
+  const key = `stores/${ctx.storeId}/categories/${categoryId}/${crypto.randomUUID()}.${ext}`;
+  const { url } = await storage.upload(key, Buffer.from(await file.arrayBuffer()), file.type);
+
+  await db.update(categories).set({ imageUrl: url, updatedAt: new Date() }).where(eq(categories.id, categoryId));
+  return { url };
+}
+
+/** إزالة صورة التصنيف (تعود بطاقة القسم للأيقونة الافتراضية). */
+export async function removeCategoryImage(ctx: StoreContext, categoryId: string) {
+  requireRole(ctx, "owner", "admin", "staff");
+  await updateCategory(ctx, categoryId, { imageUrl: null });
 }
 
 /**
