@@ -2,7 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { getAdminContext } from "@/core/tenancy/server";
-import { productRepository, updateProduct, deleteProduct, addProductImageUrl, removeProductImage, setPrimaryImage, uploadProductImages, addVariant, removeVariant } from "@/modules/catalog";
+import { productRepository, updateProduct, deleteProduct, addProductImageUrl, removeProductImage, setPrimaryImage, uploadProductImages, addVariant, removeVariant, listCategories } from "@/modules/catalog";
 import { addCodes, codeRepository } from "@/modules/codes";
 import { AppError } from "@/core/errors";
 import { PageHeader } from "@/components/admin/page-header";
@@ -25,6 +25,7 @@ export default async function ProductDetailPage({
   if (!product) notFound();
 
   const media = await productRepository.listMedia(id);
+  const cats = await listCategories(ctx.storeId);
   const defaultVariant = product.variants.find((v) => v.isDefault) ?? product.variants[0];
   const codes = defaultVariant ? await codeRepository.summary(ctx.storeId, defaultVariant.id) : null;
 
@@ -39,6 +40,7 @@ export default async function ProductDetailPage({
         description: String(formData.get("description") || "") || null,
         status: String(formData.get("status")) as "draft" | "active" | "archived",
         productType: String(formData.get("productType")) as "physical" | "digital" | "service",
+        categoryId: String(formData.get("categoryId") || "") || null,
         price: String(formData.get("price")),
       });
     } catch (e) {
@@ -190,6 +192,23 @@ export default async function ProductDetailPage({
                     </label>
                   </div>
                   <p className="text-xs text-[var(--muted)]">المنتج الرقمي يُسلَّم فوراً بكود دون شحن؛ المادي يتطلب عنوان شحن.</p>
+                  <label className="block text-sm">
+                    التصنيف
+                    <select
+                      name="categoryId"
+                      defaultValue={product.categoryId ?? ""}
+                      className="mt-1 w-full rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-base"
+                    >
+                      <option value="">بدون تصنيف</option>
+                      {cats.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <p className="text-xs text-[var(--muted)]">
+                    التصنيف يحدد ظهور المنتج في صفحة القسم وفي «منتجات ذات صلة».{" "}
+                    <Link href="/admin/categories" className="text-[var(--brand)] underline">إدارة التصنيفات</Link>
+                  </p>
                   <label className="block text-sm">
                     وصف مختصر
                     <Input name="shortDescription" defaultValue={product.shortDescription ?? ""} className="mt-1" />

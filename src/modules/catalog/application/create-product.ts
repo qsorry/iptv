@@ -1,4 +1,6 @@
+import { and, eq } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
+import { categories } from "@/infrastructure/database/schema";
 import type { StoreContext } from "@/core/tenancy";
 import { requireRole } from "@/core/tenancy";
 import { ConflictError, ValidationError } from "@/core/errors";
@@ -6,6 +8,9 @@ import { publishEvent } from "@/core/events";
 import { slugify } from "@/lib/slugify";
 import { createProductSchema, type CreateProductInput } from "../validations/product.schema";
 import { productRepository } from "../infrastructure/product.repository";
+
+const categoryBelongsToStore = async (storeId: string, categoryId: string) =>
+  Boolean(await db.query.categories.findFirst({ where: and(eq(categories.storeId, storeId), eq(categories.id, categoryId)) }));
 
 /**
  * إنشاء منتج مع variants داخل transaction واحد.
@@ -21,6 +26,10 @@ export async function createProduct(ctx: StoreContext, rawInput: CreateProductIn
   const slug = input.slug ?? slugify(input.name);
   if (await productRepository.findBySlug(ctx.storeId, slug)) {
     throw new ConflictError(`يوجد منتج آخر بنفس الرابط: ${slug}`);
+  }
+
+  if (input.categoryId && !(await categoryBelongsToStore(ctx.storeId, input.categoryId))) {
+    throw new ValidationError("التصنيف غير موجود في هذا المتجر");
   }
 
   const defaults = input.variants.filter((v) => v.isDefault).length;

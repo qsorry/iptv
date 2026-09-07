@@ -1,6 +1,6 @@
 import { eq, and } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
-import { products, productVariants, productMedia } from "@/infrastructure/database/schema";
+import { categories, products, productVariants, productMedia } from "@/infrastructure/database/schema";
 import type { StoreContext } from "@/core/tenancy";
 import { requireRole } from "@/core/tenancy";
 import { NotFoundError, ValidationError } from "@/core/errors";
@@ -14,6 +14,7 @@ export interface UpdateProductInput {
   description?: string | null;
   status?: "draft" | "active" | "archived";
   productType?: "physical" | "digital" | "service";
+  categoryId?: string | null; // null = بدون تصنيف
   price?: string; // للمتغيّر الافتراضي
 }
 
@@ -23,8 +24,16 @@ export async function updateProduct(ctx: StoreContext, productId: string, input:
   const product = await db.query.products.findFirst({ where: and(eq(products.storeId, ctx.storeId), eq(products.id, productId)) });
   if (!product) throw new NotFoundError("المنتج", productId);
 
+  if (input.categoryId) {
+    const category = await db.query.categories.findFirst({
+      where: and(eq(categories.storeId, ctx.storeId), eq(categories.id, input.categoryId)),
+    });
+    if (!category) throw new NotFoundError("التصنيف", input.categoryId);
+  }
+
   const patch: Partial<typeof products.$inferInsert> = { updatedAt: new Date() };
   if (input.name !== undefined) patch.name = input.name;
+  if (input.categoryId !== undefined) patch.categoryId = input.categoryId;
   if (input.shortDescription !== undefined) patch.shortDescription = input.shortDescription;
   if (input.description !== undefined) patch.description = input.description;
   if (input.productType !== undefined) patch.productType = input.productType;
