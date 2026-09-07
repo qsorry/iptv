@@ -3,7 +3,7 @@ import { preload } from "react-dom";
 import { getStorefrontStore } from "@/core/tenancy/server";
 import { productRepository, listPublicCategories } from "@/modules/catalog";
 import { storeTestimonials } from "@/modules/reviews";
-import { resolveHomeLayout } from "@/modules/stores";
+import { resolveHomeLayout, resolveSeo } from "@/modules/stores";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SectionRenderer, type HomeData } from "@/components/sections/section-renderer";
 import { db } from "@/infrastructure/database/client";
@@ -13,8 +13,9 @@ import { eq } from "drizzle-orm";
 export async function generateMetadata(): Promise<Metadata> {
   const store = await getStorefrontStore();
   if (!store) return { title: "متجر غير متوفر" };
-  const title = store.name;
-  const description = store.description ?? `تسوّق من ${store.name}`;
+  // العنوان والوصف من إعدادات SEO للمتجر؛ اسم المتجر وحده لا يبحث عنه أحد.
+  const settingsRow = await db.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, store.id) });
+  const { title, description } = resolveSeo(settingsRow?.settings as Record<string, unknown> | undefined, store);
   return {
     title: { absolute: title },
     description,

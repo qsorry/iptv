@@ -5,6 +5,7 @@
 import assert from "node:assert/strict";
 import { parseThemeOverrides, resolveTheme, themeStyleCss, THEME_REGISTRY, contrastOn, contrastRatio, isVariant, DEFAULT_HOME_LAYOUT } from "@/design-system";
 import { resolveHomeLayout } from "@/modules/stores/application/home-layout";
+import { readSeoSettings, resolveSeo, SEO_TITLE_MAX } from "@/modules/stores/seo";
 import { storeThemeOverrides, fontPreloads, googleFontHref } from "@/modules/stores/themes";
 
 let passed = 0;
@@ -109,6 +110,20 @@ ok("تخطيط الرئيسية يُصفّى من الأقسام المجهول�
   const l = resolveHomeLayout({ homeLayout: { sections: [{ id: "h", type: "hero", variant: "banner" }, { id: "x", type: "carousel" }, { id: "y", type: "hero", variant: "big" }] } });
   assert.deepEqual(l.sections, [{ id: "h", type: "hero", variant: "banner" }]);
   assert.equal(resolveHomeLayout({ homeLayout: { sections: [{ id: "x", type: "carousel" }] } }), DEFAULT_HOME_LAYOUT);
+});
+
+ok("إعدادات الظهور في البحث تُقرأ بتسامح وتعود لاسم المتجر عند الفراغ", () => {
+  const store = { name: "سمارت سوق", description: "اشتراكات رقمية" };
+  // لا إعداد ← اسم المتجر ووصفه.
+  assert.deepEqual(resolveSeo(undefined, store), { title: "سمارت سوق", description: "اشتراكات رقمية" });
+  assert.deepEqual(readSeoSettings({ seo: "نص تالف" }), { title: "", description: "" });
+  // إعداد التاجر يتقدّم على اسم المتجر.
+  const set = { seo: { title: "اشتراكات IPTV بجودة 4K", description: "تفعيل فوري وضمان" } };
+  assert.equal(resolveSeo(set, store).title, "اشتراكات IPTV بجودة 4K");
+  // حقل واحد فقط: الآخر يعود للافتراضي.
+  assert.equal(resolveSeo({ seo: { title: "", description: "وصف" } }, store).title, "سمارت سوق");
+  // عنوان أطول من الحد يُرفض بدل أن يُقص صامتاً.
+  assert.deepEqual(readSeoSettings({ seo: { title: "ا".repeat(SEO_TITLE_MAX + 1), description: "" } }), { title: "", description: "" });
 });
 
 console.log(`\nكل اختبارات الثيمات نجحت (${passed}).`);

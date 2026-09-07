@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getAdminContext } from "@/core/tenancy/server";
-import { updateSubdomain, listDomains, addDomain, removeDomain, updateBranding, updateFooterSettings, readFooterSettings, PAYMENT_METHODS, THEMES, PRODUCT_LAYOUTS, FONTS, ROUNDNESS, HERO_STYLES, updateAppearance, readAppearance, type PaymentMethodId } from "@/modules/stores";
+import { readSeoSettings, updateSeoSettings, SEO_TITLE_MAX, SEO_DESCRIPTION_MAX, updateSubdomain, listDomains, addDomain, removeDomain, updateBranding, updateFooterSettings, readFooterSettings, PAYMENT_METHODS, THEMES, PRODUCT_LAYOUTS, FONTS, ROUNDNESS, HERO_STYLES, updateAppearance, readAppearance, type PaymentMethodId } from "@/modules/stores";
 import { stores } from "@/infrastructure/database/schema";
 import { db } from "@/infrastructure/database/client";
 import { storeSettings } from "@/infrastructure/database/schema";
@@ -37,6 +37,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const curBrandFromTheme = appearance.brandFromTheme;
   const curAccent = appearance.themeOverrides["--color-brand-accent"] ?? "";
   const footer = readFooterSettings(curSettings);
+  const seo = readSeoSettings(curSettings);
   const { error, ok } = await searchParams;
   const scheme = PLATFORM_DOMAIN.includes("localhost") ? "http" : "https";
   const storeUrl = `${scheme}://${PLATFORM_DOMAIN}/s/${ctx.storeSlug}`;
@@ -72,6 +73,22 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     const c = await getAdminContext();
     await removeDomain(c, String(formData.get("id")));
     revalidatePath("/admin/settings");
+  }
+
+  async function saveSeo(formData: FormData) {
+    "use server";
+    const c = await getAdminContext();
+    let msg: string | null = null;
+    try {
+      await updateSeoSettings(c, {
+        title: String(formData.get("seoTitle") ?? ""),
+        description: String(formData.get("seoDescription") ?? ""),
+      });
+    } catch (e) {
+      msg = errorMessage(e, "تعذّر حفظ إعدادات الظهور في البحث");
+    }
+    revalidatePath("/admin/settings");
+    redirect(msg ? `/admin/settings?error=${encodeURIComponent(msg)}` : "/admin/settings?ok=1");
   }
 
   async function saveTax(formData: FormData) {
@@ -156,6 +173,26 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
       {error && <p className="mb-4 rounded-[var(--radius)] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {ok && <p className="mb-4 rounded-[var(--radius)] border border-green-200 bg-green-50 p-3 text-sm text-green-700">تم الحفظ.</p>}
+
+      {/* الظهور في البحث */}
+      <h2 className="mb-2 text-sm font-semibold text-[var(--muted)]">الظهور في نتائج البحث</h2>
+      <Card className="mb-8">
+        <form action={saveSeo} className="space-y-4">
+          <label className="block text-sm">
+            عنوان الصفحة الرئيسية
+            <Input name="seoTitle" defaultValue={seo.title} maxLength={SEO_TITLE_MAX} placeholder={storeRow?.name ?? "اسم المتجر"} className="mt-1" />
+            <span className="mt-1 block text-xs text-[var(--muted)]">
+              ما يظهر في جوجل. اجعله يصف ما تبيعه لا اسم المتجر وحده — مثال: «اشتراكات IPTV بجودة 4K — {storeRow?.name ?? "متجري"}». حتى {SEO_TITLE_MAX} حرفاً.
+            </span>
+          </label>
+          <label className="block text-sm">
+            وصف الصفحة الرئيسية
+            <Input name="seoDescription" defaultValue={seo.description} maxLength={SEO_DESCRIPTION_MAX} placeholder={storeRow?.description ?? "وصف قصير يظهر تحت العنوان"} className="mt-1" />
+            <span className="mt-1 block text-xs text-[var(--muted)]">سطر إعلاني يقنع بالضغط، لا تعريفاً عاماً. حتى {SEO_DESCRIPTION_MAX} حرفاً.</span>
+          </label>
+          <Button type="submit">حفظ</Button>
+        </form>
+      </Card>
 
       {/* التكاملات والتتبّع */}
       <h2 className="mb-2 text-sm font-semibold text-[var(--muted)]">التكاملات والتتبّع</h2>

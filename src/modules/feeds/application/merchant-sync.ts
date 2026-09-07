@@ -7,7 +7,8 @@ import { ValidationError } from "@/core/errors";
 import { runtimeIntegrations } from "@/modules/tracking";
 import { buildMerchantProduct, googleProductId, offerIdFor, payloadHash, DEFAULT_TARGET, type CatalogRow, type MerchantTarget } from "../domain/product-payload";
 import { contentApiClient, ContentApiError, type BatchEntry } from "../infrastructure/content-api";
-import { catalogRowsByIds, listCatalogRows, storeOrigin } from "./catalog-rows";
+import { storeOrigin } from "@/modules/stores";
+import { catalogRowsByIds, listCatalogRows } from "./catalog-rows";
 
 const MAX_ATTEMPTS = 5;
 /** حد جوجل ١٠٠٠؛ نبقى عند ٥٠٠ احتياطاً لحجم الجسم. */

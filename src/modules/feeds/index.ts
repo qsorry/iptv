@@ -1,6 +1,6 @@
 export { productFeedItems } from "./application/product-feed";
 export { productFeedXml, toFeedItem, type FeedItem } from "./domain/feed-xml";
-export { listCatalogRows, catalogRowsByIds, storeOrigin } from "./application/catalog-rows";
+export { listCatalogRows, catalogRowsByIds } from "./application/catalog-rows";
 export {
   enqueueFullCatalog,
   markProductDirty,

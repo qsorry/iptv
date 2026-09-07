@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getAdminContext } from "@/core/tenancy/server";
 import { AppError } from "@/core/errors";
-import { enqueueFullCatalog, listMerchantIssues, merchantConfig, merchantHealth, storeOrigin } from "@/modules/feeds";
+import { enqueueFullCatalog, listMerchantIssues, merchantConfig, merchantHealth } from "@/modules/feeds";
+import { storeOrigin } from "@/modules/stores";
 import {
   type Platform,
   PLATFORM_DEFS,
