@@ -174,13 +174,30 @@ async function markRetry(row: typeof trackingEvents.$inferSelect, error: string,
     .where(eq(trackingEvents.id, row.id));
 }
 
-/** ملخص لشاشة الإعدادات: كم حدث معلّق وكم فشل. */
+/**
+ * ملخص لشاشة الإعدادات: كم حدث معلّق وكم فشل، ومتى أقدم حدث ينتظر.
+ * أقدم معلّق هو مؤشر عمل المجدول: بقاؤه دقائق طويلة يعني أن العامل لا يعمل أصلاً.
+ */
 export async function trackingHealth(storeId: string) {
-  const rows = await db
-    .select({ status: trackingEvents.status, count: sql<number>`count(*)::int` })
-    .from(trackingEvents)
-    .where(eq(trackingEvents.storeId, storeId))
-    .groupBy(trackingEvents.status);
+  const [rows, [oldest]] = await Promise.all([
+    db
+      .select({ status: trackingEvents.status, count: sql<number>`count(*)::int` })
+      .from(trackingEvents)
+      .where(eq(trackingEvents.storeId, storeId))
+      .groupBy(trackingEvents.status),
+    db
+      .select({ createdAt: trackingEvents.createdAt })
+      .from(trackingEvents)
+      .where(and(eq(trackingEvents.storeId, storeId), eq(trackingEvents.status, "pending")))
+      .orderBy(trackingEvents.createdAt)
+      .limit(1),
+  ]);
   const by = Object.fromEntries(rows.map((r) => [r.status, r.count]));
-  return { pending: by.pending ?? 0, sent: by.sent ?? 0, failed: by.failed ?? 0, partial: by.partial ?? 0 };
+  return {
+    pending: by.pending ?? 0,
+    sent: by.sent ?? 0,
+    failed: by.failed ?? 0,
+    partial: by.partial ?? 0,
+    oldestPendingAt: oldest?.createdAt ?? null,
+  };
 }

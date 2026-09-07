@@ -5,7 +5,7 @@ import { getAdminContext } from "@/core/tenancy/server";
 import { AppError } from "@/core/errors";
 import { enqueueFullCatalog, listMerchantIssues, merchantConfig, merchantHealth, storeOrigin } from "@/modules/feeds";
 import {
-  PLATFORMS,
+  type Platform,
   PLATFORM_DEFS,
   listFailedEvents,
   listIntegrations,
@@ -20,10 +20,79 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { CopyField } from "@/components/admin/copy-field";
+import { PlatformIcon, GoogleMark } from "@/components/admin/platform-icon";
 
 export const metadata = { title: "التكاملات والتتبّع" };
 
 const PATH = "/admin/settings/integrations";
+
+/** رموز المجموعات: بوق للإعلان، مخطط للتحليلات، وشعار جوجل. */
+const GROUP_ICONS = {
+  ads: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5 text-brand" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1Z" />
+      <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" />
+    </svg>
+  ),
+  analytics: (
+    <svg viewBox="0 0 24 24" className="h-5 w-5 text-brand" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 20h16M7 20v-6M12 20V8M17 20v-9" />
+    </svg>
+  ),
+  google: <GoogleMark />,
+} as const;
+
+/** المنصات مجمّعة بحسب دورها؛ كل مجموعة قائمة مطوية لا صفحة طويلة. */
+const GROUPS: { title: string; note: string; icon: keyof typeof GROUP_ICONS; platforms: Platform[] }[] = [
+  {
+    title: "منصات الإعلان",
+    note: "ربط متجرك بمنصات الإعلانات: بكسل في المتصفح وإرسال سيرفري بنفس event_id لإزالة التكرار.",
+    icon: "ads",
+    platforms: ["meta", "tiktok", "snapchat"],
+  },
+  {
+    title: "التحليلات",
+    note: "متابعة أداء متجرك وسلوك العملاء. لا تحتاج موافقة تسويقية.",
+    icon: "analytics",
+    platforms: ["ga4", "clarity"],
+  },
+  {
+    title: "جوجل: البحث والتسوّق",
+    note: "تحسين ظهور متجرك في نتائج البحث ودفع الكتالوج إلى إعلانات التسوّق.",
+    icon: "google",
+    platforms: ["google", "merchant"],
+  },
+];
+
+/** سهم يشير إلى بداية السطر وهو مطوي، وينقلب لأسفل عند الفتح. */
+function Chevron() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 rotate-90 text-ink-secondary transition-transform group-open:rotate-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+/** إحصاءة واحدة في بطاقة نقاط الأحداث: نقطة ملوّنة + وصف + رقم. */
+function Stat({ label, value, tone }: { label: string; value: number; tone: "ok" | "busy" | "bad" }) {
+  const dot = tone === "ok" ? "bg-[var(--color-success)]" : tone === "busy" ? "bg-brand" : "bg-[var(--color-error)]";
+  return (
+    <div className="min-w-0 flex-1 px-2 text-center sm:px-4">
+      <div className="flex items-center justify-center gap-1.5 text-xs text-ink-secondary">
+        <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+        <span className="whitespace-nowrap">{label}</span>
+      </div>
+      <div className="mt-0.5 text-lg font-bold sm:text-xl" dir="ltr">{value}</div>
+    </div>
+  );
+}
+
+/** شارة محايدة: الحالة غير المفعّلة ليست تحذيراً، فلا تأخذ لون تنبيه. */
+function MutedChip({ children }: { children: React.ReactNode }) {
+  return <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs text-ink-secondary">{children}</span>;
+}
+
+const MINUTES = 60 * 1000;
 
 /**
  * صفحة إعدادات واحدة لكل التكاملات. التوكنات تُشفَّر في القاعدة
@@ -86,8 +155,144 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
     revalidatePath(PATH);
   }
 
+  // أقدم حدث معلّق يتجاوز عشر دقائق = المجدول لا يعمل. بدون هذا التنبيه
+  // تبقى الأحداث في الطابور صامتة إلى الأبد بعد نسيان إعداد Cron.
+  const stalled = health.oldestPendingAt && Date.now() - health.oldestPendingAt.getTime() > 10 * MINUTES;
+
+  const platformRow = (platform: Platform) => {
+    const def = PLATFORM_DEFS[platform];
+    const current = byPlatform.get(platform);
+    // قيمة فارغة محفوظة ليست ضبطاً.
+    const hasData = Object.values(current?.config ?? {}).some((v) => v.trim().length > 0);
+    const enabled = current?.enabled ?? false;
+    const state = enabled
+      ? { pill: "مفعّل", sub: "متصل ويعمل بشكل طبيعي", dot: "bg-[var(--color-success)]", chip: "bg-[var(--success-container)] text-[var(--success-container-text)]" }
+      : { pill: hasData ? "معطّل" : "غير مربوط", sub: hasData ? "مضبوط لكنه متوقف" : "غير متصل حالياً", dot: "bg-[var(--text-disabled)]", chip: "bg-surface-muted text-ink-secondary" };
+
+    return (
+      <details key={platform} className="group border-b border-border last:border-b-0">
+        <summary className="flex cursor-pointer list-none items-center gap-3 py-3.5 [&::-webkit-details-marker]:hidden">
+          <PlatformIcon platform={platform} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate font-semibold">{def.label}</span>
+            <span className="line-clamp-2 text-xs leading-5 text-ink-secondary">{def.note}</span>
+          </span>
+          <span className="shrink-0 text-end">
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${state.chip}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${state.dot}`} />
+              {state.pill}
+            </span>
+            <span className="mt-1 hidden text-[11px] text-ink-secondary sm:block">{state.sub}</span>
+          </span>
+          <Chevron />
+        </summary>
+
+        <div className="space-y-3 pb-4 sm:ps-14">
+          <form action={save} className="space-y-3">
+            <input type="hidden" name="platform" value={platform} />
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="enabled" defaultChecked={enabled} className="h-5 w-5" />
+              تفعيل التكامل
+            </label>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {def.config.map((field) => (
+                <label key={field.name} className="block text-sm">
+                  {field.label}
+                  <Input name={`config.${field.name}`} dir="ltr" placeholder={field.placeholder} defaultValue={current?.config[field.name] ?? ""} className="mt-1" />
+                </label>
+              ))}
+              {def.secrets.map((field) => (
+                <label key={field.name} className="block text-sm">
+                  {field.label}
+                  {field.multiline ? (
+                    <Textarea
+                      name={`secret.${field.name}`}
+                      dir="ltr"
+                      rows={4}
+                      placeholder={current?.maskedSecrets[field.name] ? "محفوظ ومشفّر — اتركه فارغاً للإبقاء عليه" : "الصق محتوى الملف كاملاً"}
+                      className="mt-1 text-sm"
+                    />
+                  ) : (
+                    <Input
+                      name={`secret.${field.name}`}
+                      dir="ltr"
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder={current?.maskedSecrets[field.name] || "لم يُضبط بعد"}
+                      className="mt-1"
+                    />
+                  )}
+                  {!(field.multiline && current?.maskedSecrets[field.name]) && (
+                    <span className="mt-1 block text-xs text-ink-secondary">اتركه فارغاً للإبقاء على القيمة المحفوظة.</span>
+                  )}
+                </label>
+              ))}
+            </div>
+
+            {/* الروابط العامة حيث تُلصق فعلاً: خلاصة المنتجات مع كل منصة كتالوج،
+                وخريطة الموقع مع Search Console. مشتقة من نطاق المتجر، لا تُحفظ. */}
+            {def.links && origin && (
+              <div className="space-y-2">
+                {def.links.map((link) => (
+                  <CopyField key={link.path} value={`${origin}${link.path}`} label={link.label} hint={link.hint} />
+                ))}
+              </div>
+            )}
+
+            <Button type="submit">حفظ</Button>
+          </form>
+
+          {/* حالة الكتالوج تخصّ Merchant Center وحده، فمكانها داخل بطاقته. */}
+          {platform === "merchant" && merchant && (
+            <div className="space-y-3 rounded-card border border-border p-3">
+              <div className="flex flex-wrap gap-2 text-sm">
+                {merchantState.pending > 0 ? <Badge>في الطابور: {merchantState.pending}</Badge> : <MutedChip>في الطابور: 0</MutedChip>}
+                {merchantState.synced > 0 ? <Badge variant="success">مُزامَن: {merchantState.synced}</Badge> : <MutedChip>مُزامَن: 0</MutedChip>}
+                {merchantState.disapproved > 0 ? <Badge variant="warning">مرفوض: {merchantState.disapproved}</Badge> : <MutedChip>مرفوض: 0</MutedChip>}
+                {merchantState.failed > 0 ? <Badge variant="error">فشل: {merchantState.failed}</Badge> : <MutedChip>فشل: 0</MutedChip>}
+              </div>
+              <p className="text-xs leading-5 text-ink-secondary">
+                الرفع الأولي مرة واحدة، ثم كل تغيير على منتج أو مخزونه يُزامَن خلال دقيقة،
+                والمطابقة الليلية تعيد الرفع قبل انتهاء الصلاحية عند جوجل.
+              </p>
+              <form action={uploadCatalog}>
+                <Button type="submit" variant="secondary">رفع الكتالوج كاملاً</Button>
+              </form>
+
+              {merchantIssues.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[480px] text-sm">
+                    <thead className="text-xs text-ink-secondary">
+                      <tr>
+                        <th className="p-2 text-start">المنتج</th>
+                        <th className="p-2 text-start">الحالة</th>
+                        <th className="p-2 text-start">السبب</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {merchantIssues.map((row) => (
+                        <tr key={row.id} className="border-t border-border align-top">
+                          <td className="p-2" dir="ltr">{row.offerId}</td>
+                          <td className="p-2">{row.status === "disapproved" ? "مرفوض من جوجل" : "فشل الإرسال"}</td>
+                          <td className="p-2 text-ink-secondary">
+                            {row.issues?.map((i) => i.description).join("، ") || row.lastError || "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </details>
+    );
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="mx-auto max-w-3xl space-y-5">
       <PageHeader
         title="التكاملات والتتبّع"
         action={
@@ -99,168 +304,97 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
 
       {error && <Alert variant="error">{error}</Alert>}
       {ok && <Alert variant="success">{ok === "1" ? "تم الحفظ" : ok}</Alert>}
-
-      <Card className="space-y-2">
-        <h2 className="font-medium">حالة الطابور</h2>
-        <p className="text-sm text-ink-secondary">
-          الأحداث تُرسل خارج مسار الطلب: تأكيد الطلب لا ينتظر رد أي منصة. يشغّل المجدول
+      {stalled && (
+        <Alert variant="error">
+          هناك أحداث تنتظر منذ أكثر من عشر دقائق: تأكّد أن المجدول يستدعي
           <code className="mx-1 text-xs" dir="ltr">/api/internal/process-tracking</code>
-          كل دقيقة.
-        </p>
-        <div className="flex flex-wrap gap-2 text-sm">
-          <Badge>معلّق: {health.pending}</Badge>
-          <Badge variant="success">أُرسل: {health.sent}</Badge>
-          <Badge variant="error">فشل نهائياً: {health.failed}</Badge>
-          <Badge variant="warning">نجاح جزئي: {health.partial}</Badge>
+          كل دقيقة بترويسة <code className="text-xs" dir="ltr">x-cron-secret</code>.
+        </Alert>
+      )}
+
+      {/* نبض الطابور: ما أُرسل، ما ينتظر، وما فشل. */}
+      <Card className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--brand-container)] text-[var(--brand-container-text)]">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M3 12h3.5l2-6 3.5 12 2.5-8 1.5 2H21" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <div className="font-semibold">نقاط الأحداث</div>
+            <div className="text-xs text-ink-secondary">أحداث التتبّع المرسلة إلى كل المنصات</div>
+          </div>
+        </div>
+        <div className="flex items-stretch divide-x divide-x-reverse divide-border border-t border-border pt-3 sm:ms-auto sm:border-0 sm:pt-0">
+          <Stat label="مكتملة" value={health.sent} tone="ok" />
+          <Stat label="قيد المعالجة" value={health.pending} tone="busy" />
+          <Stat label="فاشلة" value={health.failed + health.partial} tone="bad" />
         </div>
       </Card>
 
-      {PLATFORMS.map((platform) => {
-        const def = PLATFORM_DEFS[platform];
-        const current = byPlatform.get(platform);
-        return (
-          <Card key={platform}>
-            <form action={save} className="space-y-3">
-              <input type="hidden" name="platform" value={platform} />
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h2 className="font-medium">{def.label}</h2>
-                  <p className="text-sm text-ink-secondary">{def.note}</p>
-                </div>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" name="enabled" defaultChecked={current?.enabled} className="h-5 w-5" />
-                  مفعّل
-                </label>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                {def.config.map((field) => (
-                  <label key={field.name} className="block text-sm">
-                    {field.label}
-                    <Input name={`config.${field.name}`} dir="ltr" placeholder={field.placeholder} defaultValue={current?.config[field.name] ?? ""} className="mt-1" />
-                  </label>
-                ))}
-                {def.secrets.map((field) => (
-                  <label key={field.name} className="block text-sm">
-                    {field.label}
-                    {field.multiline ? (
-                      <Textarea
-                        name={`secret.${field.name}`}
-                        dir="ltr"
-                        rows={4}
-                        placeholder={current?.maskedSecrets[field.name] || "الصق محتوى الملف كاملاً"}
-                        className="mt-1 font-mono text-sm"
-                      />
-                    ) : (
-                      <Input
-                        name={`secret.${field.name}`}
-                        dir="ltr"
-                        type="password"
-                        autoComplete="new-password"
-                        placeholder={current?.maskedSecrets[field.name] || "لم يُضبط بعد"}
-                        className="mt-1"
-                      />
-                    )}
-                    <span className="mt-1 block text-xs text-ink-secondary">اتركه فارغاً للإبقاء على القيمة المحفوظة.</span>
-                  </label>
-                ))}
-              </div>
-
-              {/* الروابط العامة للمتجر حيث تُلصق فعلاً: خلاصة المنتجات مع كل منصة كتالوج،
-                  وخريطة الموقع مع Search Console. مشتقة من نطاق المتجر، لا تُضبط ولا تُحفظ. */}
-              {def.links && origin && (
-                <div className="space-y-2">
-                  {def.links.map((link) => (
-                    <CopyField key={link.path} value={`${origin}${link.path}`} label={link.label} hint={link.hint} />
-                  ))}
-                </div>
-              )}
-
-              <Button type="submit">حفظ</Button>
-            </form>
-          </Card>
-        );
-      })}
-
-      {merchant && (
-        <Card className="space-y-3">
-          <h2 className="font-medium">مزامنة كتالوج Merchant Center</h2>
-          <p className="text-sm text-ink-secondary">
-            الرفع الأولي يصفّ الكتالوج كاملاً مرة واحدة، ثم يتكفّل العامل بالباقي: كل تغيير على منتج أو مخزونه
-            يُزامَن خلال دقيقة، والمطابقة الليلية تلتقط الانحراف وتعيد رفع ما قارب انتهاء صلاحيته عند جوجل.
-          </p>
-          <div className="flex flex-wrap gap-2 text-sm">
-            <Badge>في الطابور: {merchantState.pending}</Badge>
-            <Badge variant="success">مُزامَن: {merchantState.synced}</Badge>
-            <Badge variant="warning">مرفوض: {merchantState.disapproved}</Badge>
-            <Badge variant="error">فشل: {merchantState.failed}</Badge>
+      {GROUPS.map((group) => (
+        <section key={group.title} className="space-y-2">
+          <div className="flex items-center gap-2">
+            {GROUP_ICONS[group.icon]}
+            <h2 className="font-semibold">{group.title}</h2>
           </div>
-          <form action={uploadCatalog}>
-            <Button type="submit" variant="secondary">رفع الكتالوج كاملاً</Button>
-          </form>
+          <p className="text-xs leading-5 text-ink-secondary">{group.note}</p>
+          <Card className="py-0">{group.platforms.map(platformRow)}</Card>
+        </section>
+      ))}
 
-          {merchantIssues.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] text-sm">
-                <thead className="text-xs text-ink-secondary">
-                  <tr>
-                    <th className="p-2 text-start">المنتج</th>
-                    <th className="p-2 text-start">الحالة</th>
-                    <th className="p-2 text-start">السبب</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {merchantIssues.map((row) => (
-                    <tr key={row.id} className="border-t border-border align-top">
-                      <td className="p-2" dir="ltr">{row.offerId}</td>
-                      <td className="p-2">{row.status === "disapproved" ? "مرفوض من جوجل" : "فشل الإرسال"}</td>
-                      <td className="p-2 text-ink-secondary">
-                        {row.issues?.map((i) => i.description).join("، ") || row.lastError || "—"}
-                      </td>
+      <Card className="py-0">
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center gap-3 py-3.5 [&::-webkit-details-marker]:hidden">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-surface-muted text-ink-secondary">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M3 7.5h18v12H3z" />
+                <path d="m3 8 9 6.5L21 8" />
+              </svg>
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">سجل الإرسال الفاشل</span>
+              <span className="line-clamp-2 text-xs leading-5 text-ink-secondary">المحاولات التي لم تصل إلى المنصات، مع سببها وإعادة المحاولة يدوياً.</span>
+            </span>
+            {failed.length > 0 ? <Badge variant="error">{failed.length}</Badge> : <MutedChip>0</MutedChip>}
+            <Chevron />
+          </summary>
+          <div className="pb-4">
+            {failed.length === 0 ? (
+              <p className="text-sm text-ink-secondary">لا أحداث فاشلة.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] text-sm">
+                  <thead className="text-xs text-ink-secondary">
+                    <tr>
+                      <th className="p-2 text-start">الحدث</th>
+                      <th className="p-2 text-start">المنصات</th>
+                      <th className="p-2 text-start">المحاولات</th>
+                      <th className="p-2 text-start">السبب</th>
+                      <th className="p-2"></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-      )}
-
-      <Card className="space-y-3">
-        <h2 className="font-medium">سجل الإرسال الفاشل</h2>
-        {failed.length === 0 ? (
-          <p className="text-sm text-ink-secondary">لا أحداث فاشلة.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead className="text-start text-xs text-ink-secondary">
-                <tr>
-                  <th className="p-2 text-start">الحدث</th>
-                  <th className="p-2 text-start">المنصات</th>
-                  <th className="p-2 text-start">المحاولات</th>
-                  <th className="p-2 text-start">السبب</th>
-                  <th className="p-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {failed.map((row) => (
-                  <tr key={row.id} className="border-t border-border align-top">
-                    <td className="p-2" dir="ltr">{row.eventName}</td>
-                    <td className="p-2" dir="ltr">{row.failedPlatforms.map((p) => p.platform).join("، ") || "—"}</td>
-                    <td className="p-2" dir="ltr">{row.attempts}</td>
-                    <td className="p-2 text-ink-secondary">{row.lastError ?? "—"}</td>
-                    <td className="p-2">
-                      <form action={retry}>
-                        <input type="hidden" name="id" value={row.id} />
-                        <Button type="submit" variant="secondary" size="sm">إعادة المحاولة</Button>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {failed.map((row) => (
+                      <tr key={row.id} className="border-t border-border align-top">
+                        <td className="p-2" dir="ltr">{row.eventName}</td>
+                        <td className="p-2" dir="ltr">{row.failedPlatforms.map((p) => p.platform).join("، ") || "—"}</td>
+                        <td className="p-2" dir="ltr">{row.attempts}</td>
+                        <td className="p-2 text-ink-secondary">{row.lastError ?? "—"}</td>
+                        <td className="p-2">
+                          <form action={retry}>
+                            <input type="hidden" name="id" value={row.id} />
+                            <Button type="submit" variant="secondary" size="sm">إعادة المحاولة</Button>
+                          </form>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
+        </details>
       </Card>
     </div>
   );
