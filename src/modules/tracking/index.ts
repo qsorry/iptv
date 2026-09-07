@@ -1,6 +1,7 @@
 export { trackEvent, type TrackEventInput, type TrackEventResult } from "./application/engine";
 export { processTrackingQueue, trackingHealth } from "./application/queue";
 export { listFailedEvents, retryTrackingEvent, type FailedEventView } from "./application/failures";
+export { platformActivity, failedDeliveries, type PlatformActivity } from "./application/activity";
 export {
   listIntegrations,
   publicIntegrations,

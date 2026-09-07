@@ -12,6 +12,7 @@ export {
   type MerchantConfig,
 } from "./application/merchant-sync";
 export { reconcileMerchant, reconcileAllStores, type ReconcileResult } from "./application/reconcile";
+export { verifyMerchantLink, summarizeChecks, lastMerchantSync, type VerifyResult, type LinkCheck } from "./application/verify-link";
 export {
   buildMerchantProduct,
   googleProductId,

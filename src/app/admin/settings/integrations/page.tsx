@@ -3,13 +3,14 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getAdminContext } from "@/core/tenancy/server";
 import { AppError } from "@/core/errors";
-import { enqueueFullCatalog, listMerchantIssues, merchantConfig, merchantHealth } from "@/modules/feeds";
+import { enqueueFullCatalog, lastMerchantSync, listMerchantIssues, merchantConfig, merchantHealth, summarizeChecks, verifyMerchantLink } from "@/modules/feeds";
 import { storeOrigin } from "@/modules/stores";
 import {
   type Platform,
   PLATFORM_DEFS,
   listFailedEvents,
   listIntegrations,
+  platformActivity,
   retryTrackingEvent,
   saveIntegration,
   trackingHealth,
@@ -21,6 +22,7 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { CopyField } from "@/components/admin/copy-field";
+import { relativeTime } from "@/lib/format-time";
 import { PlatformIcon, GoogleMark } from "@/components/admin/platform-icon";
 
 export const metadata = { title: "التكاملات والتتبّع" };
@@ -88,6 +90,33 @@ function Stat({ label, value, tone }: { label: string; value: number; tone: "ok"
   );
 }
 
+/**
+ * ثلاث حالات فقط أمام التاجر: يحتاج إعداد · يعمل · يحتاج انتباه.
+ * ما تحته من تفاصيل تقنية (طابور، محاولات، أخطاء المنصة) يظهر عند فتح الصف —
+ * الصفحة لوحة تاجر لا لوحة مراقبة تشغيل.
+ */
+function rowState(input: { enabled: boolean; hasData: boolean; failed: number; needsReview: number }) {
+  if (input.enabled && (input.failed > 0 || input.needsReview > 0)) {
+    return {
+      label: "يحتاج انتباه",
+      sub: input.needsReview > 0 ? `${input.needsReview} منتجاً بحاجة مراجعة` : `${input.failed} محاولة إرسال فاشلة`,
+      chip: "bg-[var(--accent-container)] text-[var(--accent-container-text)]",
+      dot: "bg-[var(--color-warning)]",
+      dimmed: false,
+    };
+  }
+  if (input.enabled) {
+    return { label: "متصل", sub: "يعمل بشكل طبيعي", chip: "bg-[var(--success-container)] text-[var(--success-container-text)]", dot: "bg-[var(--color-success)]", dimmed: false };
+  }
+  return {
+    label: "غير متصل",
+    sub: input.hasData ? "مضبوط لكنه متوقف" : "يحتاج إعداد",
+    chip: "bg-surface-muted text-ink-secondary",
+    dot: "bg-[var(--text-disabled)]",
+    dimmed: true,
+  };
+}
+
 /** شارة محايدة: الحالة غير المفعّلة ليست تحذيراً، فلا تأخذ لون تنبيه. */
 function MutedChip({ children }: { children: React.ReactNode }) {
   return <span className="rounded-full bg-surface-muted px-2 py-0.5 text-xs text-ink-secondary">{children}</span>;
@@ -99,9 +128,9 @@ const MINUTES = 60 * 1000;
  * صفحة إعدادات واحدة لكل التكاملات. التوكنات تُشفَّر في القاعدة
  * ولا تعود للواجهة إلا مقنّعة (آخر ٤ خانات).
  */
-export default async function IntegrationsPage({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
+export default async function IntegrationsPage({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string; verify?: string }> }) {
   const ctx = await getAdminContext();
-  const [integrations, health, failed, merchant, merchantState, merchantIssues, origin] = await Promise.all([
+  const [integrations, health, failed, merchant, merchantState, merchantIssues, origin, activity, merchantSyncedAt] = await Promise.all([
     listIntegrations(ctx.storeId),
     trackingHealth(ctx.storeId),
     listFailedEvents(ctx.storeId, 20),
@@ -109,8 +138,10 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
     merchantHealth(ctx.storeId),
     listMerchantIssues(ctx.storeId, 20),
     storeOrigin(ctx.storeId),
+    platformActivity(ctx.storeId),
+    lastMerchantSync(ctx.storeId),
   ]);
-  const { error, ok } = await searchParams;
+  const { error, ok, verify } = await searchParams;
   const byPlatform = new Map(integrations.map((i) => [i.platform, i]));
 
   async function save(formData: FormData) {
@@ -149,6 +180,20 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
     redirect(msg ? `${PATH}?error=${encodeURIComponent(msg)}` : `${PATH}?ok=${encodeURIComponent(done ?? "1")}`);
   }
 
+  async function verifyLink() {
+    "use server";
+    const c = await getAdminContext();
+    let msg: string | null = null;
+    let summary: string | null = null;
+    try {
+      const result = await verifyMerchantLink(c);
+      summary = summarizeChecks(result);
+    } catch (e) {
+      msg = e instanceof AppError ? e.message : "تعذّر التحقق من الربط";
+    }
+    redirect(msg ? `${PATH}?error=${encodeURIComponent(msg)}` : `${PATH}?verify=${encodeURIComponent(summary ?? "")}`);
+  }
+
   async function retry(formData: FormData) {
     "use server";
     const c = await getAdminContext();
@@ -166,14 +211,16 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
     // قيمة فارغة محفوظة ليست ضبطاً.
     const hasData = Object.values(current?.config ?? {}).some((v) => v.trim().length > 0);
     const enabled = current?.enabled ?? false;
-    const state = enabled
-      ? { pill: "مفعّل", sub: "متصل ويعمل بشكل طبيعي", dot: "bg-[var(--color-success)]", chip: "bg-[var(--success-container)] text-[var(--success-container-text)]" }
-      : { pill: hasData ? "معطّل" : "غير مربوط", sub: hasData ? "مضبوط لكنه متوقف" : "غير متصل حالياً", dot: "bg-[var(--text-disabled)]", chip: "bg-surface-muted text-ink-secondary" };
+    const stats = activity[platform];
+    const needsReview = platform === "merchant" ? merchantState.disapproved + merchantState.failed : 0;
+    const state = rowState({ enabled, hasData, failed: stats?.failed ?? 0, needsReview });
+    // آخر نشاط: مزامنة الكتالوج لـ Merchant Center، وآخر إرسال ناجح لما عداه.
+    const lastActivity = relativeTime(platform === "merchant" ? merchantSyncedAt : (stats?.lastSentAt ?? null));
 
     return (
       <details key={platform} className="group border-b border-border last:border-b-0">
         <summary className="flex cursor-pointer list-none items-center gap-3 py-3.5 [&::-webkit-details-marker]:hidden">
-          <PlatformIcon platform={platform} />
+          <PlatformIcon platform={platform} dimmed={state.dimmed} />
           <span className="min-w-0 flex-1">
             <span className="block truncate font-semibold">{def.label}</span>
             <span className="line-clamp-2 text-xs leading-5 text-ink-secondary">{def.note}</span>
@@ -181,9 +228,11 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
           <span className="shrink-0 text-end">
             <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${state.chip}`}>
               <span className={`h-1.5 w-1.5 rounded-full ${state.dot}`} />
-              {state.pill}
+              {state.label}
             </span>
-            <span className="mt-1 hidden text-[11px] text-ink-secondary sm:block">{state.sub}</span>
+            <span className="mt-1 hidden text-[11px] text-ink-secondary sm:block">
+              {lastActivity && enabled ? `آخر نشاط ${lastActivity}` : state.sub}
+            </span>
           </span>
           <Chevron />
         </summary>
@@ -257,9 +306,30 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
                 الرفع الأولي مرة واحدة، ثم كل تغيير على منتج أو مخزونه يُزامَن خلال دقيقة،
                 والمطابقة الليلية تعيد الرفع قبل انتهاء الصلاحية عند جوجل.
               </p>
-              <form action={uploadCatalog}>
-                <Button type="submit" variant="secondary">رفع الكتالوج كاملاً</Button>
-              </form>
+              <div className="flex flex-wrap gap-2">
+                <form action={uploadCatalog}>
+                  <Button type="submit" variant="secondary">رفع الكتالوج كاملاً</Button>
+                </form>
+                <form action={verifyLink}>
+                  <Button type="submit" variant="outline">التحقق من الربط</Button>
+                </form>
+              </div>
+
+              {/* نتيجة التحقق: كل حلقة على حدة. نجاح OAuth وحده لا يعني أن
+                  Merchant Center يعمل، فلا نكتفي بـ «تم الاتصال بنجاح». */}
+              {verify && (
+                <ul className="space-y-1 rounded-card border border-border bg-surface-muted p-3 text-xs leading-6">
+                  {verify.split(" · ").map((line) => {
+                    const failed = line.startsWith("✕");
+                    const warned = line.startsWith("!");
+                    return (
+                      <li key={line} className={failed ? "text-[var(--color-error)]" : warned ? "text-[var(--color-warning)]" : "text-ink"}>
+                        {line}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
 
               {merchantIssues.length > 0 && (
                 <div className="overflow-x-auto">
