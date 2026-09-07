@@ -35,6 +35,7 @@ src/components/
   commerce/   ProductCard, ProductPrice, ProductGrid, CategoryCard, Breadcrumbs, RatingStars
   layout/     Header, MobileNavigation (+ StoreFooter في storefront/)
   sections/   Hero, Benefits, CategorySection, FeaturedProducts, PromotionalBanner, Testimonials, SectionRenderer
+  sections/promo-video/  PromoVideo (فيديو ترويجي مولّد بالكود على Canvas؛ معاينة مستقلة في /preview/promo-video)
 ```
 
 ## A4. الطبقات الثلاث
