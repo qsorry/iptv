@@ -15,7 +15,7 @@ export const VARIANTS = {
   alert: ["info", "success", "warning", "error"],
   productCard: ["default", "featured", "compact", "horizontal"],
   categoryCard: ["default", "compact"],
-  hero: ["centered", "split", "banner"],
+  hero: ["artwork", "split", "centered", "banner"],
   header: ["standard", "minimal"],
 } as const;
 

@@ -4,14 +4,17 @@ import { db } from "@/infrastructure/database/client";
 import { storeSettings } from "@/infrastructure/database/schema";
 import { ValidationError } from "@/core/errors";
 import type { StoreContext } from "@/core/tenancy";
-import { THEME_REGISTRY, THEME_VERSION, contrastRatio, contrastOn, getTheme, parseThemeOverrides, type ThemeOverrides } from "@/design-system";
-import { FONTS, ROUNDNESS, PRODUCT_LAYOUTS, DEFAULT_THEME, DEFAULT_LAYOUT } from "../themes";
+import { THEME_REGISTRY, THEME_VERSION, contrastRatio, contrastOn, getTheme, isVariant, parseThemeOverrides, type HeroVariant, type ThemeOverrides } from "@/design-system";
+import { FONTS, ROUNDNESS, PRODUCT_LAYOUTS, DEFAULT_THEME, DEFAULT_LAYOUT, DEFAULT_HERO_STYLE } from "../themes";
+import { resolveHomeLayout } from "./home-layout";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
 export const appearanceSchema = z.object({
   theme: z.string().refine((v) => v in THEME_REGISTRY, "ثيم غير معروف").default(DEFAULT_THEME),
   productLayout: z.string().refine((v) => v in PRODUCT_LAYOUTS, "طريقة عرض غير معروفة").default(DEFAULT_LAYOUT),
+  /** شكل البنر الرئيسي (variant قسم البطل في homeLayout). */
+  heroVariant: z.string().refine((v): v is HeroVariant => isVariant("hero", v), "شكل بنر غير معروف").default(DEFAULT_HERO_STYLE),
   font: z.string().refine((v) => v === "" || v in FONTS, "خط غير معروف").default(""),
   roundness: z.string().refine((v) => v === "" || v in ROUNDNESS, "استدارة غير معروفة").default(""),
   brandFromTheme: z.boolean().default(false),
@@ -44,11 +47,18 @@ function assertContrast(themeKey: string, overrides: ThemeOverrides, brandColor?
   }
 }
 
+/** شكل البنر الحالي من قسم البطل في تخطيط الرئيسية. */
+export function readHeroVariant(settings: Record<string, unknown> | undefined): HeroVariant {
+  const hero = resolveHomeLayout(settings).sections.find((s) => s.type === "hero");
+  return hero && hero.type === "hero" ? hero.variant : DEFAULT_HERO_STYLE;
+}
+
 /** يقرأ إعدادات المظهر الحالية بشكل آمن للنموذج. */
 export function readAppearance(settings: Record<string, unknown> | undefined) {
   const parsed = appearanceSchema.safeParse({
     theme: settings?.theme,
     productLayout: settings?.productLayout ?? settings?.layout,
+    heroVariant: readHeroVariant(settings),
     font: settings?.font,
     roundness: settings?.roundness,
     brandFromTheme: settings?.brandFromTheme,
@@ -71,10 +81,17 @@ export async function updateAppearance(ctx: StoreContext, input: AppearanceInput
 
   const row = await db.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, ctx.storeId) });
   const prev = (row?.settings as Record<string, unknown>) ?? {};
+  // شكل البنر يُحفظ داخل مصفوفة تخطيط الرئيسية (المصدر الوحيد لترتيب الأقسام وvariants).
+  const layout = resolveHomeLayout(prev);
+  const homeLayout = {
+    ...layout,
+    sections: layout.sections.map((s) => (s.type === "hero" ? { ...s, variant: data.heroVariant } : s)),
+  };
   const merged = {
     ...prev,
     theme: data.theme,
     productLayout: data.productLayout,
+    homeLayout,
     font: data.font,
     roundness: data.roundness,
     brandFromTheme: data.brandFromTheme,

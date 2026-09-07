@@ -16,6 +16,7 @@ import {
   type ThemeOverrides,
   SELF_HOSTED_FONT_PRELOADS,
   type ResolvedTheme,
+  type HeroVariant,
 } from "@/design-system";
 
 export { contrastOn, THEME_VERSION };
@@ -54,6 +55,15 @@ export const PRODUCT_LAYOUTS: Record<string, string> = {
   compact: "مضغوط",
 };
 export const DEFAULT_LAYOUT = "grid";
+
+/** أشكال البنر الرئيسي المتاحة للتاجر (مفاتيح variants.hero). */
+export const HERO_STYLES: Record<HeroVariant, { name: string; description: string }> = {
+  artwork: { name: "لوحة إعلانية", description: "عمل فني متكامل بصور المنتج مع النص فوقه" },
+  split: { name: "نص وصورة", description: "النص على جهة وصورة أول منتج على الأخرى" },
+  centered: { name: "مركزي", description: "عنوان ووصف وزر في المنتصف بلا صورة" },
+  banner: { name: "شريط مضغوط", description: "شريط قصير يوفّر المساحة للمنتجات" },
+};
+export const DEFAULT_HERO_STYLE: HeroVariant = "artwork";
 
 /** الخطوط المتاحة. تجوّل وIBM بلكس مستضافان ذاتياً (public/fonts)؛ الباقي من Google Fonts. المفتاح يُخزَّن في الإعدادات؛ "" = خط الثيم. */
 export const FONTS: Record<string, { name: string; stack: string; google?: string }> = {

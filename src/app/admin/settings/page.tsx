@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getAdminContext } from "@/core/tenancy/server";
-import { updateSubdomain, listDomains, addDomain, removeDomain, updateBranding, updateFooterSettings, readFooterSettings, PAYMENT_METHODS, THEMES, PRODUCT_LAYOUTS, FONTS, ROUNDNESS, updateAppearance, readAppearance, type PaymentMethodId } from "@/modules/stores";
+import { updateSubdomain, listDomains, addDomain, removeDomain, updateBranding, updateFooterSettings, readFooterSettings, PAYMENT_METHODS, THEMES, PRODUCT_LAYOUTS, FONTS, ROUNDNESS, HERO_STYLES, updateAppearance, readAppearance, type PaymentMethodId } from "@/modules/stores";
 import { stores } from "@/infrastructure/database/schema";
 import { db } from "@/infrastructure/database/client";
 import { storeSettings } from "@/infrastructure/database/schema";
@@ -30,6 +30,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const appearance = readAppearance(curSettings);
   const curTheme = appearance.theme;
   const curLayout = appearance.productLayout;
+  const curHero = appearance.heroVariant;
   const curFont = appearance.font;
   const curRoundness = appearance.roundness;
   const curBrandFromTheme = appearance.brandFromTheme;
@@ -133,6 +134,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         {
           theme: String(formData.get("theme") || ""),
           productLayout: String(formData.get("productLayout") || ""),
+          heroVariant: String(formData.get("heroVariant") || ""),
           font: String(formData.get("font") || ""),
           roundness: String(formData.get("roundness") || ""),
           brandFromTheme: formData.get("brandFromTheme") === "on",
@@ -233,6 +235,31 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                 <label key={key} className="cursor-pointer">
                   <input type="radio" name="roundness" value={key} defaultChecked={curRoundness === key} className="peer sr-only" />
                   <span className="inline-block border border-[var(--border)] px-3 py-1.5 text-sm peer-checked:border-[var(--brand)] peer-checked:text-[var(--brand)]" style={{ borderRadius: r.radius }}>{r.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="mb-2 block text-sm">شكل البنر الرئيسي</label>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {Object.entries(HERO_STYLES).map(([key, h]) => (
+                <label key={key} className="cursor-pointer">
+                  <input type="radio" name="heroVariant" value={key} defaultChecked={curHero === key} className="peer sr-only" />
+                  <div className="h-full rounded-card border-2 border-border p-2 peer-checked:border-brand">
+                    <div className="mb-2 flex h-12 gap-1 rounded-md bg-surface-muted p-1.5" aria-hidden="true">
+                      {key === "artwork" && <span className="flex-1 rounded-sm bg-brand-secondary/70" />}
+                      {key === "split" && (
+                        <>
+                          <span className="flex-1 rounded-sm bg-brand-container" />
+                          <span className="w-1/3 rounded-sm bg-brand/70" />
+                        </>
+                      )}
+                      {key === "centered" && <span className="mx-auto w-1/2 rounded-sm bg-brand-container" />}
+                      {key === "banner" && <span className="h-4 flex-1 self-center rounded-sm bg-brand-container" />}
+                    </div>
+                    <span className="block text-xs font-medium">{h.name}</span>
+                    <span className="block text-[11px] text-muted">{h.description}</span>
+                  </div>
                 </label>
               ))}
             </div>
