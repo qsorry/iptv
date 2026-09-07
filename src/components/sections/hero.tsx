@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import type { HeroVariant } from "@/design-system/variants";
 import { buttonClasses } from "@/components/ui/button";
 
-/** عمل فني للبطل: نسخة عريضة (8:3) لسطح المكتب ونسخة مستطيلة (3:2) للجوال. */
+/** عمل فني للبطل: نسخة عريضة (8:3) لسطح المكتب ونسخة مستطيلة (2:1) للجوال. */
 export interface HeroArtwork {
   wide: string;
   mobile: string;
@@ -87,7 +87,7 @@ export function Hero({ title, subtitle, cta, artwork, image, variant = "artwork"
   }
   if (onArt && artwork) {
     return (
-      <section className={cn(surface, "relative aspect-[3/2] sm:aspect-[8/3]")}>
+      <section className={cn(surface, "relative aspect-[2/1] sm:aspect-[8/3]")}>
         <picture>
           <source media="(min-width: 640px)" srcSet={artwork.wide} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
