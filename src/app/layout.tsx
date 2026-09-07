@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import "@/design-system/fonts.css";
 import "@/design-system/foundation.css";
 import "@/design-system/semantic.css";
 import "./globals.css";

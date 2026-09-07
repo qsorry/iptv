@@ -4,4 +4,4 @@ export { updateProduct, deleteProduct, addProductImageUrl, removeProductImage, s
 export { uploadProductImages } from "./application/upload-images";
 export { productRepository } from "./infrastructure/product.repository";
 export * from "./validations/product.schema";
-export { createCategory, listCategories, deleteCategory, listPublicCategories, categoryProducts } from "./application/categories";
+export { createCategory, listCategories, deleteCategory, listPublicCategories, categoryProducts, categoryById } from "./application/categories";

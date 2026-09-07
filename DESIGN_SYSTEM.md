@@ -29,9 +29,10 @@ src/design-system/
   variants.ts      سجل الـ variants
   themes.ts        سجل الثيمات + القائمة البيضاء + التحويل إلى CSS
   layouts.ts       Layout presets (مصفوفة أقسام الرئيسية)
+  fonts.css        @font-face للخطوط المستضافة ذاتياً (public/fonts، عربي + لاتيني فقط)
 src/components/
-  ui/         Button, Input, Badge, Card, Modal, Skeleton, Container
-  commerce/   ProductCard, ProductPrice, ProductGrid, CategoryCard
+  ui/         Button, Input, Badge, Alert, Card, Modal, Skeleton, Container
+  commerce/   ProductCard, ProductPrice, ProductGrid, CategoryCard, Breadcrumbs, RatingStars
   layout/     Header, MobileNavigation (+ StoreFooter في storefront/)
   sections/   Hero, Benefits, CategorySection, FeaturedProducts, PromotionalBanner, Testimonials, SectionRenderer
 ```
@@ -63,6 +64,7 @@ COMPONENTS  Tailwind: bg-surface, text-ink, border-border, rounded-card, shadow-
 | Button | `primary` `secondary` `outline` `ghost` (sizes `sm` `md` `lg`) |
 | Card | `default` `elevated` `flat` |
 | Badge | `default` `success` `warning` `error` |
+| Alert | `info` `success` `warning` `error` |
 | ProductCard | `default` `featured` `compact` `horizontal` |
 | CategoryCard | `default` `compact` |
 | Hero | `centered` `split` `banner` |
@@ -98,6 +100,9 @@ COMPONENTS  Tailwind: bg-surface, text-ink, border-border, rounded-card, shadow-
 - كل متجر يحمل `themeVersion` (`THEME_VERSION`).
 - القائمة البيضاء للتجاوز: `--color-brand-primary`, `--color-brand-accent`, `--page-bg`, `--card-radius`, `--button-radius`, `--font-family`. الباقي مملوك للنظام (`parseThemeOverrides` يهمل ما عداها).
 - الإعدادات القديمة (لون العلامة، الخط، الاستدارة) تُترجم إلى نفس القائمة في `storeThemeOverrides`.
+- الحفظ عبر حالة الاستخدام `updateAppearance` (modules/stores) التي تتحقق من التباين: النص/الخلفية ≥ 4.5، العلامة/الخلفية ≥ 3، النص فوق العلامة ≥ 3. لا كتابة مباشرة من الصفحات.
+- الخطان الافتراضيان (IBM Plex Sans Arabic، تجوّل) مستضافان ذاتياً مع `preload` للوزنين 400/700 العربيين؛ باقي الخطوط من Google Fonts عند اختيارها.
+- الاختبارات: `npm run test:theme` (بلا قاعدة بيانات) وتُنفَّذ ضمن `test:smoke`.
 
 ## A12–A14
 SEO (انظر `SEO_RULES.md`)، الوصولية (تركيز مرئي موحّد في `globals.css`، `<button>` للإجراء و`<a>` للتنقّل، تسميات للحقول)، الحركة عبر `--duration-*`/`--ease-*` مع احترام `prefers-reduced-motion`.

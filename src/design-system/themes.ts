@@ -50,7 +50,7 @@ export interface ThemeDefinition {
   /** هل هوية الثيم داكنة أساساً؟ (يؤثر على الترتيب في اللوحة فقط). */
   prefersDark: boolean;
   fontFamily: string;
-  /** معامل Google Fonts لتحميل خط الثيم (إن لم يكن خط نظام). */
+  /** معامل Google Fonts لخط غير مستضاف ذاتياً (الخطان الافتراضيان مستضافان في public/fonts). */
   googleFont?: string;
   light: ThemePalette;
   dark: ThemePalette;
@@ -93,9 +93,13 @@ const SHAPE_SHARP: ThemeShape = { cardRadius: "var(--radius-sm)", buttonRadius: 
 const SHAPE_MEDIUM: ThemeShape = { cardRadius: "var(--radius-md)", buttonRadius: "var(--radius-md)", inputRadius: "var(--radius-md)", cardShadow: "var(--shadow-sm)" };
 
 const FONT_PLEX = "'IBM Plex Sans Arabic', 'Tajawal', system-ui, sans-serif";
-const GOOGLE_PLEX = "IBM+Plex+Sans+Arabic:wght@400;500;600;700";
 const FONT_TAJAWAL = "'Tajawal', system-ui, sans-serif";
-const GOOGLE_TAJAWAL = "Tajawal:wght@400;500;700;800";
+
+/** ملفات الخطوط المستضافة ذاتياً (public/fonts) التي تستحق preload: الوزن العادي والغامق للعربية. */
+export const SELF_HOSTED_FONT_PRELOADS: Record<string, string[]> = {
+  [FONT_PLEX]: ["/fonts/ibm-plex-sans-arabic-arabic-400.woff2", "/fonts/ibm-plex-sans-arabic-arabic-700.woff2"],
+  [FONT_TAJAWAL]: ["/fonts/tajawal-arabic-400.woff2", "/fonts/tajawal-arabic-700.woff2"],
+};
 
 type Brand = Pick<ThemePalette, "brandPrimary" | "brandSecondary" | "brandAccent">;
 const palette = (base: typeof LIGHT_NEUTRALS, brand: Brand, patch: Partial<ThemePalette> = {}): ThemePalette => ({ ...base, ...brand, ...patch });
@@ -113,7 +117,7 @@ function theme(
     description,
     prefersDark: opts.prefersDark ?? false,
     fontFamily: opts.font ?? FONT_TAJAWAL,
-    googleFont: opts.font ? opts.google : GOOGLE_TAJAWAL,
+    googleFont: opts.google,
     light: palette(LIGHT_NEUTRALS, brand, opts.light),
     dark: palette(DARK_NEUTRALS, brand, opts.dark),
     shape: opts.shape ?? SHAPE_SOFT,
@@ -133,7 +137,6 @@ export const SMART_SOUQ_THEME: ThemeDefinition = theme(
   { brandPrimary: "#2563EB", brandSecondary: "#6D5BD0", brandAccent: "#F59E0B" },
   {
     font: FONT_PLEX,
-    google: GOOGLE_PLEX,
     shape: SHAPE_SOFT,
     dark: { brandPrimary: "#3B82F6", brandSecondary: "#8B7CF0", brandAccent: "#FBBF24" },
   },

@@ -14,6 +14,7 @@ import {
   contrastOn,
   type ThemeDefinition,
   type ThemeOverrides,
+  SELF_HOSTED_FONT_PRELOADS,
   type ResolvedTheme,
 } from "@/design-system";
 
@@ -54,12 +55,12 @@ export const PRODUCT_LAYOUTS: Record<string, string> = {
 };
 export const DEFAULT_LAYOUT = "grid";
 
-/** خطوط عربية من Google Fonts. المفتاح يُخزَّن في إعدادات المتجر؛ "" = خط الثيم. */
+/** الخطوط المتاحة. تجوّل وIBM بلكس مستضافان ذاتياً (public/fonts)؛ الباقي من Google Fonts. المفتاح يُخزَّن في الإعدادات؛ "" = خط الثيم. */
 export const FONTS: Record<string, { name: string; stack: string; google?: string }> = {
-  tajawal: { name: "تجوّل", stack: "'Tajawal', system-ui, sans-serif", google: "Tajawal:wght@400;500;700;800" },
+  tajawal: { name: "تجوّل", stack: "'Tajawal', system-ui, sans-serif" },
   cairo: { name: "القاهرة", stack: "'Cairo', system-ui, sans-serif", google: "Cairo:wght@400;600;700;800" },
   almarai: { name: "المراعي", stack: "'Almarai', system-ui, sans-serif", google: "Almarai:wght@400;700;800" },
-  ibmarabic: { name: "IBM بلكس", stack: "'IBM Plex Sans Arabic', system-ui, sans-serif", google: "IBM+Plex+Sans+Arabic:wght@400;500;600;700" },
+  ibmarabic: { name: "IBM بلكس", stack: "'IBM Plex Sans Arabic', 'Tajawal', system-ui, sans-serif" },
   rubik: { name: "روبيك", stack: "'Rubik', system-ui, sans-serif", google: "Rubik:wght@400;500;600;700" },
   notokufi: { name: "نوتو كوفي", stack: "'Noto Kufi Arabic', system-ui, sans-serif", google: "Noto+Kufi+Arabic:wght@400;500;700" },
   system: { name: "افتراضي النظام", stack: "system-ui, -apple-system, 'Segoe UI', sans-serif" },
@@ -130,6 +131,17 @@ export function googleFontHref(fontKey: string | undefined, themeKey?: string): 
   const google = f ? f.google : getTheme(themeKey).googleFont;
   if (!google) return undefined;
   return `https://fonts.googleapis.com/css2?family=${google}&display=swap`;
+}
+
+/** الخط الفعلي للمتجر (خط المتجر أو خط الثيم). */
+export function effectiveFontFamily(fontKey: string | undefined, themeKey?: string): string {
+  const f = fontKey ? FONTS[fontKey] : undefined;
+  return f ? f.stack : getTheme(themeKey).fontFamily;
+}
+
+/** ملفات الخط المستضاف ذاتياً التي تستحق <link rel="preload"> لهذا المتجر (فارغة لخطوط Google/النظام). */
+export function fontPreloads(fontKey: string | undefined, themeKey?: string): string[] {
+  return SELF_HOSTED_FONT_PRELOADS[effectiveFontFamily(fontKey, themeKey)] ?? [];
 }
 
 /** هل هوية الثيم داكنة أساساً؟ */

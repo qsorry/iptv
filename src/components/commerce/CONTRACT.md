@@ -18,3 +18,10 @@
 ## CategoryCard
 - Purpose: رابط تصنيف مع أيقونة/صورة.
 - Variants: `default | compact`.
+
+## Breadcrumbs
+- Purpose: مسار تنقّل بروابط حقيقية + BreadcrumbList JSON-LD.
+- Required: `items` (آخر عنصر بلا رابط).
+
+## RatingStars
+- Purpose: نجوم عرض فقط بلون `--rating-color`.

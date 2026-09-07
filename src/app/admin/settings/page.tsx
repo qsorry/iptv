@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getAdminContext } from "@/core/tenancy/server";
-import { updateSubdomain, listDomains, addDomain, removeDomain, updateBranding, updateFooterSettings, readFooterSettings, PAYMENT_METHODS, THEMES, PRODUCT_LAYOUTS, FONTS, ROUNDNESS, DEFAULT_THEME, DEFAULT_LAYOUT, DEFAULT_FONT, THEME_VERSION, type PaymentMethodId } from "@/modules/stores";
+import { updateSubdomain, listDomains, addDomain, removeDomain, updateBranding, updateFooterSettings, readFooterSettings, PAYMENT_METHODS, THEMES, PRODUCT_LAYOUTS, FONTS, ROUNDNESS, updateAppearance, readAppearance, type PaymentMethodId } from "@/modules/stores";
 import { stores } from "@/infrastructure/database/schema";
 import { db } from "@/infrastructure/database/client";
 import { storeSettings } from "@/infrastructure/database/schema";
@@ -27,13 +27,13 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const taxPercent = (settingsRow?.settings as Record<string, unknown> | undefined)?.taxPercent ?? 15;
   const vatNumber = (settingsRow?.settings as Record<string, unknown> | undefined)?.vatNumber ?? "";
   const curSettings = (settingsRow?.settings as Record<string, unknown> | undefined) ?? {};
-  const curTheme = (curSettings.theme as string | undefined) ?? DEFAULT_THEME;
-  const curLayout = (curSettings.layout as string | undefined) ?? (curSettings.productLayout as string | undefined) ?? DEFAULT_LAYOUT;
-  const curFont = (curSettings.font as string | undefined) ?? DEFAULT_FONT;
-  const curRoundness = (curSettings.roundness as string | undefined) ?? "";
-  const curBrandFromTheme = curSettings.brandFromTheme === true;
-  const curOverrides = (curSettings.themeOverrides as Record<string, string> | undefined) ?? {};
-  const curAccent = curOverrides["--color-brand-accent"] ?? "";
+  const appearance = readAppearance(curSettings);
+  const curTheme = appearance.theme;
+  const curLayout = appearance.productLayout;
+  const curFont = appearance.font;
+  const curRoundness = appearance.roundness;
+  const curBrandFromTheme = appearance.brandFromTheme;
+  const curAccent = appearance.themeOverrides["--color-brand-accent"] ?? "";
   const footer = readFooterSettings(curSettings);
   const { error, ok } = await searchParams;
   const scheme = PLATFORM_DOMAIN.includes("localhost") ? "http" : "https";
@@ -124,23 +124,27 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   async function saveAppearance(formData: FormData) {
     "use server";
     const c = await getAdminContext();
-    const theme = String(formData.get("theme") || DEFAULT_THEME);
-    const productLayout = String(formData.get("productLayout") || DEFAULT_LAYOUT);
-    const font = String(formData.get("font") || DEFAULT_FONT);
-    const roundness = String(formData.get("roundness") || "");
-    const brandFromTheme = formData.get("brandFromTheme") === "on";
+    const storeRow = await db.query.stores.findFirst({ where: eq(stores.id, c.storeId), columns: { brandColor: true } });
     const accent = String(formData.get("accentColor") || "").trim();
-    const row = await db.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, c.storeId) });
-    const prev = (row?.settings as Record<string, unknown>) ?? {};
-    const prevOverrides = (prev.themeOverrides as Record<string, string> | undefined) ?? {};
-    // التجاوزات تُخزَّن كـ JSON بمفاتيح الرموز (قائمة بيضاء تُتحقَّق عند القراءة). "" = إزالة التجاوز.
-    const themeOverrides: Record<string, string> = { ...prevOverrides };
-    if (/^#[0-9a-fA-F]{6}$/.test(accent) && formData.get("useAccent") === "on") themeOverrides["--color-brand-accent"] = accent;
-    else delete themeOverrides["--color-brand-accent"];
-    const merged = { ...prev, theme, productLayout, font, roundness, brandFromTheme, themeOverrides, themeVersion: THEME_VERSION };
-    await db.update(storeSettings).set({ settings: merged, updatedAt: new Date() }).where(eq(storeSettings.storeId, c.storeId));
+    let msg: string | null = null;
+    try {
+      await updateAppearance(
+        c,
+        {
+          theme: String(formData.get("theme") || ""),
+          productLayout: String(formData.get("productLayout") || ""),
+          font: String(formData.get("font") || ""),
+          roundness: String(formData.get("roundness") || ""),
+          brandFromTheme: formData.get("brandFromTheme") === "on",
+          themeOverrides: formData.get("useAccent") === "on" && accent ? { "--color-brand-accent": accent } : {},
+        },
+        storeRow?.brandColor,
+      );
+    } catch (e) {
+      msg = errorMessage(e, "تعذّر حفظ المظهر");
+    }
     revalidatePath("/admin/settings");
-    redirect("/admin/settings?ok=1");
+    redirect(msg ? `/admin/settings?error=${encodeURIComponent(msg)}` : "/admin/settings?ok=1");
   }
 
   return (
