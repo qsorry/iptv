@@ -24,6 +24,8 @@
 | `NEXT_PUBLIC_APP_URL` | `https://platform.com` — فعّل **Build Variable** |
 | `PLATFORM_DOMAIN` | `platform.com` بدون بروتوكول |
 | `S3_ENDPOINT` / `S3_BUCKET` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_PUBLIC_URL` | من §2 |
+| `CRON_SECRET` | يحمي مسارات العامل الداخلية (`/api/internal/*`) |
+| `INTEGRATIONS_SECRET_KEY` | مفتاح تشفير توكنات التكاملات؛ يعود إلى `BETTER_AUTH_SECRET` إن غاب |
 
 ## 5. المتاجر على subdomains
 - سجل DNS من نوع A لـ `*.platform.com` يشير إلى خادم Coolify.
@@ -34,6 +36,16 @@
 إعداد Coolify الافتراضي يفحص المنفذ 80 والمسار `/`، بينما التطبيق يعمل على 3000. إن بقي الافتراضي
 تُعلَّم الحاوية unhealthy ويعرض Traefik «no available server». في قسم **Healthcheck** بالتطبيق:
 **Port: 3000**، **Path: /api/health**. أو عطّل فحص Coolify واعتمد على `HEALTHCHECK` في الـ Dockerfile.
+
+## 6.1 المجدولات (Scheduled Tasks)
+مهمتان في Coolify كل دقيقة، كلتاهما `POST` مع ترويسة `x-cron-secret: $CRON_SECRET`:
+
+| المسار | الوظيفة |
+|---|---|
+| `/api/internal/process-events` | outbox الأعمال (تسليم الأكواد، الاشتراكات، الإشعارات) |
+| `/api/internal/process-tracking` | طابور أحداث التتبّع نحو GA4 وMeta وTikTok وSnapchat |
+
+الفصل مقصود: بطء منصة إعلانية يجب ألا يؤخّر تسليم أكواد الاشتراك.
 
 ## 7. الهجرات
 تُطبَّق تلقائياً عند إقلاع الحاوية (`scripts/migrate.mjs` قبل `server.js`). إن فشلت لا يبدأ التطبيق.

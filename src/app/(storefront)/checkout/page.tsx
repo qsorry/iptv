@@ -2,17 +2,21 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getStorefrontStore } from "@/core/tenancy/server";
 import { readCartId, clearCartId } from "@/core/tenancy/cart-cookie";
+import { ensureVisitorKey } from "@/core/tenancy/visitor-cookie";
 import { getCartView } from "@/modules/carts";
 import { createOrder } from "@/modules/orders";
 import { upsertCustomer } from "@/modules/customers";
 import { AppError } from "@/core/errors";
-import { formatMoney, percentOf } from "@/core/money";
+import { formatMoney, percentOf, toMinor } from "@/core/money";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/shared/empty-state";
+import { TrackOnView } from "@/components/tracking/track-on-view";
+import { CONSENT_COOKIE, consentOrDenied, deterministicEventId, trackEvent } from "@/modules/tracking";
+import { cookies, headers } from "next/headers";
 import { db } from "@/infrastructure/database/client";
-import { storeSettings } from "@/infrastructure/database/schema";
+import { orderItems, storeSettings } from "@/infrastructure/database/schema";
 import { eq } from "drizzle-orm";
 
 export const metadata = { title: "إتمام الشراء" };
@@ -39,14 +43,17 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
     const cid = await readCartId(s.id);
     if (!cid) redirect("/cart");
 
+    const visitorKey = await ensureVisitorKey();
     const email = String(formData.get("email") || "").trim() || undefined;
     const customerId = await upsertCustomer(s.id, { email, phone: String(formData.get("phone") || "") || undefined, firstName: String(formData.get("name") || "") || undefined });
     let orderId: string | null = null;
+    let orderTotals: { subtotal: string; discountTotal: string; orderNumber: string } | null = null;
     try {
       const order = await createOrder({
         storeId: s.id,
         cartId: cid!,
         customerId,
+        visitorKey,
         couponCode: String(formData.get("coupon") || "") || undefined,
         shippingAddress: {
           fullName: String(formData.get("name") || "عميل"),
@@ -57,10 +64,43 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
         notes: String(formData.get("notes") || "") || undefined,
       });
       orderId = order.id;
+      orderTotals = { subtotal: order.subtotal, discountTotal: order.discountTotal, orderNumber: order.orderNumber };
     } catch (e) {
       const msg = e instanceof AppError ? e.message : "تعذّر إتمام الطلب";
       redirect(`/checkout?error=${encodeURIComponent(msg)}`);
     }
+    // Purchase يُنتج على الخادم من الطلب نفسه: القيمة لا تُصدَّق من المتصفح.
+    // نفس event_id يُرسم في صفحة الطلب فتدمج المنصة نسخة البكسل مع النسخة السيرفرية،
+    // و dedupe_key يمنع تكرار الحدث لو أُعيد إنشاء الطلب أو حُمِّلت الصفحة مرتين.
+    if (orderId) {
+      const jar = await cookies();
+      const h = await headers();
+      const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+      await trackEvent({
+        storeId: s.id,
+        eventName: "purchase",
+        eventId: deterministicEventId(`purchase:${orderId}`),
+        dedupeKey: `purchase:${orderId}`,
+        consent: consentOrDenied(jar.get(CONSENT_COOKIE)?.value),
+        visitorKey,
+        eventSourceUrl: h.get("referer"),
+        user: {
+          email,
+          phone: String(formData.get("phone") || "") || undefined,
+          externalId: visitorKey,
+          clientIp: h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+          userAgent: h.get("user-agent"),
+        },
+        data: {
+          currency: s.currencyCode,
+          // القيمة بلا شحن ولا ضريبة — قاعدة موحّدة عبر كل المنصات.
+          value: (toMinor(orderTotals!.subtotal) - toMinor(orderTotals!.discountTotal)) / 100,
+          orderId: orderTotals!.orderNumber,
+          items: items.map((i) => ({ id: i.sku ?? i.variantId ?? i.id, name: i.productName, qty: i.quantity, price: toMinor(i.unitPrice) / 100 })),
+        },
+      });
+    }
+
     // ربط بريد العميل بالطلب لاحقاً عبر customer؛ الآن نمرّر الاسم فقط.
     await clearCartId(s.id);
     redirect(`/orders/${orderId}`);
@@ -68,6 +108,14 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="mx-auto max-w-2xl">
+      <TrackOnView
+        event="begin_checkout"
+        data={{
+          currency: store.currencyCode,
+          value: cart.subtotal / 100,
+          items: cart.items.map((i) => ({ id: i.variantId, name: i.productName, qty: i.quantity, price: toMinor(i.unitPrice) / 100 })),
+        }}
+      />
       <h1 className="mb-4 text-xl font-bold sm:text-2xl">إتمام الشراء</h1>
       {error && <p className="mb-4 rounded-[var(--radius)] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 

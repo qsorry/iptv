@@ -8,6 +8,8 @@ import { eq } from "drizzle-orm";
 import { formatMoney, toMinor } from "@/core/money";
 import { Card } from "@/components/ui/card";
 import { codeLines } from "@/lib/format-code";
+import { TrackOnView } from "@/components/tracking/track-on-view";
+import { deterministicEventId } from "@/modules/tracking";
 
 const payLabel: Record<string, string> = {
   unpaid: "بانتظار الدفع",
@@ -35,8 +37,24 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
     codesByItem.set(c.orderItemId, [...(codesByItem.get(c.orderItemId) ?? []), c.code]);
   }
 
+  // نسخة المتصفح من Purchase بنفس event_id الذي أرسله الخادم عند إنشاء الطلب.
+  // serverSide=false: لا نعيد كتابته في الطابور، والمنصة تدمج النسختين.
+  const purchaseEventId = deterministicEventId(`purchase:${order.id}`);
+  const purchaseValue = (toMinor(order.subtotal) - toMinor(order.discountTotal)) / 100;
+
   return (
     <div className="mx-auto max-w-lg">
+      <TrackOnView
+        event="purchase"
+        serverSide={false}
+        eventId={purchaseEventId}
+        data={{
+          currency: order.currencyCode,
+          value: purchaseValue,
+          order_id: order.orderNumber,
+          items: items.map((i) => ({ id: i.sku ?? i.variantId ?? i.id, name: i.productName, qty: i.quantity, price: toMinor(i.unitPrice) / 100 })),
+        }}
+      />
       <h1 className="text-xl font-bold sm:text-2xl">طلب رقم {order.orderNumber}</h1>
       <p className="mt-1 text-sm text-[var(--muted)]">
         حالة الدفع: <span className={paid ? "text-green-600" : ""}>{payLabel[order.paymentStatus] ?? order.paymentStatus}</span>

@@ -34,6 +34,7 @@ export interface BuyVariant {
   name: string;
   price: string;
   compareAtPrice?: string | null;
+  sku?: string | null;
 }
 
 /** لوحة الشراء التفاعلية: اختيار الخيار، السعر مع الخصم، الكمية، والإضافة للسلة. */
@@ -42,11 +43,13 @@ export function BuyBox({
   currency,
   action,
   digital,
+  productName,
 }: {
   variants: BuyVariant[];
   currency: string;
   action: (formData: FormData) => void;
   digital: boolean;
+  productName?: string;
 }) {
   const [variantId, setVariantId] = useState(variants[0]?.id ?? "");
   const [qty, setQty] = useState(1);
@@ -131,7 +134,16 @@ export function BuyBox({
         </div>
       </div>
 
-      <form action={action}>
+      <form
+        action={action}
+        onSubmit={() =>
+          window.sqTrack?.("add_to_cart", {
+            currency,
+            value: (price * qty) / 100,
+            items: [{ id: variant?.sku ?? variantId, name: productName, qty, price: price / 100 }],
+          })
+        }
+      >
         <input type="hidden" name="variantId" value={variantId} />
         <input type="hidden" name="quantity" value={qty} />
         <AddButton digital={digital} />

@@ -11,6 +11,9 @@ import { StoreFooter } from "@/components/storefront/store-footer";
 import { Header } from "@/components/layout/header";
 import { MobileNavigation } from "@/components/layout/mobile-navigation";
 import { THEME_INIT_SCRIPT, THEME_MODE_KEY, THEME_ROOT_ID, isThemeMode, type ThemeMode } from "@/components/storefront/theme-mode";
+import { TrackingScripts } from "@/components/tracking/tracking-scripts";
+import { ConsentBanner } from "@/components/tracking/consent-banner";
+import { publicIntegrations } from "@/modules/tracking";
 import { db } from "@/infrastructure/database/client";
 import { storeSettings } from "@/infrastructure/database/schema";
 import { eq } from "drizzle-orm";
@@ -23,7 +26,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const scheme = host.includes("localhost") ? "http" : "https";
   const base = host ? new URL(`${scheme}://${host}`) : undefined;
   const name = store?.name ?? "المتجر";
+  const integrations = store ? await publicIntegrations(store.id) : {};
+  const googleVerification = integrations.google?.siteVerification;
   return {
+    verification: googleVerification ? { google: googleVerification } : undefined,
     metadataBase: base,
     applicationName: name,
     title: { default: name, template: `%s — ${name}` },
@@ -52,6 +58,13 @@ export default async function StorefrontLayout({ children }: { children: React.R
   // وضع الزائر المحفوظ في الكوكي يُرسَم من الخادم لتفادي وميض الثيم؛ السكربت أدناه يراعي localStorage أيضاً.
   const cookieMode = (await cookies()).get(THEME_MODE_KEY)?.value;
   const mode: ThemeMode = isThemeMode(cookieMode) ? cookieMode : "system";
+  const integrations = store ? await publicIntegrations(store.id) : {};
+  const pixels = {
+    meta: integrations.meta?.pixelId,
+    tiktok: integrations.tiktok?.pixelCode,
+    snapchat: integrations.snapchat?.pixelId,
+    clarity: integrations.clarity?.projectId,
+  };
   const cats = store ? await listPublicCategories(store.id) : [];
   const footerPages = store ? await listFooterPages(store.id) : [];
   const storeInfo = { name: store?.name ?? "المتجر", logoUrl: store?.logoUrl, description: store?.description };
@@ -82,6 +95,8 @@ export default async function StorefrontLayout({ children }: { children: React.R
       </main>
       <StoreFooter store={storeInfo} footer={readFooterSettings(s)} vatNumber={typeof s.vatNumber === "string" ? s.vatNumber : ""} pages={footerPages} />
       <MobileNavigation cartCount={count} />
+      <TrackingScripts pixels={pixels} />
+      <ConsentBanner />
     </div>
   );
 }

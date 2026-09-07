@@ -26,6 +26,23 @@ export const orders = pgTable(
     taxTotal: money("tax_total").default("0").notNull(),
     grandTotal: money("grand_total").notNull(),
     notes: text("notes"),
+    // إسناد الطلب: نسخة لا ربط. لو حُذف الزائر أو تغيّرت جلسته يبقى تاريخ الطلب كما هو.
+    visitorKey: text("visitor_key"),
+    utmSource: text("utm_source"),
+    utmMedium: text("utm_medium"),
+    utmCampaign: text("utm_campaign"),
+    utmContent: text("utm_content"),
+    utmTerm: text("utm_term"),
+    gclid: text("gclid"),
+    fbclid: text("fbclid"),
+    ttclid: text("ttclid"),
+    sccid: text("sccid"),
+    msclkid: text("msclkid"),
+    referrer: text("referrer"),
+    landingPage: text("landing_page"),
+    device: text("device"),
+    /** لقطة first touch كاملة إلى جانب last touch أعلاه. */
+    firstTouch: jsonb("first_touch").$type<Record<string, string | null>>(),
     placedAt: timestamp("placed_at", { withTimezone: true }).defaultNow().notNull(),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     ...timestamps(),
@@ -34,6 +51,7 @@ export const orders = pgTable(
     uniqueIndex("orders_store_number_idx").on(t.storeId, t.orderNumber),
     index("orders_store_status_idx").on(t.storeId, t.status),
     index("orders_customer_idx").on(t.customerId),
+    index("orders_store_source_idx").on(t.storeId, t.utmSource),
   ],
 );
 

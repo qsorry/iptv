@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getAdminContext } from "@/core/tenancy/server";
@@ -155,6 +156,17 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
       {error && <p className="mb-4 rounded-[var(--radius)] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {ok && <p className="mb-4 rounded-[var(--radius)] border border-green-200 bg-green-50 p-3 text-sm text-green-700">تم الحفظ.</p>}
+
+      {/* التكاملات والتتبّع */}
+      <h2 className="mb-2 text-sm font-semibold text-[var(--muted)]">التكاملات والتتبّع</h2>
+      <Card className="mb-8 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-ink-secondary">
+          GA4 وMeta وTikTok وSnapchat وClarity وSearch Console — محرك أحداث واحد يوزّع على كل المنصات.
+        </p>
+        <Link href="/admin/settings/integrations">
+          <Button variant="secondary">فتح صفحة التكاملات</Button>
+        </Link>
+      </Card>
 
       {/* هوية المتجر */}
       <h2 className="mb-2 text-sm font-semibold text-[var(--muted)]">هوية المتجر</h2>

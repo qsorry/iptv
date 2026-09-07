@@ -7,6 +7,7 @@ import { inventoryRepository } from "@/modules/inventory";
 import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { TrackOnView } from "@/components/tracking/track-on-view";
 import { Breadcrumbs, type Crumb } from "@/components/commerce/breadcrumbs";
 import { RatingStars } from "@/components/commerce/rating-stars";
 import { productReviews, submitReview } from "@/modules/reviews";
@@ -161,6 +162,14 @@ export default async function ProductPage({
   return (
     <div className="mx-auto max-w-5xl pb-24 lg:pb-0">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <TrackOnView
+        event="view_item"
+        data={{
+          currency: store.currencyCode,
+          value: variant ? Number(variant.price) : undefined,
+          items: [{ id: variant?.sku ?? variant?.id ?? product.id, name: product.name, qty: 1, price: variant ? Number(variant.price) : 0 }],
+        }}
+      />
 
       {sp.reviewed && <Alert variant="success" className="mb-4">شكراً لك! تم استلام تقييمك وسيظهر بعد مراجعته من المتجر.</Alert>}
       {sp.review_error && <Alert variant="error" className="mb-4">{sp.review_error}</Alert>}
@@ -187,7 +196,8 @@ export default async function ProductPage({
 
           <div className="mt-6">
             <BuyBox
-              variants={product.variants.map((v) => ({ id: v.id, name: v.name, price: v.price, compareAtPrice: v.compareAtPrice }))}
+              variants={product.variants.map((v) => ({ id: v.id, name: v.name, price: v.price, compareAtPrice: v.compareAtPrice, sku: v.sku }))}
+              productName={product.name}
               currency={store.currencyCode}
               action={addToCartAction}
               digital={isDigital}
