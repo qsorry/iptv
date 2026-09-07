@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getAdminContext } from "@/core/tenancy/server";
 import { AppError } from "@/core/errors";
+import { enqueueFullCatalog, listMerchantIssues, merchantConfig, merchantHealth } from "@/modules/feeds";
 import {
   PLATFORMS,
   PLATFORM_DEFS,
@@ -15,7 +16,7 @@ import {
 import { PageHeader } from "@/components/admin/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, Textarea } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 
@@ -29,10 +30,13 @@ const PATH = "/admin/settings/integrations";
  */
 export default async function IntegrationsPage({ searchParams }: { searchParams: Promise<{ error?: string; ok?: string }> }) {
   const ctx = await getAdminContext();
-  const [integrations, health, failed] = await Promise.all([
+  const [integrations, health, failed, merchant, merchantState, merchantIssues] = await Promise.all([
     listIntegrations(ctx.storeId),
     trackingHealth(ctx.storeId),
     listFailedEvents(ctx.storeId, 20),
+    merchantConfig(ctx.storeId),
+    merchantHealth(ctx.storeId),
+    listMerchantIssues(ctx.storeId, 20),
   ]);
   const { error, ok } = await searchParams;
   const byPlatform = new Map(integrations.map((i) => [i.platform, i]));
@@ -58,6 +62,21 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
     redirect(msg ? `${PATH}?error=${encodeURIComponent(msg)}` : `${PATH}?ok=1`);
   }
 
+  async function uploadCatalog() {
+    "use server";
+    const c = await getAdminContext();
+    let msg: string | null = null;
+    let done: string | null = null;
+    try {
+      const result = await enqueueFullCatalog(c);
+      done = `صُفّ ${result.queued} منتجاً${result.removed > 0 ? ` وحُدّد ${result.removed} للحذف` : ""}`;
+    } catch (e) {
+      msg = e instanceof AppError ? e.message : "تعذّر رفع الكتالوج";
+    }
+    revalidatePath(PATH);
+    redirect(msg ? `${PATH}?error=${encodeURIComponent(msg)}` : `${PATH}?ok=${encodeURIComponent(done ?? "1")}`);
+  }
+
   async function retry(formData: FormData) {
     "use server";
     const c = await getAdminContext();
@@ -77,7 +96,7 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
       />
 
       {error && <Alert variant="error">{error}</Alert>}
-      {ok && <Alert variant="success">تم الحفظ</Alert>}
+      {ok && <Alert variant="success">{ok === "1" ? "تم الحفظ" : ok}</Alert>}
 
       <Card className="space-y-2">
         <h2 className="font-medium">حالة الطابور</h2>
@@ -122,14 +141,24 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
                 {def.secrets.map((field) => (
                   <label key={field.name} className="block text-sm">
                     {field.label}
-                    <Input
-                      name={`secret.${field.name}`}
-                      dir="ltr"
-                      type="password"
-                      autoComplete="new-password"
-                      placeholder={current?.maskedSecrets[field.name] || "لم يُضبط بعد"}
-                      className="mt-1"
-                    />
+                    {field.multiline ? (
+                      <Textarea
+                        name={`secret.${field.name}`}
+                        dir="ltr"
+                        rows={4}
+                        placeholder={current?.maskedSecrets[field.name] || "الصق محتوى الملف كاملاً"}
+                        className="mt-1 font-mono text-sm"
+                      />
+                    ) : (
+                      <Input
+                        name={`secret.${field.name}`}
+                        dir="ltr"
+                        type="password"
+                        autoComplete="new-password"
+                        placeholder={current?.maskedSecrets[field.name] || "لم يُضبط بعد"}
+                        className="mt-1"
+                      />
+                    )}
                     <span className="mt-1 block text-xs text-ink-secondary">اتركه فارغاً للإبقاء على القيمة المحفوظة.</span>
                   </label>
                 ))}
@@ -140,6 +169,50 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
           </Card>
         );
       })}
+
+      {merchant && (
+        <Card className="space-y-3">
+          <h2 className="font-medium">مزامنة كتالوج Merchant Center</h2>
+          <p className="text-sm text-ink-secondary">
+            الرفع الأولي يصفّ الكتالوج كاملاً مرة واحدة، ثم يتكفّل العامل بالباقي: كل تغيير على منتج أو مخزونه
+            يُزامَن خلال دقيقة، والمطابقة الليلية تلتقط الانحراف وتعيد رفع ما قارب انتهاء صلاحيته عند جوجل.
+          </p>
+          <div className="flex flex-wrap gap-2 text-sm">
+            <Badge>في الطابور: {merchantState.pending}</Badge>
+            <Badge variant="success">مُزامَن: {merchantState.synced}</Badge>
+            <Badge variant="warning">مرفوض: {merchantState.disapproved}</Badge>
+            <Badge variant="error">فشل: {merchantState.failed}</Badge>
+          </div>
+          <form action={uploadCatalog}>
+            <Button type="submit" variant="secondary">رفع الكتالوج كاملاً</Button>
+          </form>
+
+          {merchantIssues.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px] text-sm">
+                <thead className="text-xs text-ink-secondary">
+                  <tr>
+                    <th className="p-2 text-start">المنتج</th>
+                    <th className="p-2 text-start">الحالة</th>
+                    <th className="p-2 text-start">السبب</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {merchantIssues.map((row) => (
+                    <tr key={row.id} className="border-t border-border align-top">
+                      <td className="p-2" dir="ltr">{row.offerId}</td>
+                      <td className="p-2">{row.status === "disapproved" ? "مرفوض من جوجل" : "فشل الإرسال"}</td>
+                      <td className="p-2 text-ink-secondary">
+                        {row.issues?.map((i) => i.description).join("، ") || row.lastError || "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
 
       <Card className="space-y-3">
         <h2 className="font-medium">سجل الإرسال الفاشل</h2>

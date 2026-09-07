@@ -44,6 +44,8 @@
 |---|---|
 | `/api/internal/process-events` | outbox الأعمال (تسليم الأكواد، الاشتراكات، الإشعارات) |
 | `/api/internal/process-tracking` | طابور أحداث التتبّع نحو GA4 وMeta وTikTok وSnapchat |
+| `/api/internal/process-merchant` | مزامنة كتالوج Merchant Center (كل دقيقة) |
+| `/api/internal/reconcile-merchant` | مطابقة Merchant Center الليلية (يومياً ٣ فجراً) |
 
 الفصل مقصود: بطء منصة إعلانية يجب ألا يؤخّر تسليم أكواد الاشتراك.
 

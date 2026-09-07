@@ -26,7 +26,7 @@ export async function upsertPage(ctx: StoreContext, input: { id?: string; title:
 export const listPages = (storeId: string) => db.select().from(pages).where(eq(pages.storeId, storeId)).orderBy(desc(pages.createdAt));
 export const getPageById = (storeId: string, id: string) => db.query.pages.findFirst({ where: and(eq(pages.storeId, storeId), eq(pages.id, id)) });
 export const getPublicPage = (storeId: string, slug: string) => db.query.pages.findFirst({ where: and(eq(pages.storeId, storeId), eq(pages.slug, slug), eq(pages.status, "published")) });
-export const listFooterPages = (storeId: string) => db.select({ title: pages.title, slug: pages.slug }).from(pages).where(and(eq(pages.storeId, storeId), eq(pages.status, "published")));
+export const listFooterPages = (storeId: string) => db.select({ title: pages.title, slug: pages.slug, updatedAt: pages.updatedAt }).from(pages).where(and(eq(pages.storeId, storeId), eq(pages.status, "published")));
 
 export async function deletePage(ctx: StoreContext, id: string) {
   requireRole(ctx, "owner", "admin");

@@ -56,6 +56,15 @@ export async function updateProduct(ctx: StoreContext, productId: string, input:
     if (input.status === "active" && !product.publishedAt) {
       await publishEvent(tx, { storeId: ctx.storeId, type: "product.published", aggregateType: "product", aggregateId: productId });
     }
+
+    // أي تغيير على منتج منشور يعني تحديث الخلاصات؛ سحبه من النشر يعني حذفه منها.
+    const unpublished = input.status !== undefined && input.status !== "active";
+    await publishEvent(tx, {
+      storeId: ctx.storeId,
+      type: unpublished ? "product.unpublished" : "product.updated",
+      aggregateType: "product",
+      aggregateId: productId,
+    });
   });
 }
 
@@ -64,7 +73,15 @@ export async function deleteProduct(ctx: StoreContext, productId: string) {
   requireRole(ctx, "owner", "admin");
   const product = await db.query.products.findFirst({ where: and(eq(products.storeId, ctx.storeId), eq(products.id, productId)) });
   if (!product) throw new NotFoundError("المنتج", productId);
-  await db.update(products).set({ deletedAt: new Date(), status: "archived", updatedAt: new Date() }).where(eq(products.id, productId));
+  await db.transaction(async (tx) => {
+    await tx.update(products).set({ deletedAt: new Date(), status: "archived", updatedAt: new Date() }).where(eq(products.id, productId));
+    await publishEvent(tx, { storeId: ctx.storeId, type: "product.unpublished", aggregateType: "product", aggregateId: productId });
+  });
+}
+
+/** تغيير لا يمسّ صف المنتج نفسه (صورة، خيار) لكنه يغيّر الخلاصة. */
+async function publishProductTouched(storeId: string, productId: string) {
+  await publishEvent(db, { storeId, type: "product.updated", aggregateType: "product", aggregateId: productId });
 }
 
 /** إضافة صورة بالرابط (تُستخدم أيضاً عند الاستيراد من سلة). */
@@ -78,12 +95,14 @@ export async function addProductImageUrl(ctx: StoreContext, productId: string, u
     .insert(productMedia)
     .values({ productId, type: "image", url, altText, position: existing.length, isPrimary: existing.length === 0 })
     .returning();
+  await publishProductTouched(ctx.storeId, productId);
   return row;
 }
 
 export async function removeProductImage(ctx: StoreContext, productId: string, mediaId: string) {
   requireRole(ctx, "owner", "admin", "staff");
   await db.delete(productMedia).where(and(eq(productMedia.id, mediaId), eq(productMedia.productId, productId)));
+  await publishProductTouched(ctx.storeId, productId);
 }
 
 /** يجعل صورة رئيسية ويلغي الرئيسية عن الباقي. */
@@ -92,6 +111,7 @@ export async function setPrimaryImage(ctx: StoreContext, productId: string, medi
   await db.transaction(async (tx) => {
     await tx.update(productMedia).set({ isPrimary: false }).where(eq(productMedia.productId, productId));
     await tx.update(productMedia).set({ isPrimary: true }).where(and(eq(productMedia.id, mediaId), eq(productMedia.productId, productId)));
+    await publishEvent(tx, { storeId: ctx.storeId, type: "product.updated", aggregateType: "product", aggregateId: productId });
   });
 }
 
@@ -105,6 +125,7 @@ export async function addVariant(ctx: StoreContext, productId: string, input: { 
   const product = await db.query.products.findFirst({ where: and(eq(products.storeId, ctx.storeId), eq(products.id, productId)) });
   if (!product) throw new NotFoundError("المنتج", productId);
   const [row] = await db.insert(productVariants).values({ storeId: ctx.storeId, productId, name: input.name.trim(), price: input.price, isDefault: false }).returning();
+  await publishProductTouched(ctx.storeId, productId);
   return row;
 }
 
@@ -116,4 +137,5 @@ export async function removeVariant(ctx: StoreContext, productId: string, varian
   const target = all.find((v) => v.id === variantId);
   if (target?.isDefault) throw new ValidationError("لا يمكن حذف الخيار الافتراضي");
   await db.delete(productVariants).where(and(eq(productVariants.id, variantId), eq(productVariants.storeId, ctx.storeId)));
+  await publishProductTouched(ctx.storeId, productId);
 }

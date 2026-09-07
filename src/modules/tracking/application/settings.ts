@@ -72,7 +72,8 @@ export async function publicIntegrations(storeId: string): Promise<Partial<Recor
   const rows = await db.select().from(integrationSettings).where(eq(integrationSettings.storeId, storeId));
   const out: Partial<Record<Platform, Record<string, string>>> = {};
   for (const row of rows) {
-    if (!row.enabled || !isPlatform(row.platform)) continue;
+    // الإعدادات الحسّاسة (Merchant Center مثلاً) لا تغادر الخادم.
+    if (!row.enabled || !isPlatform(row.platform) || !PLATFORM_DEFS[row.platform].publicConfig) continue;
     out[row.platform] = (row.config ?? {}) as Record<string, string>;
   }
   return out;
