@@ -4,6 +4,7 @@ export { updateBranding, brandingSchema } from "./application/branding";
 export { resolveHomeLayout } from "./application/home-layout";
 export { readSeoSettings, resolveSeo, seoSettingsSchema, SEO_TITLE_MAX, SEO_DESCRIPTION_MAX, type SeoSettings } from "./seo";
 export { updateSeoSettings } from "./application/seo";
+export { canonicalOrigin, storeOrigin, primaryDomain } from "./application/origin";
 export { updateAppearance, appearanceSchema, readAppearance, readHeroVariant, type AppearanceInput } from "./application/appearance";
 export {
   THEMES,

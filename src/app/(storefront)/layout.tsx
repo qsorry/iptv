@@ -6,7 +6,7 @@ import { readCartId } from "@/core/tenancy/cart-cookie";
 import { getCartView } from "@/modules/carts";
 import { listPublicCategories } from "@/modules/catalog";
 import { listFooterPages } from "@/modules/content";
-import { resolveSeo, readThemeConfig, storeThemeCss, googleFontHref, fontPreloads, readFooterSettings, DEFAULT_THEME, THEME_VERSION } from "@/modules/stores";
+import { canonicalOrigin, resolveSeo, readThemeConfig, storeThemeCss, googleFontHref, fontPreloads, readFooterSettings, DEFAULT_THEME, THEME_VERSION } from "@/modules/stores";
 import { StoreFooter } from "@/components/storefront/store-footer";
 import { Header } from "@/components/layout/header";
 import { MobileNavigation } from "@/components/layout/mobile-navigation";
@@ -23,8 +23,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const store = await getStorefrontStore();
   const h = await headers();
   const host = h.get("host") ?? "";
-  const scheme = host.includes("localhost") ? "http" : "https";
-  const base = host ? new URL(`${scheme}://${host}`) : undefined;
+  // القاعدة هي دومين المتجر الرئيسي لا مضيف الطلب: المتجر قد يُخدَم من نطاق
+  // فرعي ودومين مخصّص معاً، وترك canonical يتبع المضيف يجعل جوجل يرى نسختين.
+  const canonical = store ? await canonicalOrigin(store.id, host) : null;
+  const base = canonical ? new URL(canonical) : undefined;
   const name = store?.name ?? "المتجر";
   const settingsRow = store ? await db.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, store.id) }) : null;
   const seo = store ? resolveSeo(settingsRow?.settings as Record<string, unknown> | undefined, store) : null;

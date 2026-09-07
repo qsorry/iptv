@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { getStorefrontStore } from "@/core/tenancy/server";
 import { productRepository } from "@/modules/catalog";
 import { listPublishedPosts, listFooterPages } from "@/modules/content";
+import { canonicalOrigin } from "@/modules/stores";
 
 interface SitemapUrl {
   loc: string;
@@ -29,9 +30,10 @@ export async function GET() {
   const h = await headers();
   const host = h.get("host") ?? "";
   const scheme = host.includes("localhost") ? "http" : "https";
-  const origin = `${scheme}://${host}`;
 
   const store = await getStorefrontStore();
+  // الروابط بدومين المتجر الرئيسي: sitemap يعلن الصفحة مرة واحدة بعنوانها المعياري.
+  const origin = (store ? await canonicalOrigin(store.id, host) : null) ?? `${scheme}://${host}`;
   const urls: SitemapUrl[] = [];
 
   if (store) {
