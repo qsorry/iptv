@@ -31,6 +31,7 @@ export const providerConfigSchema = z.object({
     m3u: z.string().optional(),
     extra: z.record(z.string()).optional(),
   }),
+  derive: z.record(z.string()).optional(),
   deliveryTemplate: z.string().min(1),
   timeoutMs: z.number().int().min(1000).max(120_000).optional(),
 });

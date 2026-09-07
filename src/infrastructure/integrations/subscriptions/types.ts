@@ -51,6 +51,8 @@ export interface ProviderConfig {
   /** إنشاء الاشتراك؛ إلزامي. */
   create: EndpointSpec;
   result: ResultMap;
+  /** حقول تُشتق بقالب من الحقول المقروءة إن لم يرجعها المزوّد (مثال: m3u من host/username/password). */
+  derive?: Record<string, string>;
   /**
    * نص التسليم للعميل بصيغة digital_codes (أجزاء مفصولة بـ |).
    * المتغيرات: {{username}} {{password}} {{host}} {{expiresAt}} {{m3u}} و{{extra.<name>}}.

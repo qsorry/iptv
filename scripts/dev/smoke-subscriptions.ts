@@ -110,12 +110,15 @@ async function main() {
   const createCalls = panel.calls.filter((c) => c.path.endsWith("/lines"));
   assert(createCalls.length === 2 && createCalls.every((c) => c.auth === API_KEY), "نداءان للمزوّد بالمفتاح الصحيح (Bearer)");
   const sent = JSON.parse(createCalls[0].body) as Record<string, unknown>;
-  assert(sent.package_id === "pkg-12" && sent.months === 12 && String(sent.note).includes(order.orderNumber), `القالب مرّر الباقة والمعاملات ورقم الطلب (${JSON.stringify(sent)})`);
+  assert(sent.package_id === "pkg-12" && String(sent.external_id).startsWith(order.orderNumber) && String(sent.note).includes(order.orderNumber), `القالب مرّر الباقة وexternal_id ورقم الطلب (${JSON.stringify(sent)})`);
 
   const delivered = await db.select().from(digitalCodes).where(eq(digitalCodes.orderId, order.id));
   assert(delivered.length === 3 && delivered.every((c) => c.status === "delivered"), "العميل يستلم 3 أكواد: 1 مخزون + 2 من API");
   const apiCode = delivered.find((c) => c.code.includes("user1"));
-  assert(apiCode?.code === "HOST:http://panel.test:8080|UserName:user1|Password:pass1|Expires:2027-01-01", `صيغة كود API (${apiCode?.code})`);
+  assert(
+    apiCode?.code === "HOST:http://panel.test:8080|UserName:user1|Password:pass1|Expires:2027-01-01|M3U:http://panel.test:8080/get.php?username=user1&password=pass1&type=m3u_plus&output=ts",
+    `صيغة كود API مع رابط M3U مشتق (${apiCode?.code})`,
+  );
 
   // إعادة المعالجة (worker أعاد الحدث) لا تُنشئ اشتراكات إضافية.
   const r2 = await provisionSubscriptionsForOrder(store.id, order.id);

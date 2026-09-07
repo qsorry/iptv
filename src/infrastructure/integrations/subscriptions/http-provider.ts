@@ -1,14 +1,25 @@
 import type { EndpointSpec, ProviderConfig, ProvisionContext, ProvisionResult, PackageInfo } from "./types";
 
-/** قراءة مسار نقطي من كائن: getPath({a:{b:1}}, "a.b") → 1. يدعم فهارس المصفوفات (items.0.id). */
-export function getPath(obj: unknown, path?: string): unknown {
-  if (!path) return obj;
+function getSinglePath(obj: unknown, path: string): unknown {
   let cur: unknown = obj;
   for (const part of path.split(".")) {
     if (cur == null || typeof cur !== "object") return undefined;
     cur = (cur as Record<string, unknown>)[part];
   }
   return cur;
+}
+
+/**
+ * قراءة مسار نقطي من كائن: getPath({a:{b:1}}, "a.b") → 1. يدعم فهارس المصفوفات (items.0.id)،
+ * وعدة بدائل مفصولة بـ | ("rows|data|packages"): أول مسار له قيمة يفوز.
+ */
+export function getPath(obj: unknown, path?: string): unknown {
+  if (!path) return obj;
+  for (const alt of path.split("|")) {
+    const v = getSinglePath(obj, alt.trim());
+    if (v != null && v !== "") return v;
+  }
+  return undefined;
 }
 
 /** يستبدل {{a.b}} بقيم من الكائن. القيم غير الموجودة تصبح فارغة. */
@@ -176,6 +187,12 @@ export class HttpSubscriptionProvider {
       if (v != null && v !== "") extra[name] = v;
     }
     if (Object.keys(extra).length) credentials.extra = extra;
+    // حقول مشتقة (مثل رابط M3U من الهوست واسم المستخدم) عندما لا يرجعها المزوّد مباشرة.
+    for (const [key, tpl] of Object.entries(this.config.derive ?? {})) {
+      if (credentials[key] != null) continue;
+      const needed = [...tpl.matchAll(/\{\{\s*([\w.]+)\s*\}\}/g)].map((m) => m[1]);
+      if (needed.every((k) => getPath(credentials, k) != null)) credentials[key] = renderTemplate(tpl, credentials);
+    }
 
     const deliveredCode = renderTemplate(this.config.deliveryTemplate, credentials)
       .split("|")
