@@ -16,6 +16,8 @@ import {
   deleteMapping,
   retryProvision,
   resetProviderConfig,
+  listProviderPackages,
+  suggestPackage,
   subscriptionRepository,
   providerConfigSchema,
 } from "@/modules/subscriptions";
@@ -82,6 +84,22 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
     subscriptionRepository.countByStatus(ctx.storeId),
   ]);
   const mappedVariantIds = new Set(mappings.map((m) => m.variantId));
+
+  // الباقات تُسحب من كل لوحة نشطة؛ فشل لوحة واحدة لا يعطّل الصفحة.
+  const packagesByProvider = new Map<string, { packages: { id: string; name: string }[]; error?: string }>();
+  await Promise.all(
+    providers
+      .filter((p) => p.isActive)
+      .map(async (p) => {
+        try {
+          const list = await listProviderPackages(ctx, p.id);
+          packagesByProvider.set(p.id, { packages: list.map((x) => ({ id: x.id, name: x.name })) });
+        } catch (e) {
+          packagesByProvider.set(p.id, { packages: [], error: e instanceof Error ? e.message : String(e) });
+        }
+      }),
+  );
+  const hasAnyPackages = [...packagesByProvider.values()].some((v) => v.packages.length > 0);
   const unmappedVariants = variants.filter((v) => !mappedVariantIds.has(v.id));
 
   // ---------- server actions ----------
@@ -175,13 +193,14 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
       const connections = Number(formData.get("connections"));
       if (months > 0) params.months = months;
       if (connections > 0) params.connections = connections;
-      await upsertMapping(c, {
-        variantId: String(formData.get("variantId")),
-        providerId: String(formData.get("providerId")),
-        packageId: String(formData.get("packageId") || ""),
-        params,
-        isActive: true,
-      });
+      // من القائمة: "providerId|packageId|اسم الباقة"؛ يدوياً: حقلا providerId وpackageId.
+      const pick = String(formData.get("pkg") || "");
+      const [pickProvider, pickPackage, ...nameParts] = pick.split("|");
+      const providerId = pickProvider || String(formData.get("providerId") || "");
+      const packageId = pickPackage || String(formData.get("packageId") || "");
+      const packageName = nameParts.join("|");
+      if (packageName) params.packageName = packageName;
+      await upsertMapping(c, { variantId: String(formData.get("variantId")), providerId, packageId, params, isActive: true });
     } catch (e) {
       msg = errorMessage(e, "تعذّر حفظ الربط");
     }
@@ -340,7 +359,7 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
                 <div>
                   <div className="font-medium">{m.productName}{m.variantName && m.variantName !== m.productName ? ` — ${m.variantName}` : ""}</div>
                   <div className="text-xs text-[var(--muted)]">
-                    {m.providerName} · باقة <span dir="ltr">{m.packageId}</span>
+                    {m.providerName} · {m.params.packageName ? String(m.params.packageName) : <>باقة <span dir="ltr">{m.packageId}</span></>}
                     {m.params.months ? ` · ${String(m.params.months)} شهر` : ""}
                     {m.params.connections ? ` · ${String(m.params.connections)} جهاز` : ""}
                   </div>
@@ -360,33 +379,69 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
           <p className="text-sm text-[var(--muted)]">كل منتجاتك مربوطة. <Link href="/admin/products/new" className="text-[var(--brand)] underline">أضِف منتجاً جديداً</Link>.</p>
         ) : (
           <details open={mappings.length === 0}>
-            <summary className="cursor-pointer text-sm font-medium text-[var(--brand)]">+ ربط منتج</summary>
-            <Card className="mt-3">
-              <form action={saveMapping} className="space-y-3">
-                <label className="block text-sm">
-                  المنتج
-                  <select name="variantId" required className={selectClass}>
-                    {unmappedVariants.map((v) => (
-                      <option key={v.id} value={v.id}>{v.productName}{v.name && v.name !== v.productName ? ` — ${v.name}` : ""}</option>
-                    ))}
-                  </select>
-                </label>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="block text-sm">
-                    اللوحة
-                    <select name="providerId" required className={selectClass}>
-                      {providers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
-                  </label>
-                  <label className="block text-sm">
-                    رقم الباقة في اللوحة
-                    <Input name="packageId" required dir="ltr" placeholder="مثال: 12" className="mt-1" />
-                  </label>
-                  <label className="block text-sm">المدة بالأشهر<Input name="months" type="number" min="1" dir="ltr" placeholder="12" className="mt-1" /></label>
-                  <label className="block text-sm">عدد الأجهزة<Input name="connections" type="number" min="1" dir="ltr" placeholder="1" className="mt-1" /></label>
-                </div>
-                <Button type="submit" size="sm">ربط</Button>
-              </form>
+            <summary className="cursor-pointer text-sm font-medium text-[var(--brand)]">+ ربط منتج ({unmappedVariants.length} غير مربوط)</summary>
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              {hasAnyPackages
+                ? "الباقات مسحوبة من لوحتك، والاقتراح الأقرب مُحدَّد مسبقاً حسب عنوان المنتج. راجع ثم اضغط «ربط»."
+                : "تعذّر جلب الباقات من اللوحة؛ أدخل رقم الباقة يدوياً."}
+            </p>
+            {[...packagesByProvider.entries()].filter(([, v]) => v.error).map(([id, v]) => (
+              <p key={id} className="mt-1 text-xs text-red-600" dir="auto">
+                تعذّر جلب باقات «{providers.find((p) => p.id === id)?.name}»: {v.error}
+              </p>
+            ))}
+            <Card className="mt-3 divide-y divide-[var(--border)] p-0 sm:p-0">
+              {unmappedVariants.map((v) => {
+                const title = `${v.productName} ${v.name && v.name !== v.productName ? v.name : ""}`;
+                const all = providers.flatMap((p) => (packagesByProvider.get(p.id)?.packages ?? []).map((pkg) => ({ id: pkg.id, name: pkg.name, providerId: p.id, providerName: p.name })));
+                const sug = suggestPackage(title, all);
+                const preselect = sug.pkg && sug.score > 0 ? `${sug.pkg.providerId}|${sug.pkg.id}|${sug.pkg.name}` : "";
+                return (
+                  <form key={v.id} action={saveMapping} className="grid gap-2 p-3 text-sm sm:grid-cols-[1fr_1fr_auto_auto_auto] sm:items-end">
+                    <input type="hidden" name="variantId" value={v.id} />
+                    <div className="sm:col-span-5 font-medium">{title.trim()}</div>
+                    {hasAnyPackages ? (
+                      <label className="block sm:col-span-2">
+                        <span className="text-xs text-[var(--muted)]">الباقة {preselect ? "(مقترحة)" : ""}</span>
+                        <select name="pkg" required defaultValue={preselect} className={selectClass}>
+                          {!preselect && <option value="">اختر الباقة…</option>}
+                          {providers
+                            .filter((p) => (packagesByProvider.get(p.id)?.packages.length ?? 0) > 0)
+                            .map((p) => (
+                              <optgroup key={p.id} label={p.name}>
+                                {packagesByProvider.get(p.id)!.packages.map((pkg) => (
+                                  <option key={`${p.id}|${pkg.id}`} value={`${p.id}|${pkg.id}|${pkg.name}`}>{pkg.name}</option>
+                                ))}
+                              </optgroup>
+                            ))}
+                        </select>
+                      </label>
+                    ) : (
+                      <>
+                        <label className="block">
+                          <span className="text-xs text-[var(--muted)]">اللوحة</span>
+                          <select name="providerId" required className={selectClass}>
+                            {providers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                        </label>
+                        <label className="block">
+                          <span className="text-xs text-[var(--muted)]">رقم الباقة</span>
+                          <Input name="packageId" required dir="ltr" placeholder="12" className="mt-1" />
+                        </label>
+                      </>
+                    )}
+                    <label className="block">
+                      <span className="text-xs text-[var(--muted)]">أشهر</span>
+                      <Input name="months" type="number" min="1" dir="ltr" defaultValue={sug.months ?? ""} placeholder="12" className="mt-1 sm:w-20" />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs text-[var(--muted)]">أجهزة</span>
+                      <Input name="connections" type="number" min="1" dir="ltr" defaultValue={sug.connections ?? ""} placeholder="1" className="mt-1 sm:w-20" />
+                    </label>
+                    <Button type="submit" size="sm">ربط</Button>
+                  </form>
+                );
+              })}
             </Card>
           </details>
         )}

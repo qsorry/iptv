@@ -4,3 +4,4 @@ export { listMappings, upsertMapping, deleteMapping } from "./application/mappin
 export { provisionSubscriptionsForOrder, retryProvision, provisionOrderNow } from "./application/provision-order";
 export { subscriptionRepository } from "./infrastructure/subscription.repository";
 export { providerConfigSchema, createProviderSchema, updateProviderSchema, upsertMappingSchema, type CreateProviderInput, type UpdateProviderInput, type UpsertMappingInput } from "./validations";
+export { suggestPackage, extractMonths, extractConnections } from "./application/suggest-package";
