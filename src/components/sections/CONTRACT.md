@@ -7,6 +7,7 @@
 | Hero | بطل الصفحة، يحمل h1 الوحيد | `artwork` (لوحة إعلانية: عمل فني + نص حي) \| `split` (نص + صورة أول منتج) \| `centered` \| `banner` | `title` |
 | Benefits | مزايا المتجر (4 عناصر) | — | — |
 | CategorySection | التصنيفات (شريط جوال / شبكة) | — | `categories` |
+| BrandStrip | الماركات بشعاراتها (شريط جوال / شبكة) | — | `brands` |
 | FeaturedProducts | منتجات بشبكة وعنوان | يمرّر variant بطاقة المنتج | `items`, `currency` |
 | PromotionalBanner | لافتتان ترويجيتان | tint: primary/secondary/accent/success | `items` |
 | Testimonials | آراء العملاء | — | `items` |

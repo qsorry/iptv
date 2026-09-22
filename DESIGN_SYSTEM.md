@@ -34,7 +34,7 @@ src/components/
   ui/         Button, Input, Badge, Alert, Card, Modal, Skeleton, Container
   commerce/   ProductCard, ProductPrice, ProductGrid, CategoryCard, Breadcrumbs, RatingStars
   layout/     Header, MobileNavigation (+ StoreFooter في storefront/)
-  sections/   Hero, Benefits, CategorySection, FeaturedProducts, PromotionalBanner, Testimonials, SectionRenderer
+  sections/   Hero, Benefits, BrandStrip, CategorySection, FeaturedProducts, PromotionalBanner, Testimonials, SectionRenderer
   sections/promo-video/  PromoVideo (فيديو ترويجي مولّد بالكود على Canvas؛ معاينة مستقلة في /preview/promo-video)
 ```
 
@@ -79,7 +79,7 @@ COMPONENTS  Tailwind: bg-surface, text-ink, border-border, rounded-card, shadow-
 
 ## A9. Mobile · RTL · Arabic first
 الجوال أولاً. خصائص منطقية (`ms-`, `pe-`, `inset-inline`). الرئيسية على الجوال: هيدر لاصق، بحث، شريط تصنيفات أفقي، شبكة عمودين، تنقّل سفلي (الرئيسية/الأقسام/السلة/الحساب)، أهداف لمس ≥ 44px.
-إيقاع سطح المكتب: `Header → Hero → Benefits → Categories → Featured → Promo → Products → Testimonials → Footer`.
+إيقاع سطح المكتب: `Header → Hero → Brands → Benefits → Categories → Featured → Promo → Products → Testimonials → Footer`.
 
 ## A10. تركيب الصفحات
 الرئيسية تُرسم من مصفوفة (`src/design-system/layouts.ts`) عبر `SectionRenderer`، محلولة على الخادم في `resolveHomeLayout` (modules/stores). نوع مجهول = لا شيء. لا جلب من العميل.

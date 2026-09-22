@@ -1,9 +1,11 @@
 import type { HomeSection } from "@/design-system/layouts";
 import type { ProductCardData } from "@/components/commerce/product-card";
 import type { CategoryCardData } from "@/components/commerce/category-card";
+import type { BrandCardData } from "@/components/commerce/brand-card";
 import { Hero } from "./hero";
 import { Benefits } from "./benefits";
 import { CategorySection } from "./category-section";
+import { BrandStrip } from "./brand-strip";
 import { FeaturedProducts } from "./featured-products";
 import { PromotionalBanner, type PromoItem } from "./promotional-banner";
 import { Testimonials, type Testimonial } from "./testimonials";
@@ -14,6 +16,7 @@ export interface HomeData {
   currency: string;
   products: ProductCardData[];
   categories: CategoryCardData[];
+  brands: BrandCardData[];
   testimonials: Testimonial[];
 }
 
@@ -41,6 +44,8 @@ export function SectionRenderer({ section, data }: { section: HomeSection; data:
       );
     case "benefits":
       return <Benefits />;
+    case "brands":
+      return <BrandStrip title={section.title} brands={data.brands} />;
     case "categories":
       return <CategorySection title={section.title} categories={data.categories} />;
     case "featured-products": {
