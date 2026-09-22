@@ -18,3 +18,16 @@ export {
   categoryById,
   type UpdateCategoryInput,
 } from "./application/categories";
+export {
+  createBrand,
+  listBrands,
+  listBrandsWithCounts,
+  updateBrand,
+  uploadBrandLogo,
+  removeBrandLogo,
+  deleteBrand,
+  listPublicBrands,
+  brandProducts,
+  unbrandedCount,
+  type UpdateBrandInput,
+} from "./application/brands";

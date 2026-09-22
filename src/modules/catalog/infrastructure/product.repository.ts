@@ -1,6 +1,6 @@
 import { and, eq, ne, isNull, sql, desc } from "drizzle-orm";
 import { db, type DbExecutor } from "@/infrastructure/database/client";
-import { categories, products, productVariants, productMedia } from "@/infrastructure/database/schema";
+import { brands, categories, products, productVariants, productMedia } from "@/infrastructure/database/schema";
 import { offsetOf, paginate, type Pagination } from "@/core/pagination";
 
 /** أعمدة بطاقة المنتج العامة: السعر، الصورة، سعر المقارنة، ومتوسط/عدد التقييم. */
@@ -43,6 +43,21 @@ export const productRepository = {
   /** منتجات تصنيف منشورة، مرقّمة، بنفس أعمدة البطاقة العامة. */
   async listPublicByCategory(storeId: string, categoryId: string, pagination: Pagination, executor: DbExecutor = db) {
     const where = and(eq(products.storeId, storeId), eq(products.categoryId, categoryId), eq(products.status, "active"), isNull(products.deletedAt));
+    const [{ total }] = await executor.select({ total: sql<number>`count(*)::int` }).from(products).where(where);
+    const rows = await executor
+      .select(publicCardColumns)
+      .from(products)
+      .innerJoin(productVariants, and(eq(productVariants.productId, products.id), eq(productVariants.isDefault, true)))
+      .where(where)
+      .orderBy(desc(products.publishedAt))
+      .limit(pagination.perPage)
+      .offset(offsetOf(pagination));
+    return paginate(rows, total, pagination);
+  },
+
+  /** منتجات ماركة منشورة، مرقّمة، بنفس أعمدة البطاقة العامة. */
+  async listPublicByBrand(storeId: string, brandId: string, pagination: Pagination, executor: DbExecutor = db) {
+    const where = and(eq(products.storeId, storeId), eq(products.brandId, brandId), eq(products.status, "active"), isNull(products.deletedAt));
     const [{ total }] = await executor.select({ total: sql<number>`count(*)::int` }).from(products).where(where);
     const rows = await executor
       .select(publicCardColumns)
@@ -155,9 +170,11 @@ export const productRepository = {
           productType: products.productType,
           categoryId: products.categoryId,
           categoryName: categories.name,
+          brandName: brands.name,
         })
         .from(products)
         .leftJoin(categories, eq(categories.id, products.categoryId))
+        .leftJoin(brands, eq(brands.id, products.brandId))
         .where(where)
         .orderBy(desc(products.createdAt))
         .limit(p.perPage)

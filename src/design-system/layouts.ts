@@ -11,6 +11,7 @@ export type PromoTint = "primary" | "secondary" | "accent" | "success";
 export type HomeSection =
   | { id: string; type: "hero"; variant: HeroVariant }
   | { id: string; type: "benefits" }
+  | { id: string; type: "brands"; title?: string }
   | { id: string; type: "categories"; title?: string }
   | { id: string; type: "featured-products"; title?: string; limit?: number; badge?: string; variant?: ProductCardVariant }
   | { id: string; type: "promo-banners"; items?: { title: string; subtitle?: string; href: string; tint: PromoTint }[] }
@@ -19,7 +20,7 @@ export type HomeSection =
 
 export type HomeSectionType = HomeSection["type"];
 
-export const HOME_SECTION_TYPES: readonly HomeSectionType[] = ["hero", "benefits", "categories", "featured-products", "promo-banners", "all-products", "testimonials"];
+export const HOME_SECTION_TYPES: readonly HomeSectionType[] = ["hero", "benefits", "brands", "categories", "featured-products", "promo-banners", "all-products", "testimonials"];
 
 export interface HomeLayout {
   version: number;
@@ -28,12 +29,13 @@ export interface HomeLayout {
 
 /**
  * الإيقاع الافتراضي لسطح المكتب:
- * Header → Hero → Benefits → Categories → Featured → Promo → All products → Testimonials → Footer
+ * Header → Hero → Brands → Benefits → Categories → Featured → Promo → All products → Testimonials → Footer
  */
 export const DEFAULT_HOME_LAYOUT: HomeLayout = {
   version: 1,
   sections: [
     { id: "hero", type: "hero", variant: "artwork" },
+    { id: "brands", type: "brands", title: "تسوّق حسب الماركة" },
     { id: "benefits", type: "benefits" },
     { id: "categories", type: "categories", title: "تسوّق حسب الفئة" },
     { id: "featured", type: "featured-products", title: "الأكثر مبيعاً", limit: 4, badge: "الأكثر مبيعاً" },

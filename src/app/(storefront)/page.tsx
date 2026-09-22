@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { preload } from "react-dom";
 import { getStorefrontStore } from "@/core/tenancy/server";
-import { productRepository, listPublicCategories } from "@/modules/catalog";
+import { productRepository, listPublicCategories, listPublicBrands } from "@/modules/catalog";
 import { storeTestimonials } from "@/modules/reviews";
 import { resolveHomeLayout } from "@/modules/stores";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -31,9 +31,10 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function StorefrontHome() {
   const store = await getStorefrontStore();
   if (!store) return <EmptyState title="لا يوجد متجر على هذا العنوان" />;
-  const [products, categories, testimonials, settingsRow] = await Promise.all([
+  const [products, categories, brands, testimonials, settingsRow] = await Promise.all([
     productRepository.listPublic(store.id),
     listPublicCategories(store.id),
+    listPublicBrands(store.id),
     storeTestimonials(store.id, 6),
     db.query.storeSettings.findFirst({ where: eq(storeSettings.storeId, store.id) }),
   ]);
@@ -47,6 +48,7 @@ export default async function StorefrontHome() {
     currency: store.currencyCode,
     products,
     categories,
+    brands,
     testimonials,
   };
 
