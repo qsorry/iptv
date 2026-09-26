@@ -6,7 +6,7 @@ import { focusFirst } from "../nav/focus";
 import { xtreamLogin } from "../catalog/xtream";
 import { M3uSource } from "../catalog/m3u";
 import { normalizeServer, xtreamFromUrl } from "../lib/accounts";
-import { ACTIVATION_PATTERN, activateCode, detectProvider, formatActivationInput, pollPairing, startPairing, type Detected, type Pairing, type ServerAccount } from "../lib/platform-api";
+import { ACTIVATION_PATTERN, activateCode, checkCode, detectProvider, formatActivationInput, pollPairing, startPairing, type Detected, type Pairing, type ServerAccount } from "../lib/platform-api";
 import { toLatinDigits } from "../lib/text";
 import { Icon, BrandMark } from "../components/Icon";
 
@@ -65,7 +65,7 @@ export function Login({ route, tv, wide }: { route: Route; tv: boolean; wide: bo
 }
 
 type DetectState = { kind: "idle" } | { kind: "checking" } | { kind: "found"; value: Detected } | { kind: "unknown" } | { kind: "offline" };
-type CodeState = { kind: "idle" } | { kind: "checking" } | { kind: "valid"; account: ServerAccount } | { kind: "error"; message: string };
+type CodeState = { kind: "idle" } | { kind: "checking" } | { kind: "valid"; providerName: string } | { kind: "error"; message: string };
 
 function CredentialsForm({ tv }: { tv: boolean }) {
   const [tab, setTab] = useState<"user" | "code">("user");
@@ -97,13 +97,13 @@ function CredentialsForm({ tv }: { tv: boolean }) {
     };
   }, [username]);
 
-  // التحقق من الكود مرة واحدة عند اكتمال صيغته.
+  // تحقق بلا استخدام عند اكتمال الصيغة؛ الاستبدال الفعلي (ويُحسب دخولاً) عند «دخول» فقط.
   useEffect(() => {
     if (!ACTIVATION_PATTERN.test(code)) return setCodeState({ kind: "idle" });
     setCodeState({ kind: "checking" });
     let alive = true;
-    activateCode(code).then(
-      (account) => alive && setCodeState({ kind: "valid", account }),
+    checkCode(code).then(
+      (r) => alive && setCodeState({ kind: "valid", providerName: r.provider.name }),
       (e) => alive && setCodeState({ kind: "error", message: message(e) }),
     );
     return () => {
@@ -118,7 +118,7 @@ function CredentialsForm({ tv }: { tv: boolean }) {
     try {
       if (tab === "code") {
         if (codeState.kind !== "valid") throw new Error("أدخل كود التفعيل كاملاً بصيغة SN-XXXX-XXXX.");
-        await loginWith(codeState.account);
+        await loginWith(await activateCode(code));
       } else {
         if (detect.kind !== "found") throw new Error(detect.kind === "offline" ? "تعذّر الوصول لخدمة التعرّف على المزوّد. أضف الخادم يدوياً." : "لم نتعرّف على مزوّد لاسم المستخدم هذا.");
         if (!password) throw new Error("أدخل كلمة المرور.");
@@ -220,7 +220,7 @@ function DetectNotice({ state }: { state: DetectState }) {
 function CodeNotice({ state }: { state: CodeState }) {
   switch (state.kind) {
     case "valid":
-      return <Notice kind="ok" title="الكود صالح" detail={`مرتبط بـ ${state.account.provider.name} · لا حاجة لكلمة مرور`} />;
+      return <Notice kind="ok" title="الكود صالح" detail={`مرتبط بـ ${state.providerName} · لا حاجة لكلمة مرور`} />;
     case "error":
       return <Notice kind="warn" title={state.message} />;
     case "checking":

@@ -3,9 +3,10 @@ import { db } from "@/infrastructure/database/client";
 import { contentProviders, playerActivationCodes, playerActivity, playerPairings, providerServers, providerUsernamePrefixes } from "@/infrastructure/database/schema";
 import type { ProviderStatus } from "@/core/state-machines";
 import type { ActivityKind } from "./activity";
+import { PLATFORM_TZ } from "@/lib/dates";
 
 /** أيام المنصة بتوقيت السعودية حتى يطابق «اليوم» ساعة المدير. */
-export const PLATFORM_TZ = "Asia/Riyadh";
+export { PLATFORM_TZ };
 export const ACTIVITY_DAYS = 14;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -21,7 +22,10 @@ export interface DashboardProvider {
   servers: number;
   activeServers: number;
   prefixes: number;
+  /** فعّالة وغير منتهية على خوادم مفعّلة (تعمل الآن). */
   activeCodes: number;
+  /** فعّالة لكن على خادم معطّل: لا تعمل حتى يُفعَّل الخادم. */
+  codesOnDisabledServers: number;
   totalCodes: number;
   redemptions: number;
   lastActivityAt: Date | null;
@@ -96,19 +100,23 @@ export async function getPlayerDashboard(now = new Date()) {
   const codesBy = new Map(codeRows.map((r) => [r.serverId, r]));
   const lastBy = new Map(activityByProvider.map((r) => [r.providerId, r.last ? new Date(r.last) : null]));
 
+  // الأرقام تعكس ما يعمل فعلاً: البادئات والأكواد على خادم معطّل لا تُحسب (التطبيق يتجاهلها)، بل تُنبَّه.
   const rows: DashboardProvider[] = providers.map((p) => {
     const servers = serverRows.filter((s) => s.providerId === p.id);
-    const codes = servers.map((s) => codesBy.get(s.id)).filter((c): c is NonNullable<typeof c> => !!c);
+    const active = servers.filter((s) => s.isActive);
+    const codesOn = (list: typeof servers) => list.map((s) => codesBy.get(s.id)).filter((c): c is NonNullable<typeof c> => !!c);
+    const allCodes = codesOn(servers);
     return {
       id: p.id,
       name: p.name,
       status: p.status as ProviderStatus,
       servers: servers.length,
-      activeServers: servers.filter((s) => s.isActive).length,
-      prefixes: servers.reduce((n, s) => n + (prefixBy.get(s.id) ?? 0), 0),
-      activeCodes: codes.reduce((n, c) => n + c.active, 0),
-      totalCodes: codes.reduce((n, c) => n + c.total, 0),
-      redemptions: codes.reduce((n, c) => n + c.redemptions, 0),
+      activeServers: active.length,
+      prefixes: active.reduce((n, s) => n + (prefixBy.get(s.id) ?? 0), 0),
+      activeCodes: codesOn(active).reduce((n, c) => n + c.active, 0),
+      codesOnDisabledServers: codesOn(servers.filter((s) => !s.isActive)).reduce((n, c) => n + c.active, 0),
+      totalCodes: allCodes.reduce((n, c) => n + c.total, 0),
+      redemptions: allCodes.reduce((n, c) => n + c.redemptions, 0),
       lastActivityAt: lastBy.get(p.id) ?? null,
     };
   });
@@ -136,7 +144,7 @@ export async function getPlayerDashboard(now = new Date()) {
       awaitingReview: rows.filter((r) => r.status === "pending" || r.status === "under_review").length,
       activeServers: live.reduce((n, r) => n + r.activeServers, 0),
       prefixes: live.reduce((n, r) => n + r.prefixes, 0),
-      activeCodes: rows.reduce((n, r) => n + r.activeCodes, 0),
+      activeCodes: rows.filter((r) => r.status === "approved").reduce((n, r) => n + r.activeCodes, 0),
       totalCodes: rows.reduce((n, r) => n + r.totalCodes, 0),
       week: { ...weekCounts, total: weekCounts.codes + weekCounts.pairings },
       today: daily[daily.length - 1],
@@ -148,6 +156,7 @@ export async function getPlayerDashboard(now = new Date()) {
     warnings: {
       approvedWithoutServer: rows.filter((r) => r.status === "approved" && r.activeServers === 0),
       blockedWithCodes: rows.filter((r) => r.status !== "approved" && r.activeCodes > 0),
+      codesOnDisabledServers: rows.filter((r) => r.status === "approved" && r.codesOnDisabledServers > 0),
     },
     /** خوادم مزوّدين مقبولين مفعّلة: لنموذج إصدار كود سريع. */
     issuableServers: serverRows

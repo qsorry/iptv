@@ -74,7 +74,7 @@ export default async function PlayerDashboardPage({ searchParams }: { searchPara
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi label="مزوّدون في التطبيق" value={kpis.liveProviders} hint={`${kpis.approvedProviders} مقبول · ${kpis.awaitingReview} بانتظار المراجعة`} href="/admin/platform/providers" />
         <Kpi label="خوادم مفعّلة" value={kpis.activeServers} hint={`${kpis.prefixes} بادئة للتعرّف التلقائي`} />
-        <Kpi label="أكواد تفعيل فعّالة" value={kpis.activeCodes} hint={`من ${kpis.totalCodes} كوداً صادراً`} />
+        <Kpi label="أكواد تفعيل صالحة" value={kpis.activeCodes} hint={`تعمل الآن · من ${kpis.totalCodes} كوداً صادراً`} />
         <Kpi label="دخول عبر المنصة (٧ أيام)" value={kpis.week.total} hint={`${kpis.week.codes} بكود · ${kpis.week.pairings} ربط تلفاز · اليوم ${kpis.today.total}`} />
       </div>
 
@@ -268,8 +268,8 @@ function Kpi({ label, value, hint, href }: { label: string; value: number; hint:
 }
 
 function Warnings({ data }: { data: PlayerDashboard }) {
-  const { approvedWithoutServer, blockedWithCodes } = data.warnings;
-  if (approvedWithoutServer.length === 0 && blockedWithCodes.length === 0) return null;
+  const { approvedWithoutServer, blockedWithCodes, codesOnDisabledServers } = data.warnings;
+  if (approvedWithoutServer.length === 0 && blockedWithCodes.length === 0 && codesOnDisabledServers.length === 0) return null;
   return (
     <div className="space-y-2">
       {approvedWithoutServer.length > 0 && (
@@ -294,6 +294,17 @@ function Warnings({ data }: { data: PlayerDashboard }) {
           ))}
         </Alert>
       )}
+      {codesOnDisabledServers.length > 0 && (
+        <Alert variant="warning">
+          أكواد فعّالة على خادم معطّل لا تعمل حتى تفعيله:{" "}
+          {codesOnDisabledServers.map((p, i) => (
+            <span key={p.id}>
+              {i > 0 && "، "}
+              <Link href={`/admin/platform/providers/${p.id}/player`} className="underline">{p.name}</Link> ({p.codesOnDisabledServers})
+            </span>
+          ))}
+        </Alert>
+      )}
     </div>
   );
 }
@@ -305,21 +316,27 @@ function ActivityChart({ daily }: { daily: PlayerDashboard["daily"] }) {
   const dayOfMonth = (day: string) => String(Number(day.slice(8)));
   return (
     <>
-      {/* مساحة علوية للتلميح داخل البطاقة، وoverflow مخفي حتى لا يتجاوز الرسم عرض الجوال. */}
-      <div className="flex h-48 items-end gap-0.5 overflow-hidden pt-8 sm:gap-1" aria-hidden="true">
-        {daily.map((d, i) => (
-          <div key={d.day} className="group relative flex h-full min-w-0 flex-1 flex-col items-center justify-end">
-            {/* RTL: أول الأيام على اليمين؛ التلميح يُثبَّت نحو الداخل حتى لا يُقص عند الحافتين. */}
-            <span className={`pointer-events-none absolute top-0 z-10 hidden whitespace-nowrap rounded-md bg-surface-inverse px-2 py-1 text-xs text-ink-inverse shadow-card group-hover:block ${i < daily.length / 2 ? "right-0" : "left-0"}`}>
-              {label(d.day)}: {d.total} ({d.codes} بكود · {d.pairings} ربط)
-            </span>
-            <div className="w-full rounded-t-sm bg-brand transition-all" style={{ height: `${(d.total / max) * 100}%`, minHeight: d.total > 0 ? "4px" : "0" }} />
-            <span className="mt-1 w-full truncate text-center text-[10px] text-ink-secondary">
+      {/* منطقة الرسم منفصلة عن تسميات الأيام حتى تبقى الأطوال متناسبة؛ مساحة علوية للتلميح، وoverflow مخفي للجوال. */}
+      <div className="overflow-hidden" aria-hidden="true">
+        <div className="flex h-44 items-stretch gap-0.5 pt-8 sm:gap-1">
+          {daily.map((d, i) => (
+            <div key={d.day} className="group relative min-w-0 flex-1">
+              {/* RTL: أول الأيام على اليمين؛ التلميح يُثبَّت نحو الداخل حتى لا يُقص عند الحافتين. */}
+              <span className={`pointer-events-none absolute -top-7 z-10 hidden whitespace-nowrap rounded-md bg-surface-inverse px-2 py-1 text-xs text-ink-inverse shadow-card group-hover:block ${i < daily.length / 2 ? "right-0" : "left-0"}`}>
+                {label(d.day)}: {d.total} ({d.codes} بكود · {d.pairings} ربط)
+              </span>
+              <div className="absolute inset-x-0 bottom-0 rounded-t-sm bg-brand transition-all" style={{ height: `${(d.total / max) * 100}%`, minHeight: d.total > 0 ? "4px" : "0" }} />
+            </div>
+          ))}
+        </div>
+        <div className="mt-1 flex gap-0.5 sm:gap-1">
+          {daily.map((d) => (
+            <span key={d.day} className="min-w-0 flex-1 truncate text-center text-[10px] text-ink-secondary">
               <span className="sm:hidden">{dayOfMonth(d.day)}</span>
               <span className="hidden sm:inline">{label(d.day)}</span>
             </span>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
       <table className="sr-only">
         <caption>الدخول عبر المنصة يومياً</caption>

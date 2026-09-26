@@ -1,4 +1,5 @@
 import { getAdminContext } from "@/core/tenancy/server";
+import { PLATFORM_TZ } from "@/lib/dates";
 import { AppError } from "@/core/errors";
 import { isPlatformAdmin, requirePlatformAdmin } from "@/modules/billing";
 import type { Actor, ItemState } from "@/modules/providers";
@@ -66,5 +67,5 @@ export function Flash({ error, ok }: { error?: string; ok?: string }) {
 }
 
 export function formatDate(d: Date | null | undefined) {
-  return d ? d.toLocaleDateString("ar-SA", { year: "numeric", month: "short", day: "numeric" }) : "—";
+  return d ? d.toLocaleDateString("ar-SA", { year: "numeric", month: "short", day: "numeric", timeZone: PLATFORM_TZ }) : "—";
 }

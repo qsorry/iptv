@@ -1,7 +1,7 @@
 {
   "name": "ssouq-net-player",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Ssouq Net — مشغّل وسائط للجوال والتلفاز (Samsung Tizen · LG webOS · VIDAA · Android TV)",
   "type": "module",
   "scripts": {

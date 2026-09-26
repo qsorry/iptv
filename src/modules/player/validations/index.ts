@@ -1,14 +1,13 @@
 import { z } from "zod";
+import { parseDateInput } from "@/lib/dates";
 import { normalizeServerUrl, parsePrefixes, PREFIX_PATTERN } from "../domain/codes";
 
 /** حقول النماذج ترسل "" للحقل الفارغ؛ نعاملها كغير موجودة. */
 const optionalText = (max: number) =>
   z.preprocess((v) => (typeof v === "string" && v.trim() === "" ? undefined : v), z.string().trim().max(max).optional());
 
-const optionalDate = z.preprocess(
-  (v) => (v === "" || v === null || v === undefined ? undefined : v instanceof Date ? v : new Date(String(v))),
-  z.date({ invalid_type_error: "تاريخ غير صالح" }).optional(),
-);
+/** تاريخ من حقل date = نهاية ذلك اليوم بتوقيت السعودية (انظر parseDateInput). */
+const optionalDate = z.preprocess((v) => parseDateInput(v), z.date({ invalid_type_error: "تاريخ غير صالح" }).optional());
 
 const serverUrl = z.string().trim().min(1, "رابط الخادم مطلوب").transform((v, ctx) => {
   try {

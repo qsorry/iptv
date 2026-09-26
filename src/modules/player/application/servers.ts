@@ -99,25 +99,32 @@ export interface DetectedServer {
 
 /**
  * يتعرّف على المزوّد والخادم من أطول بادئة يبدأ بها اسم المستخدم.
- * لا يُرجع إلا خوادم مفعّلة لمزوّدين مقبولين (approved).
+ *
+ * أطول بادئة تحدد **المزوّد** أياً كانت حالته: إن كان موقوفاً أو غير مقبول فالنتيجة null،
+ * ولا نسقط أبداً إلى بادئة أقصر لمزوّد آخر (وإلا أرسل التطبيق بيانات مشتركي مزوّد إلى خادم غيره).
+ * داخل نفس المزوّد يُستخدم أطول خادم مفعّل (خادم معطّل يرجع لخادم آخر للمزوّد نفسه).
  */
 export async function detectServer(username: string, executor: DbExecutor = db): Promise<DetectedServer | null> {
   const u = toLatinDigits(username).trim().toLowerCase();
   if (u.length < 2) return null;
-  const [row] = await executor
+  const rows = await executor
     .select({
       providerId: contentProviders.id,
       providerName: contentProviders.name,
+      providerStatus: contentProviders.status,
       serverId: providerServers.id,
+      serverActive: providerServers.isActive,
       label: providerServers.label,
       url: providerServers.baseUrl,
     })
     .from(providerUsernamePrefixes)
     .innerJoin(providerServers, eq(providerServers.id, providerUsernamePrefixes.serverId))
     .innerJoin(contentProviders, eq(contentProviders.id, providerServers.providerId))
-    .where(and(sql`starts_with(${u}, ${providerUsernamePrefixes.prefix})`, eq(providerServers.isActive, true), eq(contentProviders.status, "approved")))
-    .orderBy(desc(sql`length(${providerUsernamePrefixes.prefix})`))
-    .limit(1);
+    .where(sql`starts_with(${u}, ${providerUsernamePrefixes.prefix})`)
+    .orderBy(desc(sql`length(${providerUsernamePrefixes.prefix})`));
+  const owner = rows[0];
+  if (!owner || owner.providerStatus !== "approved") return null;
+  const row = rows.find((r) => r.providerId === owner.providerId && r.serverActive);
   if (!row) return null;
   return { provider: { id: row.providerId, name: row.providerName }, server: { id: row.serverId, label: row.label, url: row.url } };
 }

@@ -101,7 +101,9 @@ export async function attachStream(video: HTMLVideoElement, url: string, opts: E
         if (!data.fatal) return;
         if (data.type === Hls.ErrorTypes.NETWORK_ERROR && networkRetries < 3) {
           networkRetries++;
-          window.setTimeout(() => hls.startLoad(), 1000 * networkRetries);
+          // قبل تحميل القائمة (أخطاء manifest) لا يعيد startLoad أي طلب، فنعيد تحميل المصدر نفسه.
+          const noLevels = hls.levels.length === 0;
+          window.setTimeout(() => (noLevels ? hls.loadSource(url) : hls.startLoad()), 1000 * networkRetries);
         } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR && mediaRecoveries < 2) {
           mediaRecoveries++;
           hls.recoverMediaError();

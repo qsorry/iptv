@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db, type DbExecutor } from "@/infrastructure/database/client";
 import { auditLogs, contentProviders, providerRequirements, providerSubmissions } from "@/infrastructure/database/schema";
-import { NotFoundError, ValidationError } from "@/core/errors";
+import { ConflictError, NotFoundError, ValidationError } from "@/core/errors";
 import { providerStateMachine, type ProviderStatus } from "@/core/state-machines";
 import { publishEvent } from "@/core/events";
 import { changeStatusSchema, createProviderSchema, parseInput, reviewSubmissionSchema } from "../validations";
@@ -48,7 +48,8 @@ async function transition(executor: DbExecutor, actor: Actor, provider: typeof c
   const from = provider.status as ProviderStatus;
   providerStateMachine.assertTransition(from, to);
   const now = new Date();
-  await executor
+  // مشروط بالحالة المقروءة: قراران متزامنان (أو المجدول ومدير) لا يكتب أحدهما فوق الآخر.
+  const [changed] = await executor
     .update(contentProviders)
     .set({
       status: to,
@@ -57,7 +58,9 @@ async function transition(executor: DbExecutor, actor: Actor, provider: typeof c
       suspendedAt: to === "suspended" ? now : to === "approved" ? null : provider.suspendedAt,
       updatedAt: now,
     })
-    .where(eq(contentProviders.id, provider.id));
+    .where(and(eq(contentProviders.id, provider.id), eq(contentProviders.status, from)))
+    .returning({ id: contentProviders.id });
+  if (!changed) throw new ConflictError("تغيّرت حالة المزوّد للتو. حدّث الصفحة ثم أعد المحاولة.");
   await publishEvent(executor, { storeId: null, type: "provider.status_changed", aggregateType: ENTITY, aggregateId: provider.id, payload: { from, to, reason } });
   await audit(executor, actor, "provider.status_changed", provider.id, { status: to, reason }, { status: from });
 }
@@ -179,8 +182,27 @@ export async function suspendProvidersWithExpiredDocuments(now = new Date(), act
     const { readiness } = await readinessFor(db, provider.id, now);
     const expired = readiness.blocking.filter((b) => b.state === "expired").map((b) => b.title);
     if (expired.length === 0) continue;
-    await db.transaction((tx) => transition(tx, actor, provider, "suspended", `انتهت صلاحية: ${expired.join("، ")}`));
-    suspended.push({ id: provider.id, name: provider.name, expired });
+    const done = await db.transaction(async (tx) => {
+      // إعادة القراءة داخل المعاملة: قد يكون المدير غيّر الحالة منذ بدء الحلقة.
+      const fresh = await loadProvider(tx, provider.id);
+      if (fresh.status !== "approved") return false;
+      await transition(tx, actor, fresh, "suspended", `انتهت صلاحية: ${expired.join("، ")}`);
+      return true;
+    });
+    if (done) suspended.push({ id: provider.id, name: provider.name, expired });
   }
   return suspended;
+}
+
+const REVIEW_INTERVAL_MS = 6 * 60 * 60 * 1000;
+let lastReviewAt = 0;
+
+/**
+ * يشغّل الإيقاف التلقائي مرة كل 6 ساعات على الأكثر. يُستدعى من مجدول process-events (كل دقيقة) حتى لا
+ * يعتمد الإيقاف على مهمة Coolify إضافية. العدّاد في الذاكرة لكل نسخة؛ التكرار آمن (لا يمس إلا المفعّلين).
+ */
+export async function reviewProvidersIfDue(now = new Date()) {
+  if (now.getTime() - lastReviewAt < REVIEW_INTERVAL_MS) return null;
+  lastReviewAt = now.getTime();
+  return suspendProvidersWithExpiredDocuments(now);
 }

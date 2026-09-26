@@ -56,11 +56,27 @@ function nameFromUrl(url: string): string {
   return decodeURIComponent(last.replace(/\.[a-z0-9]+$/i, ""));
 }
 
-/** بصمة قصيرة ثابتة للمعرّفات (لا تتغير بتغيّر ترتيب القائمة). */
+/** بصمة ثابتة للمعرّفات (لا تتغير بتغيّر ترتيب القائمة): djb2 وsdbm معاً (~64 بت) فالتصادم مستبعد في القوائم الكبيرة. */
 export function hashId(input: string): string {
-  let h = 5381;
-  for (let i = 0; i < input.length; i++) h = ((h << 5) + h + input.charCodeAt(i)) | 0;
-  return (h >>> 0).toString(36);
+  let a = 5381;
+  let b = 0;
+  for (let i = 0; i < input.length; i++) {
+    const c = input.charCodeAt(i);
+    a = ((a << 5) + a + c) | 0;
+    b = (c + (b << 6) + (b << 16) - b) | 0;
+  }
+  return (a >>> 0).toString(36) + (b >>> 0).toString(36);
+}
+
+/** معرّف فريد داخل القائمة: نفس الرابط مكرراً (قناة في أكثر من مجموعة) يأخذ لاحقة بترتيب ظهوره. */
+function uniqueIds() {
+  const seen = new Map<string, number>();
+  return (key: string) => {
+    const base = hashId(key);
+    const n = seen.get(base) ?? 0;
+    seen.set(base, n + 1);
+    return n === 0 ? base : `${base}-${n}`;
+  };
 }
 
 const VIDEO_EXT = /\.(mp4|mkv|avi|mov|m4v|webm|wmv|flv)(\?|$)/i;
@@ -90,6 +106,7 @@ export function buildCatalog(entries: M3uEntry[]): M3uCatalog {
     return id;
   };
 
+  const idFor = uniqueIds();
   const live: LiveChannel[] = [];
   const movies: Movie[] = [];
   const seriesById = new Map<string, Series>();
@@ -99,10 +116,10 @@ export function buildCatalog(entries: M3uEntry[]): M3uCatalog {
     const kind = classify(e);
     const logo = /^https?:\/\//i.test(e.attrs["tvg-logo"] ?? "") ? e.attrs["tvg-logo"] : undefined;
     if (kind === "live") {
-      live.push({ kind: "live", id: hashId(e.url), num: live.length + 1, name: e.name, logo, categoryId: catFor("live", e.group), epgId: e.attrs["tvg-id"] || undefined, url: e.url });
+      live.push({ kind: "live", id: idFor(`live|${e.url}`), num: live.length + 1, name: e.name, logo, categoryId: catFor("live", e.group), epgId: e.attrs["tvg-id"] || undefined, url: e.url });
     } else if (kind === "movie") {
       const year = e.name.match(/\((19|20)\d{2}\)/)?.[0].replace(/[()]/g, "");
-      movies.push({ kind: "movie", id: hashId(e.url), name: e.name, poster: logo, categoryId: catFor("movie", e.group), year, url: e.url });
+      movies.push({ kind: "movie", id: idFor(`movie|${e.url}`), name: e.name, poster: logo, categoryId: catFor("movie", e.group), year, url: e.url });
     } else {
       const m = e.name.match(EPISODE);
       const seriesName = (m?.[1] || e.group || e.name).trim();
@@ -113,7 +130,7 @@ export function buildCatalog(entries: M3uEntry[]): M3uCatalog {
       const list = episodes.get(seriesId) ?? [];
       const season = m ? Number(m[2]) : 1;
       const episode = m ? Number(m[3]) : list.length + 1;
-      list.push({ id: hashId(e.url), season, episode, title: m?.[4]?.trim() || `الحلقة ${episode}`, image: logo, url: e.url });
+      list.push({ id: idFor(`episode|${e.url}`), season, episode, title: m?.[4]?.trim() || `الحلقة ${episode}`, image: logo, url: e.url });
       episodes.set(seriesId, list);
     }
   });

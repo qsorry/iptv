@@ -1,13 +1,13 @@
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq, gt, lt } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
 import { playerPairings } from "@/infrastructure/database/schema";
-import { AppError, NotFoundError, ValidationError } from "@/core/errors";
+import { AppError, NotFoundError } from "@/core/errors";
 import { pairingStateMachine, type PairingStatus } from "@/core/state-machines";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { parseInput } from "@/modules/providers/validations";
 import { completePairingSchema } from "../validations";
-import { generatePairingCode, generatePollToken, hashToken, normalizePairingCode, tokenMatches } from "../domain/codes";
+import { generatePairingCode, generatePollToken, hashToken, normalizePairingCode, toLatinDigits, tokenMatches } from "../domain/codes";
 import { redeemCode, type PlayerAccount } from "./codes";
 import { recordActivity } from "./activity";
 import { detectServer } from "./servers";
@@ -39,10 +39,31 @@ export async function startPairing(now = new Date()) {
   throw new AppError("تعذّر إنشاء رمز ربط، حاول مرة أخرى", "PAIRING_FAILED", 500);
 }
 
-const INVALID_PAIR_CODE = "رمز الربط غير صحيح أو انتهت صلاحيته. أعد فتح شاشة الربط على التلفاز.";
+/** رمز الربط غير موجود أو استُخدم أو انتهى. */
+export class PairingCodeError extends AppError {
+  constructor() {
+    super("رمز الربط غير صحيح أو انتهت صلاحيته. أعد فتح شاشة الربط على التلفاز.", "PAIRING_CODE_INVALID", 422);
+  }
+}
+
+/** اسم مستخدم لا تطابق بادئته مزوّداً مقبولاً. */
+export class UnknownUsernameError extends AppError {
+  constructor() {
+    super("لم نتعرّف على مزوّد لاسم المستخدم هذا. استخدم كود التفعيل بدلاً منه.", "UNKNOWN_USERNAME", 422);
+  }
+}
+
+/** مهلة إضافية ليستلم التلفاز حساباً أُرسل قبيل انتهاء الرمز (يستطلع كل 3 ثوانٍ). */
+export const PAIRING_CLAIM_GRACE_MS = 60 * 1000;
+
+/** ما يُشفَّر في الطلب حتى يستلمه التلفاز: الحساب، ومعرّفات سجل النشاط. */
+interface PairingPayload {
+  account: PlayerAccount;
+  activity: { providerId: string; serverId: string; codeId: string | null };
+}
 
 /** يتحقق أن رمز الربط قائم وينتظر، دون كشف أي بيانات (لصفحة الجوال قبل الإرسال). */
-export async function findPendingPairing(input: string, now = new Date()) {
+export async function findPendingPairing(input: unknown, now = new Date()) {
   const code = normalizePairingCode(input);
   if (!code) return null;
   const row = await db.query.playerPairings.findFirst({ where: eq(playerPairings.code, code) });
@@ -52,35 +73,36 @@ export async function findPendingPairing(input: string, now = new Date()) {
 
 /**
  * الجوال يرسل الحساب للتلفاز: بكود تفعيل، أو باسم مستخدم يتعرّف عليه المشغّل من بادئته.
- * التحديث مشروط بـ status = pending فلا يُكمَل الطلب مرتين.
+ * التحديث مشروط بـ status = pending وبعدم انتهاء الرمز، فلا يُكمَل الطلب مرتين ولا بعد انتهائه.
  */
 export async function completePairing(input: unknown, now = new Date()) {
   const data = parseInput(completePairingSchema, input);
   const pending = await findPendingPairing(data.pairCode, now);
-  if (!pending) throw new ValidationError(INVALID_PAIR_CODE);
+  if (!pending) throw new PairingCodeError();
 
-  let account: PlayerAccount;
-  let activity: { providerId: string; serverId: string; codeId: string | null };
+  let payload: PairingPayload;
   if (data.activationCode) {
     const r = await redeemCode(data.activationCode, now);
-    account = r.account;
-    activity = { providerId: r.providerId, serverId: r.serverId, codeId: r.codeId };
+    payload = { account: r.account, activity: { providerId: r.providerId, serverId: r.serverId, codeId: r.codeId } };
   } else {
-    const detected = await detectServer(data.username!);
-    if (!detected) throw new ValidationError("لم نتعرّف على مزوّد لاسم المستخدم هذا. استخدم كود التفعيل بدلاً منه.");
-    account = { provider: { name: detected.provider.name }, server: { label: detected.server.label, url: detected.server.url }, username: data.username!, password: data.password! };
-    activity = { providerId: detected.provider.id, serverId: detected.server.id, codeId: null };
+    // نفس تطبيع التطبيق: لوحات مفاتيح الجوال العربية تكتب ٠-٩، وخادم المزوّد يتوقع 0-9.
+    const username = toLatinDigits(data.username!).trim();
+    const detected = await detectServer(username);
+    if (!detected) throw new UnknownUsernameError();
+    payload = {
+      account: { provider: { name: detected.provider.name }, server: { label: detected.server.label, url: detected.server.url }, username, password: data.password! },
+      activity: { providerId: detected.provider.id, serverId: detected.server.id, codeId: null },
+    };
   }
 
   pairingStateMachine.assertTransition("pending", "completed");
   const [updated] = await db
     .update(playerPairings)
-    .set({ status: "completed", payloadEncrypted: encryptSecret(JSON.stringify(account)), completedAt: now, updatedAt: now })
-    .where(and(eq(playerPairings.code, pending.code), eq(playerPairings.status, "pending")))
+    .set({ status: "completed", payloadEncrypted: encryptSecret(JSON.stringify(payload)), completedAt: now, updatedAt: now })
+    .where(and(eq(playerPairings.code, pending.code), eq(playerPairings.status, "pending"), gt(playerPairings.expiresAt, now)))
     .returning({ id: playerPairings.id });
-  if (!updated) throw new ValidationError(INVALID_PAIR_CODE);
-  await recordActivity(db, { kind: "tv_paired", ...activity, at: now });
-  return { providerName: account.provider.name, serverLabel: account.server.label };
+  if (!updated) throw new PairingCodeError();
+  return { providerName: payload.account.provider.name, serverLabel: payload.account.server.label };
 }
 
 export type PairingPoll =
@@ -88,16 +110,32 @@ export type PairingPoll =
   | { status: "completed"; account: PlayerAccount }
   | { status: "consumed" | "expired" };
 
-/** التلفاز يستطلع كل بضع ثوانٍ. الحساب يُسلَّم مرة واحدة ثم تُمسح الحمولة. */
+/** ينهي الطلب فقط إن بقيت حالته كما قُرئت (لا يمحو إكمالاً وصل للتو). */
+async function expire(id: string, from: PairingStatus, now: Date) {
+  pairingStateMachine.assertTransition(from, "expired");
+  await db
+    .update(playerPairings)
+    .set({ status: "expired", payloadEncrypted: null, updatedAt: now })
+    .where(and(eq(playerPairings.id, id), eq(playerPairings.status, from)));
+}
+
+/**
+ * التلفاز يستطلع كل بضع ثوانٍ. الحساب يُسلَّم مرة واحدة ثم تُمسح الحمولة، ويُسجَّل «ربط تلفاز» عندها فقط
+ * (لا عند إرسال الجوال)، فلا يُحسب ربط لم يصل للتلفاز.
+ */
 export async function pollPairing(id: string, pollToken: string, now = new Date()): Promise<PairingPoll> {
   if (!UUID.test(id)) throw new NotFoundError("طلب الربط");
   const row = await db.query.playerPairings.findFirst({ where: eq(playerPairings.id, id) });
   if (!row || !pollToken || !tokenMatches(pollToken, row.pollTokenHash)) throw new NotFoundError("طلب الربط");
 
   const status = row.status as PairingStatus;
-  if ((status === "pending" || status === "completed") && row.expiresAt.getTime() <= now.getTime()) {
-    pairingStateMachine.assertTransition(status, "expired");
-    await db.update(playerPairings).set({ status: "expired", payloadEncrypted: null, updatedAt: now }).where(eq(playerPairings.id, id));
+  const expired = row.expiresAt.getTime() <= now.getTime();
+  if (status === "pending" && expired) {
+    await expire(id, "pending", now);
+    return { status: "expired" };
+  }
+  if (status === "completed" && row.expiresAt.getTime() + PAIRING_CLAIM_GRACE_MS <= now.getTime()) {
+    await expire(id, "completed", now);
     return { status: "expired" };
   }
   if (status === "pending") return { status: "pending", expiresAt: row.expiresAt };
@@ -110,5 +148,7 @@ export async function pollPairing(id: string, pollToken: string, now = new Date(
     .where(and(eq(playerPairings.id, id), eq(playerPairings.status, "completed")))
     .returning({ id: playerPairings.id });
   if (!taken || !row.payloadEncrypted) return { status: "consumed" };
-  return { status: "completed", account: JSON.parse(decryptSecret(row.payloadEncrypted)) as PlayerAccount };
+  const payload = JSON.parse(decryptSecret(row.payloadEncrypted)) as PairingPayload;
+  await recordActivity(db, { kind: "tv_paired", ...payload.activity, at: now });
+  return { status: "completed", account: payload.account };
 }

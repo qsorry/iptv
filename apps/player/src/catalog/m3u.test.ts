@@ -54,3 +54,11 @@ test("M3uSource يرفض ما ليس قائمة", async () => {
   const src = new M3uSource("http://x", async () => "<html>login</html>");
   await assert.rejects(() => src.liveChannels(), /ليس قائمة/);
 });
+
+test("روابط مكررة تأخذ معرّفات فريدة", () => {
+  const text = "#EXTM3U\n#EXTINF:-1 group-title=\"أ\",قناة\nhttp://h/live/1.ts\n#EXTINF:-1 group-title=\"ب\",قناة\nhttp://h/live/1.ts\n";
+  const cat = buildCatalog(parseM3u(text));
+  assert.equal(cat.live.length, 2);
+  assert.notEqual(cat.live[0].id, cat.live[1].id);
+  assert.equal(new Set(cat.live.map((c) => c.id)).size, 2);
+});

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parseDateInput } from "@/lib/dates";
 import { ValidationError } from "@/core/errors";
 import { REQUIREMENT_KINDS } from "../domain/labels";
 
@@ -6,10 +7,8 @@ import { REQUIREMENT_KINDS } from "../domain/labels";
 const optionalText = (max: number) =>
   z.preprocess((v) => (typeof v === "string" && v.trim() === "" ? undefined : v), z.string().trim().max(max).optional());
 
-const optionalDate = z.preprocess(
-  (v) => (v === "" || v === null || v === undefined ? undefined : v instanceof Date ? v : new Date(String(v))),
-  z.date({ invalid_type_error: "تاريخ غير صالح" }).optional(),
-);
+/** تاريخ من حقل date = نهاية ذلك اليوم بتوقيت السعودية (انظر parseDateInput). */
+const optionalDate = z.preprocess((v) => parseDateInput(v), z.date({ invalid_type_error: "تاريخ غير صالح" }).optional());
 
 export const requirementSchema = z.object({
   title: z.string().trim().min(2, "عنوان الشرط مطلوب").max(200),

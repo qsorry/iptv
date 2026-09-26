@@ -7,6 +7,7 @@ export {
   reviewSubmission,
   changeProviderStatus,
   suspendProvidersWithExpiredDocuments,
+  reviewProvidersIfDue,
   type Actor,
 } from "./application/providers";
 export { evaluateReadiness, itemState, EXPIRY_WARNING_DAYS, type Readiness, type ItemState, type SubmissionStatus } from "./domain/readiness";

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { completePairing, findPendingPairing, normalizePairingCode } from "@/modules/player";
-import { AppError } from "@/core/errors";
-import { rateLimit } from "@/lib/rate-limit";
+import { InvalidActivationCodeError, PairingCodeError, UnknownUsernameError, completePairing, findPendingPairing, normalizePairingCode } from "@/modules/player";
+import { ValidationError } from "@/core/errors";
+import { RateLimitedError, rateLimit } from "@/lib/rate-limit";
 import { Container } from "@/components/ui/container";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,21 +11,50 @@ import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 
 export const metadata: Metadata = {
-  title: "ربط التلفاز | Ssouq Net",
+  title: { absolute: "ربط التلفاز | Ssouq Net" },
   robots: { index: false, follow: false },
 };
 
 const PATH = "/player/pair";
 
-type Search = { code?: string; error?: string; done?: string; provider?: string };
+/** رسائل ثابتة تختارها الصفحة بمفتاح؛ لا نص حرّ من الرابط (يُستغل لخداع المشترك على صفحة المنصة). */
+const ERRORS = {
+  pair: "رمز الربط غير صحيح أو انتهت صلاحيته. أعد فتح شاشة الربط على التلفاز وامسح الرمز الجديد.",
+  code: "كود التفعيل غير صالح أو منتهي. تأكد منه أو اطلب كوداً جديداً من مزوّدك.",
+  user: "لم نتعرّف على مزوّد لاسم المستخدم هذا. استخدم كود التفعيل بدلاً منه.",
+  fields: "أدخل كود التفعيل، أو اسم المستخدم وكلمة المرور.",
+  rate: "محاولات كثيرة، انتظر دقيقة ثم حاول مرة أخرى.",
+  generic: "تعذّر الإرسال، حاول مرة أخرى.",
+} as const;
+type ErrorKey = keyof typeof ERRORS;
+
+function errorKey(e: unknown): ErrorKey {
+  if (e instanceof PairingCodeError) return "pair";
+  if (e instanceof InvalidActivationCodeError) return "code";
+  if (e instanceof UnknownUsernameError) return "user";
+  if (e instanceof RateLimitedError) return "rate";
+  if (e instanceof ValidationError) return "fields";
+  return "generic";
+}
+
+/** Next يعطي مصفوفة إن تكرر المفتاح في الرابط. */
+function first(v: string | string[] | undefined): string | undefined {
+  return Array.isArray(v) ? v[0] : v;
+}
+
+type Search = { code?: string | string[]; e?: string | string[]; done?: string | string[] };
 
 /**
  * صفحة يفتحها الجوال بعد مسح QR الظاهر على التلفاز في تطبيق Ssouq Net.
  * يرسل المستخدم كود التفعيل أو اسم المستخدم وكلمة المرور، فيستلمها التلفاز مرة واحدة.
  */
 export default async function PairPage({ searchParams }: { searchParams: Promise<Search> }) {
-  const { code: rawCode, error, done, provider } = await searchParams;
-  const code = rawCode ? normalizePairingCode(rawCode) : null;
+  const sp = await searchParams;
+  const rawCode = first(sp.code);
+  const e = first(sp.e);
+  const error = e && e in ERRORS ? ERRORS[e as ErrorKey] : null;
+  const done = first(sp.done) === "1";
+  const code = normalizePairingCode(rawCode);
   const pending = code ? await findPendingPairing(code) : null;
 
   async function send(formData: FormData) {
@@ -35,16 +64,16 @@ export default async function PairPage({ searchParams }: { searchParams: Promise
     try {
       const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
       rateLimit(`player:pair-complete:${ip}`, 10, 60_000);
-      const result = await completePairing({
+      await completePairing({
         pairCode,
         activationCode: formData.get("activationCode"),
         username: formData.get("username"),
         password: formData.get("password"),
       });
-      target = `${PATH}?done=1&provider=${encodeURIComponent(result.providerName)}`;
-    } catch (e) {
-      const msg = e instanceof AppError ? e.message : "تعذّر الإرسال، حاول مرة أخرى";
-      target = `${PATH}?code=${encodeURIComponent(pairCode)}&error=${encodeURIComponent(msg)}`;
+      target = `${PATH}?done=1`;
+    } catch (err) {
+      if (errorKey(err) === "generic") console.error("pairing failed", err);
+      target = `${PATH}?code=${encodeURIComponent(pairCode)}&e=${errorKey(err)}`;
     }
     redirect(target);
   }
@@ -60,18 +89,17 @@ export default async function PairPage({ searchParams }: { searchParams: Promise
         {done ? (
           <Card className="space-y-2">
             <Alert variant="success">تم الإرسال. سيفتح التلفاز حسابك خلال ثوانٍ.</Alert>
-            {provider && <p className="text-sm text-ink-secondary">المزوّد: {provider}</p>}
           </Card>
         ) : (
           <>
             {error && <Alert variant="error">{error}</Alert>}
-            {code && !pending && !error && <Alert variant="warning">انتهت صلاحية هذا الرمز أو استُخدم. افتح شاشة الربط على التلفاز من جديد وامسح الرمز الجديد.</Alert>}
+            {rawCode && !pending && !error && <Alert variant="warning">انتهت صلاحية هذا الرمز أو استُخدم. افتح شاشة الربط على التلفاز من جديد وامسح الرمز الجديد.</Alert>}
 
             <Card>
               <form action={send} className="space-y-4">
                 <div className="space-y-1">
                   <label htmlFor="pairCode" className="text-sm font-medium">رمز الربط الظاهر على التلفاز</label>
-                  <Input id="pairCode" name="pairCode" required dir="ltr" autoCapitalize="characters" autoComplete="off" defaultValue={code ?? rawCode ?? ""} placeholder="XXXX-XXXX" className="text-center font-semibold tracking-widest" />
+                  <Input id="pairCode" name="pairCode" required dir="ltr" autoCapitalize="characters" autoComplete="off" defaultValue={code ?? rawCode?.slice(0, 20) ?? ""} placeholder="XXXX-XXXX" className="text-center font-semibold tracking-widest" />
                 </div>
 
                 <fieldset className="space-y-3">
@@ -102,6 +130,9 @@ export default async function PairPage({ searchParams }: { searchParams: Promise
               </form>
             </Card>
 
+            <p className="text-xs text-ink-secondary">
+              تابع فقط إن كان رمز الربط أعلاه ظاهراً على تلفازك أنت الآن؛ أي تلفاز يحمل هذا الرمز سيستلم حسابك.
+            </p>
             <p className="text-xs text-ink-secondary">
               Ssouq Net مشغّل وسائط فقط ولا يحتوي على أي قنوات أو محتوى. المحتوى يقدّمه مزوّدك، وبياناتك تُرسل إلى تلفازك فقط ولا تُحفظ بعد استلامها.
             </p>

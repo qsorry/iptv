@@ -22,8 +22,21 @@ export function useVisible<T extends Element>(margin = "200px") {
   return [ref, visible] as const;
 }
 
+/** أقرب حاوية تمرير (overflow auto/scroll) حول العنصر، أو null إن كانت الصفحة نفسها. */
+export function scrollParent(el: Element): Element | null {
+  let node = el.parentElement;
+  while (node && node !== document.body && node !== document.documentElement) {
+    const oy = window.getComputedStyle(node).overflowY;
+    if (oy === "auto" || oy === "scroll") return node;
+    node = node.parentElement;
+  }
+  return null;
+}
+
 /**
- * عرض تدريجي للقوائم الطويلة (آلاف القنوات والأفلام): دفعة أولى ثم دفعات كلما ظهر العنصر الحارس.
+ * عرض تدريجي للقوائم الطويلة (آلاف القنوات والأفلام): دفعة أولى ثم دفعات كلما اقترب العنصر الحارس.
+ * المراقبة نسبةً لحاوية التمرير الفعلية (القائمة الجانبية، المكتبة، لوحة القنوات): rootMargin لا يوسّع
+ * قصّ الحاويات الوسيطة، فمراقبة الصفحة كلها لا ترى الحارس داخلها عند التنقل بالريموت.
  * يعود للدفعة الأولى عند تغيّر القائمة.
  */
 export function useIncremental<T>(list: T[], pageSize = 60) {
@@ -37,9 +50,12 @@ export function useIncremental<T>(list: T[], pageSize = 60) {
       setCount(list.length);
       return;
     }
-    const io = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) setCount((c) => Math.min(list.length, c + pageSize));
-    }, { rootMargin: "600px" });
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) setCount((c) => Math.min(list.length, c + pageSize));
+      },
+      { root: scrollParent(el), rootMargin: "600px" },
+    );
     io.observe(el);
     return () => io.disconnect();
   }, [count, list.length, pageSize]);

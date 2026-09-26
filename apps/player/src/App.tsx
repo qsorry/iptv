@@ -3,7 +3,7 @@ import { useSession } from "./state/session";
 import { useLayout } from "./state/hooks";
 import { canGoBack, goBack, navigate, useRoute, type Route } from "./nav/router";
 import { focusFirst } from "./nav/focus";
-import { installRemote } from "./nav/remote";
+import { installRemote, useRemote } from "./nav/remote";
 import { canExit, exitApp } from "./platform";
 import { Shell, type Tab } from "./components/Shell";
 import { Icon } from "./components/Icon";
@@ -52,7 +52,9 @@ export function App() {
   // كل شاشة جديدة تبدأ بالتركيز على أول عنصر (للريموت) وتعود لأعلى الصفحة.
   useEffect(() => {
     window.scrollTo(0, 0);
-    document.querySelector(".shell-main")?.scrollTo(0, 0);
+    // scrollTop لا Element.scrollTo: الأخيرة غير موجودة قبل Chromium 61 (تلفزيونات 2018–2019) فتُسقط التطبيق.
+    const main = document.querySelector(".shell-main");
+    if (main) main.scrollTop = 0;
     if (!tv) return;
     const t = window.setTimeout(() => {
       if (!document.activeElement || document.activeElement === document.body) focusFirst();
@@ -121,6 +123,12 @@ export function App() {
 }
 
 function ExitDialog({ onClose }: { onClose: () => void }) {
+  // زر الرجوع يغلق السؤال (لا يعيد فتحه).
+  useRemote((action) => {
+    if (action !== "back") return false;
+    onClose();
+    return true;
+  });
   useEffect(() => {
     const t = window.setTimeout(() => focusFirst(), 30);
     return () => window.clearTimeout(t);

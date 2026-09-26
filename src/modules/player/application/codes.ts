@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
 import { contentProviders, playerActivationCodes, providerServers } from "@/infrastructure/database/schema";
 import { AppError, NotFoundError, ValidationError } from "@/core/errors";
@@ -60,8 +60,12 @@ export async function createActivationCode(input: unknown, actor: Actor, now = n
   });
 }
 
-/** آخر أكواد المزوّد (بلا كلمات المرور). */
-export async function listActivationCodes(providerId: string, limit = 100) {
+export const CODES_PAGE_SIZE = 100;
+
+/** أكواد المزوّد (بلا كلمات المرور)، الأحدث أولاً، مع بحث بالكود أو اسم المستخدم للوصول للأقدم. */
+export async function listActivationCodes(providerId: string, opts: { q?: string; limit?: number } = {}) {
+  const q = (opts.q ?? "").trim();
+  const pattern = `%${q.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
   return db
     .select({
       id: playerActivationCodes.id,
@@ -74,12 +78,26 @@ export async function listActivationCodes(providerId: string, limit = 100) {
       lastRedeemedAt: playerActivationCodes.lastRedeemedAt,
       createdAt: playerActivationCodes.createdAt,
       serverLabel: providerServers.label,
+      serverActive: providerServers.isActive,
     })
     .from(playerActivationCodes)
     .innerJoin(providerServers, eq(providerServers.id, playerActivationCodes.serverId))
-    .where(eq(providerServers.providerId, providerId))
+    .where(q ? and(eq(providerServers.providerId, providerId), or(ilike(playerActivationCodes.code, pattern), ilike(playerActivationCodes.username, pattern))) : eq(providerServers.providerId, providerId))
     .orderBy(desc(playerActivationCodes.createdAt))
-    .limit(limit);
+    .limit(opts.limit ?? CODES_PAGE_SIZE);
+}
+
+/** عدد أكواد المزوّد كلها: الصالحة للاستخدام الآن (فعّالة، غير منتهية، على خادم مفعّل) والإجمالي. */
+export async function countActivationCodes(providerId: string, now = new Date()) {
+  const [row] = await db
+    .select({
+      total: sql<number>`count(*)::int`,
+      usable: sql<number>`count(*) filter (where ${playerActivationCodes.status} = 'active' and ${providerServers.isActive} and (${playerActivationCodes.expiresAt} is null or ${playerActivationCodes.expiresAt} > ${now.toISOString()}::timestamptz))::int`,
+    })
+    .from(playerActivationCodes)
+    .innerJoin(providerServers, eq(providerServers.id, playerActivationCodes.serverId))
+    .where(eq(providerServers.providerId, providerId));
+  return { total: row?.total ?? 0, usable: row?.usable ?? 0 };
 }
 
 export async function revokeActivationCode(codeId: string, actor: Actor) {
@@ -108,7 +126,7 @@ export interface Redemption {
  * يستبدل الكود ببيانات الحساب ويزيد عدّاده، دون تسجيل نشاط (يسجّله المستدعي بنوعه:
  * دخول مباشر بالكود، أو ربط تلفاز استخدم الكود).
  */
-export async function redeemCode(input: string, now = new Date()): Promise<Redemption> {
+export async function redeemCode(input: unknown, now = new Date()): Promise<Redemption> {
   const code = normalizeActivationCode(input);
   if (!code) throw new InvalidActivationCodeError();
   const [row] = await db
@@ -137,20 +155,34 @@ export async function redeemCode(input: string, now = new Date()): Promise<Redem
   };
 }
 
+/** يتحقق من الكود دون استخدامه (لا عدّاد ولا سجل): للتطبيق أثناء الكتابة، قبل ضغط «دخول». */
+export async function checkActivationCode(input: unknown, now = new Date()) {
+  const code = normalizeActivationCode(input);
+  if (!code) throw new InvalidActivationCodeError();
+  const [row] = await db
+    .select({ expiresAt: playerActivationCodes.expiresAt, providerName: contentProviders.name, serverLabel: providerServers.label })
+    .from(playerActivationCodes)
+    .innerJoin(providerServers, eq(providerServers.id, playerActivationCodes.serverId))
+    .innerJoin(contentProviders, eq(contentProviders.id, providerServers.providerId))
+    .where(and(eq(playerActivationCodes.code, code), eq(playerActivationCodes.status, "active"), eq(providerServers.isActive, true), eq(contentProviders.status, "approved")));
+  if (!row || (row.expiresAt && row.expiresAt.getTime() <= now.getTime())) throw new InvalidActivationCodeError();
+  return { provider: { name: row.providerName }, server: { label: row.serverLabel } };
+}
+
 /**
  * يستبدل الكود ببيانات الحساب (دخول التطبيق مباشرة بالكود). يعمل عدة مرات (جوال وتلفاز لنفس
  * المشترك) ما دام الكود فعّالاً وغير منتهٍ، والخادم مفعّلاً، والمزوّد مقبولاً.
  */
-export async function redeemActivationCode(input: string, now = new Date()): Promise<PlayerAccount> {
+export async function redeemActivationCode(input: unknown, now = new Date()): Promise<PlayerAccount> {
   const r = await redeemCode(input, now);
   await recordActivity(db, { kind: "code_redeemed", providerId: r.providerId, serverId: r.serverId, codeId: r.codeId, at: now });
   return r.account;
 }
 
-/** كل ما تحتاجه صفحة إعدادات المشغّل لمزوّد واحد. */
-export async function getPlayerSettings(providerId: string) {
+/** كل ما تحتاجه صفحة إعدادات المشغّل لمزوّد واحد (q: بحث في الأكواد). */
+export async function getPlayerSettings(providerId: string, opts: { q?: string } = {}) {
   const provider = await db.query.contentProviders.findFirst({ where: eq(contentProviders.id, providerId) });
   if (!provider) throw new NotFoundError("المزوّد", providerId);
-  const [servers, codes] = await Promise.all([listProviderServers(providerId), listActivationCodes(providerId)]);
-  return { provider, servers, codes };
+  const [servers, codes, codeCounts] = await Promise.all([listProviderServers(providerId), listActivationCodes(providerId, { q: opts.q }), countActivationCodes(providerId)]);
+  return { provider, servers, codes, codeCounts, codesLimited: codes.length >= CODES_PAGE_SIZE };
 }

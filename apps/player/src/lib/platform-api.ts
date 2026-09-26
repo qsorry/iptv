@@ -23,6 +23,16 @@ export async function detectProvider(username: string): Promise<Detected | null>
   return res.data;
 }
 
+/** تحقق بلا أثر (لا يُحسب استخداماً): اسم المزوّد والخادم فقط. */
+export async function checkCode(code: string): Promise<Pick<ServerAccount, "provider"> & { server: { label: string } }> {
+  const res = await requestJson<{ data: Pick<ServerAccount, "provider"> & { server: { label: string } } }>(`${API_BASE}/api/v1/player/activate`, {
+    method: "POST",
+    body: { code, dryRun: true },
+    timeoutMs: 15000,
+  });
+  return res.data;
+}
+
 export async function activateCode(code: string): Promise<ServerAccount> {
   const res = await requestJson<{ data: ServerAccount }>(`${API_BASE}/api/v1/player/activate`, { method: "POST", body: { code }, timeoutMs: 15000 });
   return res.data;

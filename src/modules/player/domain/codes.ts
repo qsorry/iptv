@@ -17,15 +17,18 @@ function compact(input: string): string {
 
 export const ACTIVATION_CODE_PATTERN = /^SN-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
 
+/** الجزء العشوائي لا يبدأ بـ «SN» أبداً، حتى لا يلتبس بالبادئة إن كتبه المشترك بلا «SN-». */
 export function generateActivationCode(): string {
-  const c = randomChars(8);
+  let c = randomChars(8);
+  while (c.startsWith("SN")) c = randomChars(8);
   return `SN-${c.slice(0, 4)}-${c.slice(4)}`;
 }
 
-/** «sn 8h3k92pl» → «SN-8H3K-92PL»، أو null إن لم تكن الصيغة صحيحة. */
-export function normalizeActivationCode(input: string): string | null {
+/** «sn 8h3k92pl» → «SN-8H3K-92PL»، أو null إن لم تكن الصيغة صحيحة. تُحذف «SN» فقط إن كانت بادئة (10 أحرف). */
+export function normalizeActivationCode(input: unknown): string | null {
+  if (typeof input !== "string") return null;
   let c = compact(input);
-  if (c.startsWith("SN")) c = c.slice(2);
+  if (c.length === 10 && c.startsWith("SN")) c = c.slice(2);
   if (c.length !== 8) return null;
   return `SN-${c.slice(0, 4)}-${c.slice(4)}`;
 }
@@ -35,7 +38,8 @@ export function generatePairingCode(): string {
   return `${c.slice(0, 4)}-${c.slice(4)}`;
 }
 
-export function normalizePairingCode(input: string): string | null {
+export function normalizePairingCode(input: unknown): string | null {
+  if (typeof input !== "string") return null;
   const c = compact(input);
   return c.length === 8 ? `${c.slice(0, 4)}-${c.slice(4)}` : null;
 }

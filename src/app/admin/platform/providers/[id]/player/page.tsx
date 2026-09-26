@@ -77,20 +77,22 @@ async function revokeCode(formData: FormData) {
  * إعدادات تطبيق المشغّل لمزوّد واحد: خوادم Xtream وبادئات أسماء المستخدمين (للتعرّف التلقائي)،
  * وأكواد التفعيل SN-XXXX-XXXX. لا يستخدمها التطبيق إلا بعد قبول المزوّد.
  */
-export default async function ProviderPlayerPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; ok?: string }> }) {
+export default async function ProviderPlayerPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; ok?: string; q?: string | string[] }> }) {
   if (!(await platformContext())) return <PlatformDenied title="تطبيق المشغّل" />;
 
   const { id } = await params;
-  const { error, ok } = await searchParams;
+  const sp = await searchParams;
+  const { error, ok } = sp;
+  const q = (Array.isArray(sp.q) ? sp.q[0] : sp.q)?.trim() ?? "";
 
   let settings;
   try {
-    settings = await getPlayerSettings(id);
+    settings = await getPlayerSettings(id, { q });
   } catch (e) {
     if (e instanceof NotFoundError) notFound();
     throw e;
   }
-  const { provider, servers, codes } = settings;
+  const { provider, servers, codes, codeCounts, codesLimited } = settings;
   const status = provider.status as ProviderStatus;
 
   return (
@@ -104,7 +106,7 @@ export default async function ProviderPlayerPage({ params, searchParams }: { par
       <Card className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={STATUS_VARIANT[status]}>{PROVIDER_STATUS_LABELS[status]}</Badge>
-          <span className="text-sm text-ink-secondary">{servers.length} خادم · {codes.filter((c) => c.status === "active").length} كود فعّال</span>
+          <span className="text-sm text-ink-secondary">{servers.length} خادم · {codeCounts.usable} كود صالح من {codeCounts.total}</span>
         </div>
         <p className="text-sm text-ink-secondary">
           يتعرّف التطبيق على المزوّد من أول حروف اسم المستخدم (البادئة) ويتصل بخادمه مباشرة. كود التفعيل يغني المشترك عن كتابة اسم المستخدم وكلمة المرور.
@@ -183,6 +185,16 @@ export default async function ProviderPlayerPage({ params, searchParams }: { par
           </Card>
         )}
 
+        {codeCounts.total > 0 && (
+          <form method="get" className="flex gap-2" role="search">
+            <label htmlFor="code-q" className="sr-only">ابحث بالكود أو اسم المستخدم</label>
+            <Input id="code-q" name="q" defaultValue={q} dir="ltr" placeholder="SN-… أو اسم المستخدم" className="flex-1" />
+            <Button type="submit" size="sm" variant="secondary">بحث</Button>
+            {q && <Link href={`/admin/platform/providers/${id}/player`} className={buttonClasses({ variant: "ghost", size: "sm" })}>الكل</Link>}
+          </form>
+        )}
+        {q && codes.length === 0 && <Card className="text-sm text-ink-secondary">لا أكواد تطابق «{q}».</Card>}
+        {codesLimited && <p className="text-xs text-ink-secondary">تظهر أحدث {codes.length} نتيجة؛ ابحث بالكود أو اسم المستخدم للوصول إلى الأقدم.</p>}
         {codes.length > 0 && (
           <ul className="space-y-2">
             {codes.map((c) => (
@@ -216,7 +228,7 @@ export default async function ProviderPlayerPage({ params, searchParams }: { par
   );
 }
 
-type CodeRow = { status: string; expiresAt: Date | null };
+type CodeRow = { status: string; expiresAt: Date | null; serverActive: boolean };
 
 function codeExpired(c: CodeRow) {
   return c.expiresAt !== null && c.expiresAt.getTime() <= Date.now();
@@ -224,12 +236,13 @@ function codeExpired(c: CodeRow) {
 
 function codeLabel(c: CodeRow) {
   if (c.status === "revoked") return "ملغى";
-  return codeExpired(c) ? "منتهٍ" : "فعّال";
+  if (codeExpired(c)) return "منتهٍ";
+  return c.serverActive ? "فعّال" : "خادمه معطّل";
 }
 
 function codeVariant(c: CodeRow) {
   if (c.status === "revoked" || codeExpired(c)) return "error" as const;
-  return "success" as const;
+  return c.serverActive ? ("success" as const) : ("warning" as const);
 }
 
 function ServerFields({ idPrefix, label, baseUrl, prefixes, isActive }: { idPrefix: string; label?: string; baseUrl?: string; prefixes?: string; isActive?: boolean }) {

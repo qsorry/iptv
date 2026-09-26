@@ -24,7 +24,7 @@
 - مدير المنصة يُحدَّد بمتغير `PLATFORM_ADMIN_EMAILS` (إيميلات مفصولة بفاصلة) ويرى `/admin/platform` لتغيير باقات المتاجر.
 - الباقات الافتراضية في `src/modules/billing/plans.ts` (free / pro / business)؛ الأعلى تنفرد بميزة `subscriptions.api`.
 - مزوّدو المحتوى (`src/modules/providers`): صفحات `/admin/platform/providers` (القائمة والمراجعة) و`/providers/requirements` (تعديل شروط القبول). لا يُقبل مزوّد قبل استيفاء كل شرط مطلوب، والحالات عبر `providerStateMachine`. هذه الصفحات في لوحة الويب فقط وليست في تطبيق المشغّل.
-- الإيقاف التلقائي عند انتهاء مستند: `POST /api/internal/review-providers` (بهيدر `x-cron-secret`) ويُجدول يومياً.
+- الإيقاف التلقائي عند انتهاء مستند: يعمل ضمن مجدول `process-events` مرة كل 6 ساعات (`reviewProvidersIfDue`)، و`POST /api/internal/review-providers` للتشغيل اليدوي.
 
 ## الهجرات
 - تُطبَّق تلقائياً عند إقلاع الحاوية عبر `scripts/migrate.mjs` قبل `server.js`.

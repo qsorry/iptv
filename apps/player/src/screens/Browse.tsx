@@ -88,7 +88,8 @@ export function Browse({ kind, wide, categoryId }: { kind: "movie" | "series"; w
   // تبديل التصنيف يستبدل الرابط (لا يملأ سجل الرجوع) ويعيد الشبكة لأعلاها.
   const pick = (id: string) => navigate(`${base}?cat=${encodeURIComponent(id)}`, { replace: true });
   useEffect(() => {
-    document.querySelector(".library-main")?.scrollTo(0, 0);
+    const main = document.querySelector(".library-main");
+    if (main) main.scrollTop = 0;
   }, [current]);
 
   if (data.loading && !data.data) return <div className="screen"><Loading /></div>;

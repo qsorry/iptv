@@ -83,7 +83,8 @@ export function moveFocus(dir: Direction): boolean {
   const toRegion = regionOf(target);
   if (toRegion && toRegion !== fromRegion) {
     const remembered = lastInRegion.get(toRegion.getAttribute("data-nav-region")!);
-    if (remembered && remembered.isConnected && toRegion.contains(remembered) && visible(remembered)) target = remembered;
+    // contains لا isConnected (غير موجودة في Chromium 53).
+    if (remembered && document.body.contains(remembered) && toRegion.contains(remembered) && visible(remembered)) target = remembered;
   }
   focusEl(target);
   return true;
