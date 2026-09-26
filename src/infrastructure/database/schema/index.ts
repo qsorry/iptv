@@ -18,3 +18,4 @@ export * from "./subscriptions";
 export * from "./tracking";
 export * from "./feeds";
 export * from "./providers";
+export * from "./player";

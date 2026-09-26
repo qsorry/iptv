@@ -12,3 +12,4 @@ coverage/
 supabase/.branches
 supabase/.temp
 tsconfig.tsbuildinfo
+apps/player/release/

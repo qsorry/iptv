@@ -1,0 +1,243 @@
+/*
+ * أساسيات وأدوات تخطيط. لا flex gap (Chromium 84+) ولا CSS grid (57+): المسافات بالهوامش
+ * والشبكات بـ flex-wrap، ليعمل التطبيق على تلفزيونات 2018 وما بعدها. التطبيق RTL دائماً.
+ */
+html {
+  font-size: 16px;
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-text-size-adjust: 100%;
+}
+
+/* على التلفاز كل المقاسات بالـ rem، و1280px تساوي 16px فتطابق شاشة 1920 التصميم بنفس النسب. */
+html.tv {
+  font-size: 1.25vw;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+}
+
+html.tv body {
+  overflow: hidden;
+  cursor: none;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1,
+h2,
+h3,
+.display {
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--accent-hover);
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: 0;
+  background: none;
+  padding: 0;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+/* التركيز: حلقة واضحة عند استخدام الريموت أو لوحة المفاتيح (بدل :focus-visible غير المدعوم قديماً). */
+:focus {
+  outline: none;
+}
+
+html.tv :focus,
+html.using-keys :focus {
+  box-shadow: var(--focus-ring);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.ltr {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.muted {
+  color: var(--ink-3);
+}
+
+.truncate {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.grow {
+  -webkit-box-flex: 1;
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* تكديس رأسي: stack-N = مسافة N/4 rem بين الأبناء. */
+.stack > * + * {
+  margin-top: 1rem;
+}
+.stack-1 > * + * {
+  margin-top: 0.25rem;
+}
+.stack-2 > * + * {
+  margin-top: 0.5rem;
+}
+.stack-3 > * + * {
+  margin-top: 0.75rem;
+}
+.stack-5 > * + * {
+  margin-top: 1.25rem;
+}
+.stack-6 > * + * {
+  margin-top: 1.5rem;
+}
+
+/* صف أفقي: الابن الأول على اليمين (RTL) والمسافة على يمين كل ما بعده. */
+.row {
+  display: flex;
+  align-items: center;
+}
+.row > * + * {
+  margin-right: 0.75rem;
+}
+.row-1 > * + * {
+  margin-right: 0.25rem;
+}
+.row-2 > * + * {
+  margin-right: 0.5rem;
+}
+.row-4 > * + * {
+  margin-right: 1rem;
+}
+.row-6 > * + * {
+  margin-right: 1.5rem;
+}
+.row-baseline {
+  align-items: baseline;
+}
+.row-start {
+  align-items: flex-start;
+}
+.row-wrap {
+  flex-wrap: wrap;
+}
+
+/* شبكة بـ flex-wrap: الحاوية بهامش سالب والأبناء بحشوة؛ --cols يحدد الأعمدة. */
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 -0.5rem;
+}
+.grid > * {
+  width: 50%;
+  padding: 0 0.5rem;
+  margin-bottom: 1.125rem;
+}
+.grid-3 > * {
+  width: 33.333%;
+  padding: 0 0.375rem;
+  margin-bottom: 0.75rem;
+}
+.grid-3 {
+  margin: 0 -0.375rem;
+}
+
+@media (min-width: 600px) {
+  .grid > * {
+    width: 25%;
+  }
+}
+
+@media (min-width: 960px) {
+  .grid > * {
+    width: 20%;
+  }
+}
+
+html.tv .grid > * {
+  width: 20%;
+}
+
+/* شريط أفقي قابل للتمرير (سحب على الجوال، أسهم على التلفاز). */
+.rail {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  margin: 0 -1.25rem;
+  padding: 0.25rem 1.25rem;
+}
+.rail::-webkit-scrollbar {
+  display: none;
+}
+.rail > * {
+  flex-shrink: 0;
+}
+.rail > * + * {
+  margin-right: 0.75rem;
+}
+
+html.tv .rail {
+  overflow-x: hidden;
+  margin: 0 -3rem;
+  padding: 0.375rem 3rem;
+}
+html.tv .rail > * + * {
+  margin-right: 1.125rem;
+}

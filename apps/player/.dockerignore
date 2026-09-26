@@ -1,0 +1,6 @@
+node_modules
+dist
+release
+platforms/android/app/build
+platforms/android/.gradle
+platforms/android/app/src/main/assets/www

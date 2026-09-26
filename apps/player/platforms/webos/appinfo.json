@@ -1,0 +1,15 @@
+{
+  "id": "net.ssouq.player",
+  "version": "1.0.0",
+  "vendor": "Ssouq",
+  "type": "web",
+  "main": "index.html",
+  "title": "Ssouq Net",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "bgColor": "#0E1014",
+  "resolution": "1920x1080",
+  "disableBackHistoryAPI": true,
+  "handlesRelaunch": false,
+  "requiredACG": []
+}

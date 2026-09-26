@@ -1,0 +1,40 @@
+plugins {
+    id "com.android.application"
+}
+
+// الإصدار من package.json (يمرره scripts/package.mjs) حتى تتطابق نسخ كل المنصات.
+def appVersion = project.findProperty("appVersion") ?: "1.0.0"
+def appVersionCode = (project.findProperty("appVersionCode") ?: "1") as int
+
+android {
+    namespace "net.ssouq.player"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "net.ssouq.player"
+        minSdk 21
+        targetSdk 35
+        versionCode appVersionCode
+        versionName appVersion
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // التوقيع: عرّف SSOUQ_KEYSTORE وكلمات مرورها في البيئة، وإلا يُبنى release غير موقّع.
+            if (System.getenv("SSOUQ_KEYSTORE")) {
+                signingConfig signingConfigs.create("release") {
+                    storeFile file(System.getenv("SSOUQ_KEYSTORE"))
+                    storePassword System.getenv("SSOUQ_KEYSTORE_PASSWORD")
+                    keyAlias System.getenv("SSOUQ_KEY_ALIAS")
+                    keyPassword System.getenv("SSOUQ_KEY_PASSWORD")
+                }
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+}

@@ -7,3 +7,6 @@ node_modules
 coverage
 *.log
 docs
+apps/*/node_modules
+apps/*/dist
+apps/*/release

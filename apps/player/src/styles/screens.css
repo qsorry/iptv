@@ -1,0 +1,676 @@
+/* تخطيط الشاشات. الجوال أولاً ثم .shell-wide (تلفاز/شاشة عريضة). */
+
+/* ── الإطار ── */
+.shell-phone .screen {
+  padding: 3rem 1.25rem 7rem;
+  padding-top: calc(3rem + var(--safe-top));
+  padding-bottom: calc(6.5rem + var(--safe-bottom));
+}
+.shell-main {
+  margin-right: 6rem;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+.shell-main::-webkit-scrollbar {
+  display: none;
+}
+.shell-main .screen {
+  padding: 2rem 2.5rem 3rem;
+}
+.shell-bare {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.page-title {
+  font-size: 1.625rem;
+}
+.home-kicker {
+  font-size: 0.8125rem;
+}
+.home-title {
+  font-size: 1.375rem;
+}
+.small {
+  font-size: 0.8125rem;
+}
+.strong {
+  font-weight: 600;
+}
+.center-text {
+  text-align: center;
+}
+.sentinel {
+  width: 100%;
+  height: 1px;
+}
+.grid-2col {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 -0.375rem;
+}
+.grid-2col > * {
+  width: calc(50% - 0.75rem);
+  margin: 0 0.375rem 0.75rem;
+}
+.rail-poster {
+  width: 7.5rem;
+}
+.shell-wide .rail-poster {
+  width: 10rem;
+}
+.rank-tile {
+  width: 6.5rem;
+}
+.channel-chip {
+  display: flex;
+  align-items: center;
+  width: 13rem;
+  padding: 0.5rem;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.channel-chip > * + * {
+  margin-right: 0.625rem;
+}
+.channel-chip:focus,
+.channel-chip:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+  box-shadow: none;
+}
+
+/* ── الدخول ── */
+.login {
+  min-height: 100vh;
+  padding: 3.5rem 1.5rem 2rem;
+  padding-top: calc(3.5rem + var(--safe-top));
+  display: flex;
+  justify-content: center;
+}
+.login-main {
+  width: 100%;
+  max-width: 26rem;
+  display: flex;
+  flex-direction: column;
+}
+.login-brand {
+  font-size: 1.375rem;
+  letter-spacing: 0.0125rem;
+}
+.login-title {
+  font-size: 1.75rem;
+}
+.login-lead {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+.login-foot {
+  margin-top: auto;
+  padding-top: 1.5rem;
+}
+.login-foot a {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.login-wide {
+  align-items: center;
+}
+.login-wide > * + * {
+  margin-right: 4rem;
+}
+.pair-panel {
+  width: 24rem;
+  padding: 2rem;
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.pair-panel h2 {
+  font-size: 1.375rem;
+}
+.pair-qr {
+  width: 15rem;
+  height: 15rem;
+  margin-right: auto;
+  margin-left: auto;
+  border-radius: var(--r-lg);
+  background: var(--ink);
+  padding: 0.75rem;
+}
+.pair-qr img {
+  width: 100%;
+  height: 100%;
+}
+.pair-code {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.25rem;
+  text-align: center;
+  color: var(--accent);
+}
+
+/* ── مباشر (تلفاز) ── */
+.live-top {
+  display: flex;
+  height: 22rem;
+}
+.live-top > * + * {
+  margin-right: 1.5rem;
+}
+.live-preview {
+  -webkit-box-flex: 1;
+  flex-grow: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.375rem;
+  border-radius: var(--r-xl);
+  background: var(--bg-video);
+  border: 1px solid var(--line);
+}
+.live-preview-mid {
+  -webkit-box-flex: 1;
+  flex-grow: 1;
+}
+.play-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.75rem;
+  height: 4.75rem;
+  border-radius: 50%;
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  color: var(--ink);
+}
+.play-circle:hover,
+.play-circle:focus {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+.play-circle-sm {
+  width: 3.25rem;
+  height: 3.25rem;
+  background: var(--accent);
+  border: 0;
+  color: var(--on-accent);
+}
+.live-now-title {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+.live-times {
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+}
+.live-list {
+  width: 25rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.live-list > * + * {
+  margin-top: 0.625rem;
+}
+.live-list-title {
+  font-size: 1.125rem;
+}
+.live-list-scroll {
+  -webkit-box-flex: 1;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0.125rem;
+}
+.live-list-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── دليل البرامج ── */
+.epg > * + * {
+  margin-top: 0.625rem;
+}
+.epg-head {
+  display: flex;
+  align-items: center;
+}
+.epg-head h2 {
+  font-size: 1.125rem;
+}
+.epg-scale,
+.epg-strip {
+  display: flex;
+  width: 43.75rem;
+  flex-shrink: 0;
+}
+.epg-scale span {
+  -webkit-box-flex: 1;
+  flex: 1;
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+}
+.epg-row {
+  display: flex;
+  height: 3.25rem;
+}
+.epg-row > * + * {
+  margin-right: 0.625rem;
+}
+.epg-name {
+  -webkit-box-flex: 1;
+  flex-grow: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 0.875rem;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.epg-strip > * + * {
+  margin-left: 0.375rem;
+}
+.epg-prog {
+  flex-basis: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink-3);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  overflow: hidden;
+  direction: rtl;
+}
+.epg-prog.is-live {
+  background: var(--line-strong);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+/* على الجوال بالعرض الضيق يختفي الدليل الزمني داخل «مباشر» (له شاشة مستقلة). */
+@media (max-width: 1100px) {
+  .shell-main .epg-scale,
+  .shell-main .epg-strip {
+    width: 55%;
+  }
+}
+
+/* ── بطاقة المميّز (أفلام/مسلسلات على الجوال) ── */
+.hero-card {
+  position: relative;
+  overflow: hidden;
+  height: 13.125rem;
+  border-radius: var(--r-xl);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 1.125rem;
+}
+.hero-card-scrim {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: -webkit-linear-gradient(bottom, var(--scrim) 10%, var(--scrim-0) 75%);
+  background: linear-gradient(to top, var(--scrim) 10%, var(--scrim-0) 75%);
+}
+.hero-card-row {
+  position: relative;
+  align-items: flex-end;
+}
+.hero-card-body {
+  position: relative;
+}
+.hero-card-poster {
+  width: 6.25rem;
+  flex-shrink: 0;
+}
+.hero-card-title {
+  font-size: 1.625rem;
+}
+.hero-card-meta {
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+/* ── المكتبة (تصنيفات + شبكة) ── */
+.library {
+  display: flex;
+  height: 100vh;
+}
+.library-side {
+  width: 22.5rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 1.375rem 1.25rem 0;
+  background: var(--bg-deep);
+  border-left: 1px solid var(--line);
+}
+.library-side > * + * {
+  margin-top: 0.875rem;
+}
+.library-brand {
+  font-size: 1.25rem;
+}
+.library-search {
+  position: relative;
+}
+.library-search .input {
+  height: 3rem;
+  padding-right: 2.75rem;
+  border-color: var(--line);
+  font-size: 1rem;
+}
+.library-search-icon {
+  position: absolute;
+  top: 0.9375rem;
+  right: 0.875rem;
+  color: var(--ink-3);
+}
+.library-cats {
+  -webkit-box-flex: 1;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 0.125rem 0.125rem 1.5rem;
+}
+.library-cats::-webkit-scrollbar {
+  display: none;
+}
+.library-cats > * + * {
+  margin-top: 0.25rem;
+}
+.library-cats-label {
+  padding: 0.75rem 0.875rem 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-4);
+}
+.cat-btn {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 3rem;
+  padding: 0 0.875rem;
+  border-radius: var(--r-md);
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-align: right;
+}
+.cat-btn > * + * {
+  margin-right: 0.75rem;
+}
+.cat-btn-big {
+  min-height: 3.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.cat-btn:hover,
+.cat-btn:focus {
+  background: var(--surface);
+  color: var(--ink);
+}
+.cat-btn.is-active {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.cat-count {
+  font-size: 0.8125rem;
+  opacity: 0.8;
+}
+.library-main {
+  -webkit-box-flex: 1;
+  flex-grow: 1;
+  min-width: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 1.375rem 1.75rem 2rem;
+}
+.library-main::-webkit-scrollbar {
+  display: none;
+}
+.library-head {
+  height: 3rem;
+  margin-bottom: 1.125rem;
+}
+.library-head h1 {
+  font-size: 1.5rem;
+}
+
+/* ── التفاصيل ── */
+.detail-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 3rem 1.25rem 1.25rem;
+  padding-top: calc(3rem + var(--safe-top));
+  background: var(--bg-hero);
+}
+.detail-back {
+  position: absolute;
+  top: calc(0.75rem + var(--safe-top));
+  right: 0.75rem;
+}
+.detail-poster {
+  width: 8.5rem;
+  -webkit-box-ordinal-group: 0;
+  order: -1;
+  margin-bottom: 1.25rem;
+  position: relative;
+}
+.detail-poster .poster {
+  border-radius: var(--r-lg);
+}
+.detail-info {
+  position: relative;
+}
+.detail-title {
+  font-size: 1.75rem;
+  line-height: 1.3;
+}
+.detail-meta {
+  font-size: 0.9375rem;
+  color: var(--ink-2);
+}
+.detail-plot {
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: var(--ink-3);
+  max-width: 35rem;
+}
+.detail-actions {
+  margin-top: 0.375rem;
+}
+.detail-actions > * {
+  margin-bottom: 0.5rem;
+}
+.detail-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+}
+.detail-backdrop-scrim {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: -webkit-linear-gradient(right, var(--bg-hero) 35%, var(--scrim) 70%, var(--scrim-soft));
+  background: linear-gradient(to left, var(--bg-hero) 35%, var(--scrim) 70%, var(--scrim-soft));
+}
+.detail-body {
+  padding: 1.5rem 1.25rem 7rem;
+}
+.detail-body p {
+  line-height: 1.7;
+}
+
+.detail-hero-wide {
+  flex-direction: row;
+  align-items: flex-end;
+  min-height: 22.5rem;
+  padding: 2.5rem 3rem 1.75rem;
+}
+.detail-hero-wide .detail-info {
+  -webkit-box-flex: 1;
+  flex-grow: 1;
+  min-width: 0;
+}
+.detail-hero-wide .detail-title {
+  font-size: 2.75rem;
+}
+.detail-hero-wide .detail-poster {
+  width: 12.25rem;
+  -webkit-box-ordinal-group: 2;
+  order: 1;
+  margin: 0 2.5rem 0 0;
+}
+.detail-wide .detail-body {
+  padding: 1.5rem 3rem 2rem;
+}
+.season-bar > .rail {
+  margin: 0;
+  padding: 0.25rem;
+}
+html.tv .season-bar > .rail {
+  margin: 0;
+  padding: 0.375rem;
+}
+.season-bar .chip {
+  height: 2.625rem;
+  font-size: 0.9375rem;
+}
+.episode-card {
+  width: 15.625rem;
+}
+.episode-card .thumb {
+  padding-top: 56%;
+  border-width: 3px;
+  border-radius: var(--r-lg);
+}
+.episode-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: -1.625rem 0 0 -1.625rem;
+  opacity: 0;
+}
+.episode-card:focus .episode-play,
+.episode-card:hover .episode-play {
+  opacity: 1;
+}
+.episode-line {
+  margin-top: 0.5rem;
+}
+.episode-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.episode-row {
+  display: flex;
+  align-items: center;
+  color: var(--ink);
+  padding: 0.375rem;
+  border-radius: var(--r-md);
+}
+.episode-row > * + * {
+  margin-right: 0.875rem;
+}
+.episode-row:hover,
+.episode-row:focus {
+  color: var(--ink);
+  background: var(--surface);
+}
+.episode-row-thumb {
+  width: 8.5rem;
+  flex-shrink: 0;
+}
+
+/* ── الإعدادات ── */
+.panel {
+  padding: 1.25rem;
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.settings-wide {
+  max-width: 48rem;
+}
+.panel-title {
+  font-size: 1.0625rem;
+}
+.account-row {
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--line);
+}
+.inline-badge {
+  margin-right: 0.5rem;
+  vertical-align: middle;
+}
+.facts {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+}
+.facts > div {
+  width: 50%;
+  padding: 0.375rem 0;
+}
+.facts dt {
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+}
+.facts dd {
+  margin: 0;
+  font-weight: 600;
+}
+.choice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 0.5rem 0;
+}
+.choice > .segmented {
+  margin-top: 0.5rem;
+}
+@media (min-width: 600px) {
+  .choice {
+    flex-wrap: nowrap;
+  }
+  .choice > .segmented {
+    margin-top: 0;
+    margin-right: 1rem;
+  }
+}
+.segmented-sm button {
+  -webkit-box-flex: 0;
+  flex: none;
+  height: 2.5rem;
+  padding: 0 1rem;
+}

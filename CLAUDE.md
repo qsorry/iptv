@@ -41,6 +41,7 @@ npm run test:theme   # نظام الثيمات بلا قاعدة بيانات
 npm run test:tracking # محرك التتبّع والإسناد بلا قاعدة بيانات
 npm run test:feeds   # خلاصة المنتجات وحمولة Merchant Center بلا قاعدة بيانات
 npm run test:smoke   # يحتاج قاعدة بيانات فارغة عبر DATABASE_URL (طبّق scripts/migrate.mjs أولاً)؛ يشغّل اختبار الثيمات ثم تدفق الطلب
+npm run test:player  # عند تعديل apps/player: اختبارات الوحدة وtypecheck (بعد npm --prefix apps/player install)
 ```
 للبناء الكامل: `next build` مع متغيرات وهمية (`DATABASE_URL`, `BETTER_AUTH_SECRET`).
 
@@ -79,6 +80,13 @@ npm run test:smoke   # يحتاج قاعدة بيانات فارغة عبر DATA
 - مصدر واحد للكتالوج: `listCatalogRows` + `buildMerchantProduct`؛ لا تبنِ حمولة منتج في مكان آخر.
 - كل تغيير على منتج أو مخزونه يمرّ عبر outbox ثم `merchant_sync_state`؛ لا استدعاء جوجل داخل مسار الحفظ.
 - `payload_hash` يمنع الإرسال العبثي، والمطابقة الليلية تعيد الرفع قبل انتهاء صلاحية المنتج (٣٠ يوماً).
+
+## تطبيق المشغّل (Ssouq Net Player)
+- اقرأ `docs/PLAYER.md` قبل أي تعديل. التطبيق في `apps/player` (Vite + React، مستقل عن Next.js ومستبعد من tsconfig الجذر وDocker)،
+  وخادمه في `src/modules/player` و`src/app/api/v1/player/*` (عامة، CORS مفتوح، محدودة المعدل).
+- التطبيق يتصل بخادم المزوّد مباشرة؛ المنصة لا تمرّر البث ولا تخزّن محتوى. لا بيانات تجريبية داخل `src/` للتطبيق (الوهمي في `scripts/mock-xtream.mjs`).
+- متوافق مع تلفزيونات Chromium 53: لا flex gap ولا grid ولا hex بثمانية أرقام ولا fetch؛ الألوان في `src/styles/tokens.css` فقط.
+- الحزم: `npm run package:tizen|webos|android` داخل `apps/player` بعد `npm run build`.
 
 ## الجاهزية لتطبيق جوال مستقبلي (API-first)
 - منطق الأعمال كله في `src/modules/*` مستقل عن الواجهة، ويُستدعى من الصفحات ومن `src/app/api/v1/*`.

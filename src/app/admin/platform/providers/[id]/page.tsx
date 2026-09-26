@@ -101,6 +101,14 @@ export default async function ProviderReviewPage({ params, searchParams }: { par
         </dl>
       </Card>
 
+      <Card className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex-1 space-y-1">
+          <h2 className="font-semibold">تطبيق المشغّل</h2>
+          <p className="text-sm text-ink-secondary">خوادم المزوّد وبادئات أسماء المستخدمين للتعرّف التلقائي، وأكواد التفعيل.</p>
+        </div>
+        <Link href={`${path}/player`} className={buttonClasses({ variant: "secondary", size: "sm" })}>الخوادم والأكواد</Link>
+      </Card>
+
       {nextStates.length > 0 && (
         <Card className="space-y-3">
           <h2 className="font-semibold">القرار</h2>
@@ -205,6 +213,11 @@ function describe(action: string, v: Record<string, unknown> | null) {
     const st = values.status as SubmissionStatus;
     return `${values.requirement}: ${SUBMISSION_STATUS_LABELS[st] ?? st}`;
   }
+  if (action === "player.server_created") return `إضافة خادم المشغّل: ${values.label}`;
+  if (action === "player.server_updated") return `تعديل خادم المشغّل: ${values.label}`;
+  if (action === "player.server_deleted") return `حذف خادم المشغّل: ${values.label}`;
+  if (action === "player.code_created") return `إصدار كود تفعيل ${values.code}`;
+  if (action === "player.code_revoked") return `إلغاء كود التفعيل ${values.code}`;
   return action;
 }
 
