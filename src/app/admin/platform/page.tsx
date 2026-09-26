@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getAdminContext } from "@/core/tenancy/server";
@@ -5,7 +6,7 @@ import { DEFAULT_PLANS, ensureDefaultPlans, isPlatformAdmin, listStoresWithPlans
 import { AppError } from "@/core/errors";
 import { PageHeader } from "@/components/admin/page-header";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClasses } from "@/components/ui/button";
 
 const PATH = "/admin/platform";
 const selectClass = "rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-base";
@@ -53,7 +54,10 @@ export default async function PlatformPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="max-w-3xl space-y-4">
-      <PageHeader title="إدارة المنصة: باقات المتاجر" />
+      <PageHeader
+        title="إدارة المنصة: باقات المتاجر"
+        action={<Link href="/admin/platform/providers" className={buttonClasses({ variant: "outline", size: "sm" })}>مزوّدو المحتوى</Link>}
+      />
       {error && <p className="rounded-[var(--radius)] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {ok && <p className="rounded-[var(--radius)] border border-green-200 bg-green-50 p-3 text-sm text-green-700">تم تحديث الباقة.</p>}
 

@@ -14,7 +14,8 @@ export type DomainEventName =
   | "product.published"
   | "product.updated"
   | "product.unpublished"
-  | "inventory.changed";
+  | "inventory.changed"
+  | "provider.status_changed";
 
 export interface DomainEvent {
   storeId: string | null;
