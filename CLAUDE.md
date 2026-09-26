@@ -23,6 +23,8 @@
 ## إدارة المنصة
 - مدير المنصة يُحدَّد بمتغير `PLATFORM_ADMIN_EMAILS` (إيميلات مفصولة بفاصلة) ويرى `/admin/platform` لتغيير باقات المتاجر.
 - الباقات الافتراضية في `src/modules/billing/plans.ts` (free / pro / business)؛ الأعلى تنفرد بميزة `subscriptions.api`.
+- مزوّدو المحتوى (`src/modules/providers`): صفحات `/admin/platform/providers` (القائمة والمراجعة) و`/providers/requirements` (تعديل شروط القبول). لا يُقبل مزوّد قبل استيفاء كل شرط مطلوب، والحالات عبر `providerStateMachine`. هذه الصفحات في لوحة الويب فقط وليست في تطبيق المشغّل.
+- الإيقاف التلقائي عند انتهاء مستند: يعمل ضمن مجدول `process-events` مرة كل 6 ساعات (`reviewProvidersIfDue`)، و`POST /api/internal/review-providers` للتشغيل اليدوي.
 
 ## الهجرات
 - تُطبَّق تلقائياً عند إقلاع الحاوية عبر `scripts/migrate.mjs` قبل `server.js`.
@@ -39,6 +41,7 @@ npm run test:theme   # نظام الثيمات بلا قاعدة بيانات
 npm run test:tracking # محرك التتبّع والإسناد بلا قاعدة بيانات
 npm run test:feeds   # خلاصة المنتجات وحمولة Merchant Center بلا قاعدة بيانات
 npm run test:smoke   # يحتاج قاعدة بيانات فارغة عبر DATABASE_URL (طبّق scripts/migrate.mjs أولاً)؛ يشغّل اختبار الثيمات ثم تدفق الطلب
+npm run test:player  # عند تعديل apps/player: اختبارات الوحدة وtypecheck (بعد npm --prefix apps/player install)
 ```
 للبناء الكامل: `next build` مع متغيرات وهمية (`DATABASE_URL`, `BETTER_AUTH_SECRET`).
 
@@ -77,6 +80,14 @@ npm run test:smoke   # يحتاج قاعدة بيانات فارغة عبر DATA
 - مصدر واحد للكتالوج: `listCatalogRows` + `buildMerchantProduct`؛ لا تبنِ حمولة منتج في مكان آخر.
 - كل تغيير على منتج أو مخزونه يمرّ عبر outbox ثم `merchant_sync_state`؛ لا استدعاء جوجل داخل مسار الحفظ.
 - `payload_hash` يمنع الإرسال العبثي، والمطابقة الليلية تعيد الرفع قبل انتهاء صلاحية المنتج (٣٠ يوماً).
+
+## تطبيق المشغّل (Ssouq Net Player)
+- اقرأ `docs/PLAYER.md` قبل أي تعديل. التطبيق في `apps/player` (Vite + React، مستقل عن Next.js ومستبعد من tsconfig الجذر وDocker)،
+  وخادمه في `src/modules/player` و`src/app/api/v1/player/*` (عامة، CORS مفتوح، محدودة المعدل).
+- التطبيق يتصل بخادم المزوّد مباشرة؛ المنصة لا تمرّر البث ولا تخزّن محتوى. لا بيانات تجريبية داخل `src/` للتطبيق (الوهمي في `scripts/mock-xtream.mjs`).
+- متوافق مع تلفزيونات Chromium 53: لا flex gap ولا grid ولا hex بثمانية أرقام ولا fetch؛ الألوان في `src/styles/tokens.css` فقط.
+- الحزم: `npm run package:tizen|webos|android` داخل `apps/player` بعد `npm run build`، ثم `npm run publish:downloads` لتحديث روابط التنزيل.
+- لوحة المشغّل لمدير المنصة: `/admin/platform/player` (من `getPlayerDashboard`). مفتاح توقيع Android خارج المستودع ولا يُرفع أبداً.
 
 ## الجاهزية لتطبيق جوال مستقبلي (API-first)
 - منطق الأعمال كله في `src/modules/*` مستقل عن الواجهة، ويُستدعى من الصفحات ومن `src/app/api/v1/*`.

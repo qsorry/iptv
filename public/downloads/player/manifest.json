@@ -1,0 +1,18 @@
+{
+  "version": "1.0.1",
+  "publishedAt": "2026-09-26T16:51:23.467Z",
+  "files": {
+    "android": {
+      "file": "ssouq-net.apk",
+      "label": "Android وAndroid TV",
+      "bytes": 1076139,
+      "sha256": "a208e8168e38af7e28bd230c6b316a80723448e1f34f3ee9da9a62069541e53a"
+    },
+    "webos": {
+      "file": "ssouq-net-webos.ipk",
+      "label": "LG webOS (وضع المطوّر)",
+      "bytes": 1044158,
+      "sha256": "cbf829179a7276fd76dc277f5bca850483b0491fac7e02be9c2d3335ece4b3ae"
+    }
+  }
+}

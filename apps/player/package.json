@@ -1,0 +1,40 @@
+{
+  "name": "ssouq-net-player",
+  "private": true,
+  "version": "1.0.1",
+  "description": "Ssouq Net — مشغّل وسائط للجوال والتلفاز (Samsung Tizen · LG webOS · VIDAA · Android TV)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "mock": "node scripts/mock-xtream.mjs",
+    "package:tizen": "node scripts/package.mjs tizen",
+    "package:webos": "node scripts/package.mjs webos",
+    "package:android": "node scripts/package.mjs android",
+    "publish:downloads": "node scripts/publish-downloads.mjs"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-sans-arabic": "^5.3.0",
+    "@fontsource/readex-pro": "^5.3.0",
+    "hls.js": "^1.7.3",
+    "mpegts.js": "^1.8.2",
+    "qrcode": "^1.5.4",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-legacy": "^8.2.3",
+    "@vitejs/plugin-react": "^6.1.1",
+    "terser": "^5.51.2",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.1"
+  }
+}

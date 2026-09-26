@@ -106,6 +106,27 @@
       "when": 1788810434966,
       "tag": "0014_blue_wiccan",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1790424543024,
+      "tag": "0015_chief_the_renegades",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790433242660,
+      "tag": "0016_tense_mikhail_rasputin",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790437776756,
+      "tag": "0017_cheerful_banshee",
+      "breakpoints": true
     }
   ]
 }

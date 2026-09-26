@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { processPendingEvents } from "@/modules/system";
+import { reviewProvidersIfDue } from "@/modules/providers";
 
 /**
  * POST /api/internal/process-events
@@ -11,5 +12,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const result = await processPendingEvents();
-  return NextResponse.json(result);
+  // إيقاف مزوّدي المحتوى الذين انتهت مستنداتهم (مرة كل 6 ساعات). فشله لا يوقف معالجة الأحداث.
+  let providers: Awaited<ReturnType<typeof reviewProvidersIfDue>> = null;
+  try {
+    providers = await reviewProvidersIfDue();
+  } catch (error) {
+    console.error("reviewProvidersIfDue failed", error);
+  }
+  return NextResponse.json({ ...result, providersSuspended: providers });
 }

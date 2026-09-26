@@ -33,3 +33,4 @@ npm run dev
 - [قاعدة البيانات](docs/DATABASE.md)
 - [خارطة الطريق](docs/ROADMAP.md)
 - [النشر على Coolify](docs/DEPLOYMENT.md)
+- [تطبيق المشغّل Ssouq Net](docs/PLAYER.md)

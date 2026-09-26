@@ -1,0 +1,235 @@
+/**
+ * اختبار دخاني لخادم تطبيق المشغّل على قاعدة بيانات حقيقية:
+ * خوادم المزوّد وبادئاتها، التعرّف بأطول بادئة، أكواد التفعيل (استبدال، انتهاء، إلغاء)،
+ * وربط التلفاز بالجوال (تسليم مرة واحدة، رمز استطلاع، انتهاء الصلاحية).
+ * التشغيل: DATABASE_URL=... BETTER_AUTH_SECRET=... npx tsx scripts/dev/smoke-player.ts
+ */
+import { eq } from "drizzle-orm";
+import { db } from "@/infrastructure/database/client";
+import { auditLogs, playerActivationCodes, playerActivity, playerPairings } from "@/infrastructure/database/schema";
+import { changeProviderStatus, createProvider, ensureDefaultRequirements, listRequirements, reviewProvidersIfDue, reviewSubmission, type Actor } from "@/modules/providers";
+import { parseDateInput } from "@/lib/dates";
+import {
+  ACTIVATION_CODE_PATTERN,
+  ACTIVITY_DAYS,
+  InvalidActivationCodeError,
+  PAIRING_CLAIM_GRACE_MS,
+  PairingCodeError,
+  UnknownUsernameError,
+  checkActivationCode,
+  countActivationCodes,
+  PAIRING_TTL_MS,
+  completePairing,
+  createActivationCode,
+  createProviderServer,
+  deleteProviderServer,
+  detectServer,
+  findPendingPairing,
+  generateActivationCode,
+  getPlayerDashboard,
+  listActivationCodes,
+  listProviderServers,
+  normalizeActivationCode,
+  normalizePairingCode,
+  normalizeServerUrl,
+  parsePrefixes,
+  platformDay,
+  pollPairing,
+  redeemActivationCode,
+  revokeActivationCode,
+  startPairing,
+  updateProviderServer,
+} from "@/modules/player";
+import { ConflictError, InvalidStateTransitionError, NotFoundError, ValidationError } from "@/core/errors";
+
+const assert = (cond: unknown, msg: string) => {
+  if (!cond) throw new Error(`FAILED: ${msg}`);
+  console.log(`✓ ${msg}`);
+};
+
+async function rejects(fn: () => Promise<unknown>, type: new (...args: never[]) => Error, msg: string) {
+  try {
+    await fn();
+  } catch (e) {
+    assert(e instanceof type, `${msg} (${(e as Error).message})`);
+    return;
+  }
+  throw new Error(`FAILED: ${msg} — لم يُرمَ خطأ`);
+}
+
+const DAY = 24 * 60 * 60 * 1000;
+const actor: Actor = { userId: null, email: "smoke@test" };
+/** بادئات فريدة لكل تشغيل حتى يُعاد الاختبار على نفس القاعدة. */
+const run = String(Date.now()).slice(-6);
+
+async function approvedProvider(name: string) {
+  await ensureDefaultRequirements();
+  const provider = await createProvider({ name }, actor);
+  await changeProviderStatus(provider.id, { to: "under_review" }, actor);
+  const expiry = new Date(Date.now() + 90 * DAY).toISOString().slice(0, 10);
+  for (const req of (await listRequirements({ activeOnly: true })).filter((r) => r.isRequired)) {
+    await reviewSubmission(provider.id, req.id, { status: "accepted", expiresAt: req.hasExpiry ? expiry : "" }, actor);
+  }
+  return provider;
+}
+
+async function main() {
+  // ── الدوال النقية ──
+  assert(ACTIVATION_CODE_PATTERN.test(generateActivationCode()), "الكود المولّد بصيغة SN-XXXX-XXXX");
+  assert(normalizeActivationCode(" sn 8h3k 92pl ") === "SN-8H3K-92PL" && normalizeActivationCode("8H3K92PL") === "SN-8H3K-92PL", "تطبيع الكود من كتابة المستخدم");
+  assert(normalizeActivationCode("SN-123") === null, "الكود الناقص مرفوض");
+  assert(normalizeActivationCode("SNAB-CD23") === "SN-SNAB-CD23" && normalizeActivationCode("sn-snab-cd23") === "SN-SNAB-CD23", "SN لا تُحذف إلا إن كانت بادئة");
+  assert(Array.from({ length: 3000 }, generateActivationCode).every((c) => !c.startsWith("SN-SN")), "لا يُولَّد جزء عشوائي يبدأ بـ SN");
+  assert(normalizeActivationCode(["SN-AAAA-AAAA"]) === null && normalizePairingCode(["ABCD-EFGH"]) === null, "القيم غير النصية مرفوضة بلا استثناء");
+  const endOfDay = parseDateInput("2026-10-01")!;
+  assert(endOfDay.toISOString() === "2026-10-01T20:59:59.999Z", "تاريخ الحقل = نهاية اليوم بتوقيت السعودية");
+  assert(normalizePairingCode("abcd efgh") === "ABCD-EFGH", "تطبيع رمز الربط");
+  assert(normalizeServerUrl("host.tv:8080/player_api.php?username=a") === "http://host.tv:8080", "رابط الخادم يُختصر إلى الأصل");
+  assert(JSON.stringify(parsePrefixes("٣٩٤، 512 512 ABC")) === JSON.stringify(["394", "512", "abc"]), "البادئات تُطبَّع (أرقام عربية، مكرر، حروف كبيرة)");
+
+  // ── الخوادم والبادئات ──
+  const provider = await approvedProvider(`مزوّد المشغّل ${run}`);
+  const p1 = `9${run}`;
+  const p2 = `9${run}7`;
+  const serverA = await createProviderServer(provider.id, { label: "الخادم A", baseUrl: "http://a.example:8080/", prefixes: `${p1}` }, actor);
+  const serverB = await createProviderServer(provider.id, { label: "الخادم B", baseUrl: "https://b.example", prefixes: [p2] }, actor);
+  assert(serverA.baseUrl === "http://a.example:8080", "الخادم يُحفظ بأصل مطبّع");
+  await rejects(() => createProviderServer(provider.id, { label: "مكرر", baseUrl: "http://c.example", prefixes: p1 }, actor), ConflictError, "البادئة المستخدمة مرفوضة");
+  await rejects(() => createProviderServer(provider.id, { label: "سيئ", baseUrl: "ftp://c.example", prefixes: `8${run}` }, actor), ValidationError, "رابط غير http مرفوض");
+  await rejects(() => createProviderServer(provider.id, { label: "بلا بادئة", baseUrl: "http://c.example", prefixes: " " }, actor), ValidationError, "الخادم بلا بادئة مرفوض");
+
+  assert((await detectServer(`${p2}123`)) === null, "لا تعرّف قبل قبول المزوّد");
+  await changeProviderStatus(provider.id, { to: "approved" }, actor);
+  let found = await detectServer(`${p2}123`);
+  assert(found?.server.id === serverB.id && found.provider.name === provider.name, "أطول بادئة تحدد الخادم");
+  found = await detectServer(`${p1}555`);
+  assert(found?.server.id === serverA.id && found.server.url === "http://a.example:8080", "البادئة الأقصر لخادم آخر");
+  const arabic = `${p1}1`.replace(/\d/g, (d) => String.fromCharCode(0x0660 + Number(d)));
+  assert((await detectServer(arabic))?.server.id === serverA.id, "التعرّف يعمل مع الأرقام العربية");
+  assert((await detectServer("0000000")) === null, "اسم مستخدم بلا بادئة معروفة");
+
+  await updateProviderServer(serverB.id, { label: "الخادم B", baseUrl: "https://b.example", prefixes: [p2], isActive: false }, actor);
+  assert((await detectServer(`${p2}123`))?.server.id === serverA.id, "الخادم المعطّل لا يُستخدم ويرجع للبادئة الأقصر");
+  // مزوّد آخر يملك بادئة أطول: إيقافه لا يحوّل مشتركيه إلى خادم مزوّدنا.
+  const other = await approvedProvider(`مزوّد متداخل ${run}`);
+  const otherServer = await createProviderServer(other.id, { label: "خادم المتداخل", baseUrl: "http://other.example", prefixes: `${p1}9` }, actor);
+  await changeProviderStatus(other.id, { to: "approved" }, actor);
+  assert((await detectServer(`${p1}9123`))?.provider.id === other.id, "البادئة الأطول لمزوّد آخر تفوز");
+  await changeProviderStatus(other.id, { to: "suspended", reason: "اختبار" }, actor);
+  assert((await detectServer(`${p1}9123`)) === null, "إيقاف صاحب البادئة الأطول لا يُسقط مشتركيه إلى مزوّد آخر");
+  await updateProviderServer(otherServer.id, { label: "خادم المتداخل", baseUrl: "http://other.example", prefixes: `${p1}9`, isActive: false }, actor);
+  const servers = await listProviderServers(provider.id);
+  assert(servers.length === 2 && servers.find((s) => s.id === serverA.id)?.prefixes[0] === p1, "قائمة الخوادم مع بادئاتها");
+
+  // ── أكواد التفعيل ──
+  const code = await createActivationCode({ serverId: serverA.id, username: `${p1}0001`, password: "s3cret-pass", note: "" }, actor);
+  assert(ACTIVATION_CODE_PATTERN.test(code.code) && code.passwordEncrypted !== "s3cret-pass", "الكود يُصدر وكلمة المرور مشفّرة");
+  const checked = await checkActivationCode(code.code);
+  const [beforeCheck] = await db.select().from(playerActivationCodes).where(eq(playerActivationCodes.id, code.id));
+  assert(checked.provider.name === provider.name && !("password" in checked) && beforeCheck.redemptionCount === 0, "التحقق من الكود بلا استخدام ولا كشف لكلمة المرور");
+  const account = await redeemActivationCode(code.code.toLowerCase().replace(/-/g, " "));
+  assert(account.username === `${p1}0001` && account.password === "s3cret-pass" && account.server.url === "http://a.example:8080", "الكود يُستبدل ببيانات الحساب");
+  await redeemActivationCode(code.code);
+  const [stored] = await db.select().from(playerActivationCodes).where(eq(playerActivationCodes.id, code.id));
+  assert(stored.redemptionCount === 2 && stored.lastRedeemedAt, "الاستبدال يتكرر ويُعدّ (جوال + تلفاز)");
+  await rejects(() => redeemActivationCode("SN-AAAA-AAAA"), InvalidActivationCodeError, "كود غير موجود مرفوض");
+  await rejects(() => createActivationCode({ serverId: serverA.id, username: "u", password: "p", expiresAt: new Date(Date.now() - DAY).toISOString() }, actor), ValidationError, "كود بتاريخ منتهٍ مرفوض");
+
+  const expiring = await createActivationCode({ serverId: serverA.id, username: "u2", password: "p2", expiresAt: new Date(Date.now() + DAY).toISOString() }, actor);
+  await rejects(() => redeemActivationCode(expiring.code, new Date(Date.now() + 2 * DAY)), InvalidActivationCodeError, "الكود المنتهي مرفوض");
+
+  await revokeActivationCode(code.id, actor);
+  await rejects(() => redeemActivationCode(code.code), InvalidActivationCodeError, "الكود الملغى مرفوض");
+  await rejects(() => revokeActivationCode(code.id, actor), InvalidStateTransitionError, "لا إلغاء مرتين");
+  const byUser = await listActivationCodes(provider.id, { q: `${p1}000` });
+  const byCodeSearch = await listActivationCodes(provider.id, { q: expiring.code.slice(-4).toLowerCase() });
+  const noWild = await listActivationCodes(provider.id, { q: "%" });
+  assert(byUser.length === 1 && byCodeSearch.some((c) => c.id === expiring.id) && noWild.length === 0, "البحث بالكود واسم المستخدم (بلا أحرف بدل)");
+  const counts = await countActivationCodes(provider.id);
+  assert(counts.total === 2 && counts.usable === 1, "العدّ: الصالح الآن من الإجمالي");
+  const listed = await listActivationCodes(provider.id);
+  assert(listed.length === 2 && listed.every((c) => !("passwordEncrypted" in c)), "قائمة الأكواد بلا كلمات مرور");
+
+  // ── ربط التلفاز ──
+  const pairing = await startPairing();
+  assert(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(pairing.code) && pairing.pairUrl.includes(encodeURIComponent(pairing.code)), "التلفاز يحصل على رمز ورابط QR");
+  assert((await pollPairing(pairing.id, pairing.pollToken)).status === "pending", "الاستطلاع قبل الإرسال: pending");
+  await rejects(() => pollPairing(pairing.id, "wrong-token"), NotFoundError, "رمز استطلاع خاطئ مرفوض");
+  await rejects(() => pollPairing("not-a-uuid", pairing.pollToken), NotFoundError, "معرّف غير صالح مرفوض");
+  assert((await findPendingPairing(pairing.code.toLowerCase())) !== null, "صفحة الجوال تجد الطلب");
+  await rejects(() => completePairing({ pairCode: pairing.code, username: "0000000", password: "x" }), UnknownUsernameError, "اسم مستخدم بلا مزوّد معروف مرفوض");
+  await rejects(() => completePairing({ pairCode: pairing.code }), ValidationError, "لا إرسال بلا كود أو بيانات");
+
+  const arabicUser = `${p1}0002`.replace(/\d/g, (d) => String.fromCharCode(0x0660 + Number(d)));
+  const sent = await completePairing({ pairCode: pairing.code.replace("-", ""), username: arabicUser, password: "tv-pass" });
+  assert((await db.select().from(playerActivity).where(eq(playerActivity.providerId, provider.id))).every((a) => a.kind !== "tv_paired"), "ربط التلفاز لا يُسجَّل قبل استلام التلفاز");
+  assert(sent.serverLabel === "الخادم A", "الجوال يرسل الحساب بعد التعرّف على الخادم");
+  await rejects(() => completePairing({ pairCode: pairing.code, username: `${p1}0002`, password: "x" }), PairingCodeError, "لا إكمال للطلب مرتين");
+  const got = await pollPairing(pairing.id, pairing.pollToken);
+  assert(got.status === "completed" && got.account.password === "tv-pass" && got.account.server.url === "http://a.example:8080", "التلفاز يستلم الحساب");
+  assert(got.status === "completed" && got.account.username === `${p1}0002`, "اسم المستخدم يصل للتلفاز بأرقام لاتينية");
+  assert((await pollPairing(pairing.id, pairing.pollToken)).status === "consumed", "الحساب يُسلَّم مرة واحدة فقط");
+  const [row] = await db.select().from(playerPairings).where(eq(playerPairings.id, pairing.id));
+  assert(row.payloadEncrypted === null, "الحمولة تُمسح بعد التسليم");
+
+  const byCode = await startPairing();
+  const fresh = await createActivationCode({ serverId: serverA.id, username: "u3", password: "p3" }, actor);
+  await completePairing({ pairCode: byCode.code, activationCode: fresh.code });
+  const viaCode = await pollPairing(byCode.id, byCode.pollToken);
+  assert(viaCode.status === "completed" && viaCode.account.username === "u3", "الربط بكود التفعيل");
+
+  // إكمال قبيل الانتهاء: للتلفاز مهلة استلام بعده.
+  const edge = await startPairing();
+  const justBefore = new Date(edge.expiresAt.getTime() - 1000);
+  await completePairing({ pairCode: edge.code, activationCode: fresh.code }, justBefore);
+  const claimed = await pollPairing(edge.id, edge.pollToken, new Date(edge.expiresAt.getTime() + 5000));
+  assert(claimed.status === "completed", "حساب أُرسل قبيل الانتهاء يستلمه التلفاز خلال المهلة");
+  const lateClaim = await startPairing();
+  await completePairing({ pairCode: lateClaim.code, activationCode: fresh.code }, new Date(lateClaim.expiresAt.getTime() - 1000));
+  assert((await pollPairing(lateClaim.id, lateClaim.pollToken, new Date(lateClaim.expiresAt.getTime() + PAIRING_CLAIM_GRACE_MS + 1000))).status === "expired", "بعد المهلة ينتهي ولا يُسلَّم");
+
+  const late = await startPairing();
+  const after = new Date(Date.now() + PAIRING_TTL_MS + 1000);
+  await rejects(() => completePairing({ pairCode: late.code, activationCode: fresh.code }, after), PairingCodeError, "لا إكمال بعد انتهاء الرمز");
+  assert((await pollPairing(late.id, late.pollToken, after)).status === "expired", "الرمز ينتهي بعد مدته");
+
+  // ── سجل النشاط ولوحة المشغّل ──
+  const activity = await db.select().from(playerActivity).where(eq(playerActivity.providerId, provider.id));
+  const kinds = activity.map((a) => a.kind).sort();
+  assert(JSON.stringify(kinds) === JSON.stringify(["code_redeemed", "code_redeemed", "tv_paired", "tv_paired", "tv_paired"]), "كل دخول يُسجَّل مرة واحدة (الربط بكود لا يُحسب مرتين، والربط غير المستلم لا يُحسب)");
+  assert(activity.some((a) => a.kind === "tv_paired" && a.codeId === fresh.id) && activity.some((a) => a.kind === "tv_paired" && a.codeId === null), "الربط يحفظ الكود إن استُخدم");
+  const dash = await getPlayerDashboard();
+  const mine = dash.providers.find((p) => p.id === provider.id)!;
+  assert(mine.activeServers === 1 && mine.servers === 2 && mine.prefixes === 1, "اللوحة: الخوادم المفعّلة وبادئاتها فقط (بادئة الخادم المعطّل لا تُحسب)");
+  assert(mine.totalCodes === 3 && mine.activeCodes === 2 && mine.redemptions === 5, "اللوحة: الأكواد الفعّالة والاستخدام");
+  assert(dash.daily.length === ACTIVITY_DAYS && dash.daily[ACTIVITY_DAYS - 1].day === platformDay(new Date()) && dash.daily[ACTIVITY_DAYS - 1].total >= 4, "اللوحة: سلسلة 14 يوماً تنتهي باليوم");
+  assert(dash.kpis.week.codes >= 2 && dash.kpis.week.pairings >= 2 && dash.recent.some((r) => r.providerId === provider.id), "اللوحة: مؤشرات الأسبوع وآخر العمليات");
+  assert(dash.issuableServers.some((x) => x.id === serverA.id) && !dash.issuableServers.some((x) => x.id === serverB.id), "اللوحة: الإصدار السريع على الخوادم المفعّلة فقط");
+  assert(platformDay(new Date("2026-01-01T22:30:00Z")) === "2026-01-02", "الأيام بتوقيت السعودية");
+
+  // ── إيقاف المزوّد يوقف التطبيق ──
+  await changeProviderStatus(provider.id, { to: "suspended", reason: "اختبار" }, actor);
+  assert((await detectServer(`${p1}555`)) === null, "المزوّد الموقوف لا يُتعرّف عليه");
+  const dashAfter = await getPlayerDashboard();
+  assert(dashAfter.warnings.blockedWithCodes.some((p) => p.id === provider.id), "اللوحة تنبّه لأكواد فعّالة لمزوّد موقوف");
+  await rejects(() => redeemActivationCode(fresh.code), InvalidActivationCodeError, "أكواد المزوّد الموقوف لا تعمل");
+
+  const logs = await db.select().from(auditLogs).where(eq(auditLogs.entityId, provider.id));
+  assert(["player.server_created", "player.server_updated", "player.code_created", "player.code_revoked"].every((a) => logs.some((l) => l.action === a)), "إدارة الخوادم والأكواد مسجّلة في سجل المزوّد");
+
+  await deleteProviderServer(serverA.id, actor);
+  const [gone] = await db.select().from(playerActivationCodes).where(eq(playerActivationCodes.id, fresh.id));
+  assert(!gone, "حذف الخادم يحذف أكواده");
+
+  const firstReview = await reviewProvidersIfDue();
+  assert(Array.isArray(firstReview) && (await reviewProvidersIfDue()) === null, "الإيقاف التلقائي من مجدول الأحداث مرة كل 6 ساعات على الأكثر");
+
+  console.log("\nكل اختبارات خادم المشغّل نجحت");
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
