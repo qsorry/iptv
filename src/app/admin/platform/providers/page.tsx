@@ -41,6 +41,7 @@ export default async function ProvidersPage({ searchParams }: { searchParams: Pr
         title="مزوّدو المحتوى"
         action={
           <div className="flex flex-wrap gap-2">
+            <Link href="/admin/platform/player" className={buttonClasses({ variant: "secondary", size: "sm" })}>تطبيق المشغّل</Link>
             <Link href="/admin/platform/providers/requirements" className={buttonClasses({ variant: "outline", size: "sm" })}>شروط القبول</Link>
             <Link href="/admin/platform" className={buttonClasses({ variant: "ghost", size: "sm" })}>باقات المتاجر</Link>
           </div>

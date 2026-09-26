@@ -9,6 +9,7 @@ import { parseInput } from "@/modules/providers/validations";
 import { createCodeSchema } from "../validations";
 import { generateActivationCode, normalizeActivationCode } from "../domain/codes";
 import { auditProvider, listProviderServers } from "./servers";
+import { recordActivity } from "./activity";
 
 /** ما يحتاجه التطبيق لتسجيل الدخول على خادم Xtream. */
 export interface PlayerAccount {
@@ -95,11 +96,19 @@ export async function revokeActivationCode(codeId: string, actor: Actor) {
   });
 }
 
+/** نتيجة الاستبدال مع المعرّفات اللازمة لسجل النشاط. */
+export interface Redemption {
+  account: PlayerAccount;
+  providerId: string;
+  serverId: string;
+  codeId: string;
+}
+
 /**
- * يستبدل الكود ببيانات الحساب. يعمل عدة مرات (جوال وتلفاز لنفس المشترك) ما دام الكود فعّالاً
- * وغير منتهٍ، والخادم مفعّلاً، والمزوّد مقبولاً.
+ * يستبدل الكود ببيانات الحساب ويزيد عدّاده، دون تسجيل نشاط (يسجّله المستدعي بنوعه:
+ * دخول مباشر بالكود، أو ربط تلفاز استخدم الكود).
  */
-export async function redeemActivationCode(input: string, now = new Date()): Promise<PlayerAccount> {
+export async function redeemCode(input: string, now = new Date()): Promise<Redemption> {
   const code = normalizeActivationCode(input);
   if (!code) throw new InvalidActivationCodeError();
   const [row] = await db
@@ -116,11 +125,26 @@ export async function redeemActivationCode(input: string, now = new Date()): Pro
     .where(eq(playerActivationCodes.id, row.code.id));
 
   return {
-    provider: { name: row.providerName },
-    server: { label: row.server.label, url: row.server.baseUrl },
-    username: row.code.username,
-    password: decryptSecret(row.code.passwordEncrypted),
+    account: {
+      provider: { name: row.providerName },
+      server: { label: row.server.label, url: row.server.baseUrl },
+      username: row.code.username,
+      password: decryptSecret(row.code.passwordEncrypted),
+    },
+    providerId: row.server.providerId,
+    serverId: row.server.id,
+    codeId: row.code.id,
   };
+}
+
+/**
+ * يستبدل الكود ببيانات الحساب (دخول التطبيق مباشرة بالكود). يعمل عدة مرات (جوال وتلفاز لنفس
+ * المشترك) ما دام الكود فعّالاً وغير منتهٍ، والخادم مفعّلاً، والمزوّد مقبولاً.
+ */
+export async function redeemActivationCode(input: string, now = new Date()): Promise<PlayerAccount> {
+  const r = await redeemCode(input, now);
+  await recordActivity(db, { kind: "code_redeemed", providerId: r.providerId, serverId: r.serverId, codeId: r.codeId, at: now });
+  return r.account;
 }
 
 /** كل ما تحتاجه صفحة إعدادات المشغّل لمزوّد واحد. */

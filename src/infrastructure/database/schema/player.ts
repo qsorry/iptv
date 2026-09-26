@@ -75,3 +75,20 @@ export const playerPairings = pgTable(
   },
   (t) => [index("player_pairings_expires_idx").on(t.expiresAt)],
 );
+
+/**
+ * سجل ما يمر عبر المنصة من دخول للتطبيق (للوحة المشغّل): استبدال كود، أو إكمال ربط تلفاز.
+ * الدخول باسم المستخدم يتحقق منه خادم المزوّد مباشرة فلا يمر هنا.
+ */
+export const playerActivity = pgTable(
+  "player_activity",
+  {
+    id: id(),
+    kind: text("kind").notNull(), // code_redeemed | tv_paired
+    providerId: uuid("provider_id").references(() => contentProviders.id, { onDelete: "cascade" }).notNull(),
+    serverId: uuid("server_id").references(() => providerServers.id, { onDelete: "set null" }),
+    codeId: uuid("code_id").references(() => playerActivationCodes.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("player_activity_created_idx").on(t.createdAt), index("player_activity_provider_idx").on(t.providerId)],
+);

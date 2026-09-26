@@ -86,7 +86,8 @@ npm run test:player  # عند تعديل apps/player: اختبارات الوح�
   وخادمه في `src/modules/player` و`src/app/api/v1/player/*` (عامة، CORS مفتوح، محدودة المعدل).
 - التطبيق يتصل بخادم المزوّد مباشرة؛ المنصة لا تمرّر البث ولا تخزّن محتوى. لا بيانات تجريبية داخل `src/` للتطبيق (الوهمي في `scripts/mock-xtream.mjs`).
 - متوافق مع تلفزيونات Chromium 53: لا flex gap ولا grid ولا hex بثمانية أرقام ولا fetch؛ الألوان في `src/styles/tokens.css` فقط.
-- الحزم: `npm run package:tizen|webos|android` داخل `apps/player` بعد `npm run build`.
+- الحزم: `npm run package:tizen|webos|android` داخل `apps/player` بعد `npm run build`، ثم `npm run publish:downloads` لتحديث روابط التنزيل.
+- لوحة المشغّل لمدير المنصة: `/admin/platform/player` (من `getPlayerDashboard`). مفتاح توقيع Android خارج المستودع ولا يُرفع أبداً.
 
 ## الجاهزية لتطبيق جوال مستقبلي (API-first)
 - منطق الأعمال كله في `src/modules/*` مستقل عن الواجهة، ويُستدعى من الصفحات ومن `src/app/api/v1/*`.

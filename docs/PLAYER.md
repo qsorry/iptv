@@ -10,7 +10,8 @@
 |---|---|---|
 | التطبيق | `apps/player` | React + TypeScript + Vite. حزمة واحدة لكل الأجهزة، تعمل من `file://` على التلفزيونات. |
 | خادم المنصة | `src/modules/player` + `src/app/api/v1/player/*` | التعرّف على المزوّد، أكواد التفعيل، ربط التلفاز بالجوال. |
-| الإدارة | `/admin/platform/providers/[id]/player` | خوادم المزوّد وبادئات أسماء المستخدمين وأكواد التفعيل (لمدير المنصة). |
+| لوحة المشغّل | `/admin/platform/player` (رابط «تطبيق المشغّل» في القائمة الجانبية لمديري المنصة) | المؤشرات، الدخول اليومي، المزوّدون، آخر العمليات، إصدار كود سريع، وتنزيل التطبيق. |
+| إعدادات مزوّد | `/admin/platform/providers/[id]/player` | خوادم المزوّد وبادئات أسماء المستخدمين وأكواد التفعيل (لمدير المنصة). |
 | ربط التلفاز | `/player/pair` | الصفحة التي يفتحها الجوال بعد مسح QR الظاهر على التلفاز. |
 
 ## كيف يسجّل المستخدم الدخول
@@ -32,6 +33,7 @@
 | `provider_username_prefixes` | بادئات أسماء المستخدمين، فريدة على مستوى المنصة (أطول بادئة تفوز) |
 | `player_activation_codes` | الأكواد: الخادم، اسم المستخدم، كلمة المرور **مشفّرة** (AES-GCM)، الحالة، الانتهاء، عدد الاستخدام |
 | `player_pairings` | طلبات الربط: رمز قصير، بصمة رمز الاستطلاع، حمولة مشفّرة تُمسح بعد الاستلام، صلاحية 10 دقائق |
+| `player_activity` | كل دخول مرّ عبر المنصة: `code_redeemed` (دخول التطبيق بكود) أو `tv_paired` (ربط تلفاز، ولو بكود — يُحسب مرة واحدة). مصدر لوحة المشغّل |
 
 - الحالات عبر `activationCodeStateMachine` (active → revoked) و`pairingStateMachine` (pending → completed → consumed / expired).
 - كل إضافة/تعديل/حذف لخادم وإصدار/إلغاء كود يُسجَّل في `audit_logs` ويظهر في سجل صفحة المزوّد.
@@ -93,6 +95,25 @@ ANDROID_HOME=… npm run package:android   # APK للجوال وAndroid TV
 | VIDAA / المتصفح | موقع | `apps/player/Dockerfile` (nginx) كتطبيق Coolify منفصل بـ Base Directory = `apps/player`. |
 
 الإصدار واحد لكل المنصات من `apps/player/package.json` (يُكتب في config.xml وappinfo.json وversionName/versionCode).
+
+### نشر التنزيلات على موقع المنصة
+
+لوحة المشغّل تعرض روابط التنزيل من `public/downloads/player/` (روابط ثابتة: `/downloads/player/ssouq-net.apk`
+و`/downloads/player/ssouq-net-webos.ipk`، مع `manifest.json` بالإصدار والحجم وSHA-256). لتحديثها:
+
+```bash
+cd apps/player
+npm version patch --no-git-tag-version       # رفع الإصدار
+npm run build
+SSOUQ_KEYSTORE=/مسار/ssouq-net-release.jks SSOUQ_KEYSTORE_PASSWORD=… SSOUQ_KEY_ALIAS=ssouq-net SSOUQ_KEY_PASSWORD=… \
+  ANDROID_HOME=… npm run package:android
+npm run package:webos && npx -p @webos-tools/cli ares-package release/webos -o release
+npm run publish:downloads                    # يرفض نسخة debug
+```
+
+**مفتاح توقيع Android** (`ssouq-net-release.jks`) خارج المستودع ويحتفظ به صاحب المنصة. كل تحديث يجب أن يُوقَّع بنفس المفتاح،
+وإلا يرفض Android تثبيته فوق النسخة القديمة (على المستخدم حذف التطبيق أولاً). بصمة الشهادة الحالية (SHA-256):
+`45:7D:35:7C:66:65:A8:25:4F:3D:C7:97:AC:F2:E2:44:F9:89:10:A7:E4:D4:E4:01:F8:4D:1F:6F:AE:E2:1D:B2`.
 
 ## حدود معروفة
 

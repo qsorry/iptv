@@ -8,7 +8,8 @@ import { env } from "@/lib/env";
 import { parseInput } from "@/modules/providers/validations";
 import { completePairingSchema } from "../validations";
 import { generatePairingCode, generatePollToken, hashToken, normalizePairingCode, tokenMatches } from "../domain/codes";
-import { redeemActivationCode, type PlayerAccount } from "./codes";
+import { redeemCode, type PlayerAccount } from "./codes";
+import { recordActivity } from "./activity";
 import { detectServer } from "./servers";
 
 /** مدة صلاحية رمز الربط الظاهر على التلفاز. */
@@ -59,12 +60,16 @@ export async function completePairing(input: unknown, now = new Date()) {
   if (!pending) throw new ValidationError(INVALID_PAIR_CODE);
 
   let account: PlayerAccount;
+  let activity: { providerId: string; serverId: string; codeId: string | null };
   if (data.activationCode) {
-    account = await redeemActivationCode(data.activationCode, now);
+    const r = await redeemCode(data.activationCode, now);
+    account = r.account;
+    activity = { providerId: r.providerId, serverId: r.serverId, codeId: r.codeId };
   } else {
     const detected = await detectServer(data.username!);
     if (!detected) throw new ValidationError("لم نتعرّف على مزوّد لاسم المستخدم هذا. استخدم كود التفعيل بدلاً منه.");
     account = { provider: { name: detected.provider.name }, server: { label: detected.server.label, url: detected.server.url }, username: data.username!, password: data.password! };
+    activity = { providerId: detected.provider.id, serverId: detected.server.id, codeId: null };
   }
 
   pairingStateMachine.assertTransition("pending", "completed");
@@ -74,6 +79,7 @@ export async function completePairing(input: unknown, now = new Date()) {
     .where(and(eq(playerPairings.code, pending.code), eq(playerPairings.status, "pending")))
     .returning({ id: playerPairings.id });
   if (!updated) throw new ValidationError(INVALID_PAIR_CODE);
+  await recordActivity(db, { kind: "tv_paired", ...activity, at: now });
   return { providerName: account.provider.name, serverLabel: account.server.label };
 }
 

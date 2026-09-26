@@ -26,6 +26,12 @@ const nav: { href: string; label: string; icon: keyof typeof icons; badge?: keyo
   { href: "/admin/settings", label: "الإعدادات", icon: "gear" },
 ];
 
+/** لمديري المنصة فقط (PLATFORM_ADMIN_EMAILS). */
+const platformNav: { href: string; label: string; icon: keyof typeof icons; badge?: keyof Badges }[] = [
+  { href: "/admin/platform/player", label: "تطبيق المشغّل", icon: "tv" },
+  { href: "/admin/platform", label: "إدارة المنصة", icon: "gear" },
+];
+
 const icons = {
   home: "M3 11.5 12 4l9 7.5M5 10v10h5v-6h4v6h5V10",
   box: "M12 3 3 7.5v9L12 21l9-4.5v-9L12 3ZM3 7.5 12 12l9-4.5M12 12v9",
@@ -40,6 +46,7 @@ const icons = {
   page: "M6 3h9l5 5v13H6V3Zm9 0v5h5M9 12h6M9 16h6",
   megaphone: "M3 11v2a1 1 0 0 0 1 1h2l4 4V6L6 10H4a1 1 0 0 0-1 1Zm12-4v10a4 4 0 0 0 0-10Z",
   plug: "M9 3v4m6-4v4M6 7h12v3a6 6 0 0 1-12 0V7Zm6 9v5",
+  tv: "M3 7h18v12H3V7Zm5-4 4 4 4-4",
   gear: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm7.4-3a7.4 7.4 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2l-.4-2.6H9.5l-.4 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7.4 7.4 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2l.4 2.6h5l.4-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.06-.4.1-.8.1-1.2Z",
 } as const;
 
@@ -70,6 +77,11 @@ export function AdminShell({
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const items = [...nav, ...(platformAdmin ? platformNav : [])];
+  // الأطول تطابقاً فقط: /admin/platform/player يفعّل «تطبيق المشغّل» لا «إدارة المنصة» أيضاً.
+  const activeHref = items
+    .filter((item) => pathname === item.href || pathname.startsWith(item.href + "/"))
+    .reduce<string | null>((best, item) => (!best || item.href.length > best.length ? item.href : best), null);
 
   const Sidebar = () => (
     <div className="flex h-full flex-col bg-gradient-to-b from-[#0b3b45] to-[#062830] text-white/90">
@@ -102,8 +114,8 @@ export function AdminShell({
 
       {/* التنقل */}
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 pb-4">
-        {[...nav, ...(platformAdmin ? [{ href: "/admin/platform", label: "إدارة المنصة", icon: "gear" as const }] : [])].map((item) => {
-          const active = pathname === item.href || pathname.startsWith(item.href + "/");
+        {items.map((item) => {
+          const active = item.href === activeHref;
           const count = item.badge ? badges[item.badge] : 0;
           return (
             <Link

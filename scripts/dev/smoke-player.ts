@@ -6,10 +6,11 @@
  */
 import { eq } from "drizzle-orm";
 import { db } from "@/infrastructure/database/client";
-import { auditLogs, playerActivationCodes, playerPairings } from "@/infrastructure/database/schema";
+import { auditLogs, playerActivationCodes, playerActivity, playerPairings } from "@/infrastructure/database/schema";
 import { changeProviderStatus, createProvider, ensureDefaultRequirements, listRequirements, reviewSubmission, type Actor } from "@/modules/providers";
 import {
   ACTIVATION_CODE_PATTERN,
+  ACTIVITY_DAYS,
   InvalidActivationCodeError,
   PAIRING_TTL_MS,
   completePairing,
@@ -19,12 +20,14 @@ import {
   detectServer,
   findPendingPairing,
   generateActivationCode,
+  getPlayerDashboard,
   listActivationCodes,
   listProviderServers,
   normalizeActivationCode,
   normalizePairingCode,
   normalizeServerUrl,
   parsePrefixes,
+  platformDay,
   pollPairing,
   redeemActivationCode,
   revokeActivationCode,
@@ -149,9 +152,25 @@ async function main() {
   await rejects(() => completePairing({ pairCode: late.code, activationCode: fresh.code }, after), ValidationError, "لا إكمال بعد انتهاء الرمز");
   assert((await pollPairing(late.id, late.pollToken, after)).status === "expired", "الرمز ينتهي بعد مدته");
 
+  // ── سجل النشاط ولوحة المشغّل ──
+  const activity = await db.select().from(playerActivity).where(eq(playerActivity.providerId, provider.id));
+  const kinds = activity.map((a) => a.kind).sort();
+  assert(JSON.stringify(kinds) === JSON.stringify(["code_redeemed", "code_redeemed", "tv_paired", "tv_paired"]), "كل دخول يُسجَّل مرة واحدة (الربط بكود لا يُحسب مرتين)");
+  assert(activity.some((a) => a.kind === "tv_paired" && a.codeId === fresh.id) && activity.some((a) => a.kind === "tv_paired" && a.codeId === null), "الربط يحفظ الكود إن استُخدم");
+  const dash = await getPlayerDashboard();
+  const mine = dash.providers.find((p) => p.id === provider.id)!;
+  assert(mine.activeServers === 1 && mine.servers === 2 && mine.prefixes === 2, "اللوحة: الخوادم المفعّلة والبادئات");
+  assert(mine.totalCodes === 3 && mine.activeCodes === 2 && mine.redemptions === 3, "اللوحة: الأكواد الفعّالة والاستخدام");
+  assert(dash.daily.length === ACTIVITY_DAYS && dash.daily[ACTIVITY_DAYS - 1].day === platformDay(new Date()) && dash.daily[ACTIVITY_DAYS - 1].total >= 4, "اللوحة: سلسلة 14 يوماً تنتهي باليوم");
+  assert(dash.kpis.week.codes >= 2 && dash.kpis.week.pairings >= 2 && dash.recent.some((r) => r.providerId === provider.id), "اللوحة: مؤشرات الأسبوع وآخر العمليات");
+  assert(dash.issuableServers.some((x) => x.id === serverA.id) && !dash.issuableServers.some((x) => x.id === serverB.id), "اللوحة: الإصدار السريع على الخوادم المفعّلة فقط");
+  assert(platformDay(new Date("2026-01-01T22:30:00Z")) === "2026-01-02", "الأيام بتوقيت السعودية");
+
   // ── إيقاف المزوّد يوقف التطبيق ──
   await changeProviderStatus(provider.id, { to: "suspended", reason: "اختبار" }, actor);
   assert((await detectServer(`${p1}555`)) === null, "المزوّد الموقوف لا يُتعرّف عليه");
+  const dashAfter = await getPlayerDashboard();
+  assert(dashAfter.warnings.blockedWithCodes.some((p) => p.id === provider.id), "اللوحة تنبّه لأكواد فعّالة لمزوّد موقوف");
   await rejects(() => redeemActivationCode(fresh.code), InvalidActivationCodeError, "أكواد المزوّد الموقوف لا تعمل");
 
   const logs = await db.select().from(auditLogs).where(eq(auditLogs.entityId, provider.id));

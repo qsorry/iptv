@@ -13,7 +13,8 @@
     "mock": "node scripts/mock-xtream.mjs",
     "package:tizen": "node scripts/package.mjs tizen",
     "package:webos": "node scripts/package.mjs webos",
-    "package:android": "node scripts/package.mjs android"
+    "package:android": "node scripts/package.mjs android",
+    "publish:downloads": "node scripts/publish-downloads.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-sans-arabic": "^5.3.0",

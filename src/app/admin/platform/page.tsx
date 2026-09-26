@@ -56,7 +56,12 @@ export default async function PlatformPage({ searchParams }: { searchParams: Pro
     <div className="max-w-3xl space-y-4">
       <PageHeader
         title="إدارة المنصة: باقات المتاجر"
-        action={<Link href="/admin/platform/providers" className={buttonClasses({ variant: "outline", size: "sm" })}>مزوّدو المحتوى</Link>}
+        action={
+          <div className="flex flex-wrap gap-2">
+            <Link href="/admin/platform/player" className={buttonClasses({ variant: "secondary", size: "sm" })}>تطبيق المشغّل</Link>
+            <Link href="/admin/platform/providers" className={buttonClasses({ variant: "outline", size: "sm" })}>مزوّدو المحتوى</Link>
+          </div>
+        }
       />
       {error && <p className="rounded-[var(--radius)] border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {ok && <p className="rounded-[var(--radius)] border border-green-200 bg-green-50 p-3 text-sm text-green-700">تم تحديث الباقة.</p>}
