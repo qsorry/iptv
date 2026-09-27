@@ -27,10 +27,13 @@ export interface EngineOptions {
   onTracks?(): void;
 }
 
-export function streamKind(url: string): "hls" | "ts" | "file" {
+export function streamKind(url: string, live = false): "hls" | "ts" | "file" {
   const path = url.split("?")[0].toLowerCase();
   if (path.endsWith(".m3u8") || /[?&](type|output)=m3u8/i.test(url)) return "hls";
   if (path.endsWith(".ts")) return "ts";
+  // بث مباشر بلا امتداد (http://host:port/user/pass/123 في قوائم M3U من لوحات Xtream) هو MPEG-TS،
+  // وChromium (ومنه WebView أندرويد) لا يشغّله أصلياً.
+  if (live && !/\.[a-z0-9]{2,5}$/.test(path.slice(path.lastIndexOf("/") + 1))) return "ts";
   return "file";
 }
 
@@ -89,7 +92,7 @@ export async function attachStream(video: HTMLVideoElement, url: string, opts: E
     opts.onError("المتصفح يمنع تشغيل روابط http داخل صفحة https. شغّل هذا البث من تطبيق التلفاز أو الجوال.");
     return { destroy() {}, ...NO_TRACKS, subtitleTracks: () => [], setSubtitleTrack: () => undefined, subtitleTrack: () => -1 };
   }
-  const kind = streamKind(url);
+  const kind = streamKind(url, opts.live);
 
   if (kind === "hls" && video.canPlayType("application/vnd.apple.mpegurl") === "") {
     const { default: Hls } = await import("hls.js");
@@ -134,7 +137,9 @@ export async function attachStream(video: HTMLVideoElement, url: string, opts: E
   if (kind === "ts") {
     const { default: mpegts } = await import("mpegts.js");
     if (mpegts.isSupported()) {
-      const player = mpegts.createPlayer({ type: "mpegts", isLive: opts.live, url }, { enableWorker: true, lazyLoad: !opts.live, liveBufferLatencyChasing: opts.live, autoCleanupSourceBuffer: true });
+      // لا ملاحقة لزمن البث: خوادم IPTV ترسل على دفعات، وملاحقة التأخير (1.5 ث افتراضياً) تقفز للأمام
+      // وتُبقي نصف ثانية مخزّنة فقط، فيتقطع البث عند أي تذبذب في الشبكة.
+      const player = mpegts.createPlayer({ type: "mpegts", isLive: opts.live, url }, { enableWorker: true, lazyLoad: !opts.live, liveBufferLatencyChasing: false, liveSync: false, autoCleanupSourceBuffer: true });
       player.on(mpegts.Events.ERROR, (type: string) => {
         opts.onError(type === mpegts.ErrorTypes.NETWORK_ERROR ? "انقطع الاتصال بخادم البث." : "تعذّر تشغيل هذا البث على هذا الجهاز.");
       });
